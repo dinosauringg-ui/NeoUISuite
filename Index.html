@@ -1,0 +1,2405 @@
+<!DOCTYPE html>
+<html lang="en" style="--nui-bg: #0D0E24; --nui-surface: #161A3A; --nui-surface-2: #222652; --nui-border: #3C3F75; --nui-text: #EDEBFF; --nui-text-muted: #A7A8D9; --nui-text-faint: #6F71A8; --nui-accent: #FF4FD8; --nui-accent-ink: #1A0A16; --nui-accent-soft: #4A1E45; --nui-accent-2: #4FE0FF; --nui-accent-2-soft: #163C45; --nui-success: #4FE0A0; --nui-success-soft: #163A2E; --nui-warning: #FFD24F; --nui-danger: #FF5C7A; --nui-shadow: rgba(0, 0, 0, 0.55);">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeoUI: Unified Suite — Neopets, repainted</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"TP Cafeteria";src:url("https://images.neopets.com/vending/fonts/cafeteria-black/cafeteria-black.otf") format("opentype");font-display:swap}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* Base Tokens - Dynamically overwritten by JS on theme swap */
+:root {
+  --nui-bg: #0D0E24;
+  --nui-surface: #161A3A;
+  --nui-surface-2: #222652;
+  --nui-border: #3C3F75;
+  --nui-text: #EDEBFF;
+  --nui-text-muted: #A7A8D9;
+  --nui-text-faint: #6F71A8;
+  --nui-accent: #FF4FD8;
+  --nui-accent-ink: #1A0A16;
+  --nui-accent-soft: #4A1E45;
+  --nui-accent-2: #4FE0FF;
+  --nui-accent-2-soft: #163C45;
+  --nui-success: #4FE0A0;
+  --nui-success-soft: #163A2E;
+  --nui-warning: #FFD24F;
+  --nui-danger: #FF5C7A;
+  --nui-shadow: rgba(0, 0, 0, 0.55);
+  
+  --grad: linear-gradient(135deg, var(--nui-accent) 0%, var(--nui-accent-2) 100%);
+  --glow-a: color-mix(in srgb, var(--nui-accent) 25%, transparent);
+  --glow-b: color-mix(in srgb, var(--nui-accent-2) 20%, transparent);
+  --glow-c: color-mix(in srgb, var(--nui-accent) 15%, transparent);
+  
+  --sans: 'Space Grotesk', system-ui, sans-serif;
+  --body: 'Inter', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --cafeteria: 'TP Cafeteria', cursive;
+}
+
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--body); 
+  background:var(--nui-bg); 
+  color:var(--nui-text); 
+  overflow-x:hidden; 
+  -webkit-font-smoothing:antialiased;
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* Global Ambient Glow */
+.ambient-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: 
+    radial-gradient(circle at 15% 30%, var(--glow-a) 0%, transparent 55%),
+    radial-gradient(circle at 85% 20%, var(--glow-b) 0%, transparent 50%),
+    radial-gradient(circle at 50% 80%, var(--glow-c) 0%, transparent 60%);
+  transition: background 0.4s ease;
+}
+
+/* Typography Overhauls */
+.display{font-family:var(--cafeteria);font-size:clamp(3.5rem,9vw,8.5rem);font-weight:400;line-height:0.9;letter-spacing:1px; text-transform: lowercase;}
+.display::first-letter { text-transform: uppercase; }
+.headline{font-family:var(--cafeteria);font-size:clamp(2.5rem,5vw,4.5rem);font-weight:400;line-height:1;letter-spacing:0.5px;}
+.subhead{font-size:clamp(0.95rem,1.5vw,1.1rem);line-height:1.75;color:var(--nui-text-muted);font-weight:400; transition: color 0.4s ease;}
+.eyebrow{font-family:var(--sans);font-size:0.75rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--nui-text-faint);display:inline-flex;align-items:center;gap:.6rem; transition: color 0.4s ease;}
+.eyebrow-num{font-family:var(--mono);font-size:.75rem;font-weight:600;letter-spacing:0;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.eyebrow-num::after{content:'';display:inline-block;width:14px;height:1px;background:var(--grad);margin-left:.6rem;vertical-align:middle}
+
+.repainted,.grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.container{max-width:1160px;margin:0 auto;padding:0 clamp(1rem,5vw,2.5rem)}
+section{position:relative;overflow:hidden}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1rem 0;transition:background .3s,border-color .3s}
+nav.scrolled{background:color-mix(in srgb, var(--nui-bg) 88%, transparent);border-bottom:1px solid var(--nui-border);backdrop-filter:blur(20px)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;max-width:1160px;margin:0 auto;padding:0 clamp(1rem,5vw,2.5rem)}
+.nav-logo{font-family:var(--sans);font-weight:700;font-size:1.1rem;letter-spacing:-0.02em;color:var(--nui-text)}
+.nav-logo span{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.nav-controls{display:flex; gap:1rem; align-items:center;}
+.nav-cta{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1.25rem;border-radius:999px;background:var(--grad);color:var(--nui-accent-ink);font-family:var(--sans);font-weight:600;font-size:.875rem;text-decoration:none;transition:transform .15s, filter .15s}
+.nav-cta:hover{transform:translateY(-1px); filter: brightness(1.1);}
+
+/* EDIT MODE STYLES */
+.btn-edit-toggle { display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-radius:999px;border:1px solid var(--nui-border);background:var(--nui-surface-2);color:var(--nui-text);font-family:var(--sans);font-weight:600;font-size:.875rem;cursor:pointer;transition:all .2s; }
+.btn-edit-toggle:hover { border-color:var(--nui-accent); color:var(--nui-accent); }
+.btn-edit-toggle.active { background:var(--nui-accent-soft); border-color:var(--nui-accent); color:var(--nui-accent); }
+.btn-export { display:none; background:color-mix(in srgb, var(--nui-success) 20%, var(--nui-surface-2)); border-color:var(--nui-success); color:var(--nui-success); }
+.btn-export:hover { background:var(--nui-success); color:var(--nui-accent-ink); border-color:var(--nui-success); }
+.is-editable { outline: 2px dashed color-mix(in srgb, var(--nui-border) 60%, transparent); outline-offset: 4px; border-radius: 4px; cursor: text; transition: all 0.2s; min-height: 1em; min-width: 1em; display: inline-block;}
+.is-editable:hover { outline-color: color-mix(in srgb, var(--nui-accent) 60%, transparent); background: color-mix(in srgb, var(--nui-surface-2) 40%, transparent); }
+.is-editable:focus { outline: 2px solid var(--nui-accent); outline-offset: 4px; background: color-mix(in srgb, var(--nui-surface-2) 80%, transparent); }
+
+/* HERO */
+#hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:8rem 0 4rem;overflow:hidden}
+.hero-badge{display:inline-flex;align-items:center;gap:.6rem;padding:.35rem 1rem;border-radius:999px;border:1px solid var(--nui-accent-soft);background:color-mix(in srgb, var(--nui-accent-soft) 50%, transparent);font-family:var(--sans);font-size:.8rem;font-weight:500;color:var(--nui-text);margin-bottom:1.5rem; transition: all 0.4s ease;}
+.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--nui-accent);flex-shrink:0;position:relative}
+.hero-badge-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--nui-accent);animation:pulse-ring 2s cubic-bezier(0.2,0.6,0.4,1) infinite}
+@keyframes pulse-ring{0%{transform:scale(.6);opacity:.8}100%{transform:scale(1.8);opacity:0}}
+.hero-title{margin-bottom:1.5rem;max-width:14ch}
+.hero-sub{max-width:50ch;margin-bottom:2.5rem;font-size:clamp(1rem,1.5vw,1.15rem);line-height:1.8;color:var(--nui-text-muted)}
+.hero-actions{display:flex;flex-wrap:wrap;gap:1rem;align-items:center}
+.btn-primary{display:inline-flex;align-items:center;gap:.5rem;padding:.85rem 2rem;border-radius:999px;background:var(--grad);color:var(--nui-accent-ink);font-family:var(--sans);font-weight:600;font-size:1rem;text-decoration:none;transition:transform .2s,box-shadow .2s, filter .2s;}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px var(--glow-a); filter: brightness(1.1);}
+.btn-ghost{display:inline-flex;align-items:center;gap:.5rem;padding:.85rem 2rem;border-radius:999px;border:1px solid var(--nui-border);color:var(--nui-text);font-family:var(--sans);font-weight:600;font-size:1rem;text-decoration:none;transition:border-color .2s,background .2s}
+.btn-ghost:hover{border-color:var(--nui-accent);background:var(--nui-surface-2)}
+
+/* THEME PICKER */
+#themes{padding:5rem 0 4rem}
+.theme-layout{display:grid;grid-template-columns:1fr 340px;gap:2.5rem;align-items:start;margin-top:3rem}
+@media(max-width:900px){.theme-layout{grid-template-columns:1fr}}
+.skin-pills{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;align-content:start}
+.skin-pill{display:flex;align-items:center;gap:.55rem;padding:.5rem .65rem;border-radius:10px;cursor:pointer;border:1px solid var(--nui-border);background:var(--nui-surface);transition:background .15s,border-color .15s, transform .15s}
+.skin-pill:hover{background:var(--nui-surface-2); transform: translateY(-1px);}
+.skin-pill.active{border-color:var(--nui-accent);background:var(--nui-accent-soft);box-shadow:0 3px 12px var(--glow-a)}
+.skin-pill-dot{width:20px;height:20px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.15);box-shadow:inset 0 0 0 3px rgba(0,0,0,.15)}
+.skin-pill-name{font-family:var(--sans);font-size:.78rem;font-weight:600;color:var(--nui-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media(max-width:460px){.skin-pills{grid-template-columns:1fr}}
+
+/* CAPABILITIES */
+#capabilities{padding:4rem 0 6rem}
+.caps-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:3rem}
+@media(max-width:840px){.caps-grid{grid-template-columns:1fr}}
+.cap-block{border:1px solid var(--nui-border);border-radius:24px;overflow:hidden;background:var(--nui-surface);transition:border-color .2s, box-shadow 0.4s ease;display:flex;flex-direction:column; box-shadow: 0 8px 32px var(--nui-shadow);}
+.cap-block:hover{border-color:var(--nui-accent); box-shadow: 0 12px 48px var(--glow-a);}
+.cap-block.wide{grid-column:1/-1}
+.cap-header{padding:1.75rem 1.75rem 0}
+.cap-eyebrow{font-family:var(--sans);font-size:.7rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--nui-text-faint);margin-bottom:.5rem}
+.cap-title{font-family:var(--sans);font-size:1.25rem;font-weight:700;letter-spacing:-.01em;margin-bottom:.4rem;color:var(--nui-text)}
+.cap-desc{font-size:.9rem;line-height:1.6;color:var(--nui-text-muted)}
+.cap-demo{padding:1.5rem 1.75rem 1.75rem;flex-grow:1;display:flex;flex-direction:column;justify-content:flex-end}
+
+/* NUI MOCKUP TOKENS */
+.nui-mockup{border-radius:16px;overflow:hidden;border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent);box-shadow:0 12px 32px var(--nui-shadow);background:var(--nui-bg);color:var(--nui-text);text-align:left;font-family:var(--body); transition: all 0.4s ease;}
+
+/* STATS */
+#stats{padding:5rem 0}
+.stats-inner{display:flex;justify-content:center;flex-wrap:wrap;gap:3rem 6rem}
+.stat-item{text-align:center}
+.stat-num{font-family:var(--sans);font-size:clamp(2.2rem,5vw,4rem);font-weight:700;letter-spacing:-.04em;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;display:block}
+.stat-lbl{font-size:.875rem;color:var(--nui-text-muted);margin-top:.4rem;font-weight:600}
+
+/* MODULES — EXPANDABLE GROUPS */
+#modules{padding:0 0 6rem}
+.module-groups{max-width:760px;margin:2.5rem auto 0;text-align:left;display:flex;flex-direction:column;gap:.75rem}
+.module-group{border:1px solid var(--nui-border);border-radius:16px;background:var(--nui-surface);overflow:hidden;transition:border-color .2s, box-shadow .2s}
+.module-group:has(.module-group-body.open){border-color:var(--nui-accent); box-shadow: 0 8px 24px var(--nui-shadow);}
+.module-group-header{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:.75rem;width:100%;padding:1rem 1.25rem;cursor:pointer}
+.module-group-title{font-family:var(--sans);font-weight:600;font-size:.95rem;color:var(--nui-text)}
+.module-group-count{margin-left:auto;font-size:.75rem;color:var(--nui-text-muted);font-weight:600;background:var(--nui-surface-2);padding:.2rem .6rem;border-radius:999px;border:1px solid var(--nui-border)}
+.module-group-chev{font-size:.9rem;color:var(--nui-text-faint);transition:transform .3s cubic-bezier(0.16,1,0.3,1);line-height:1;display:inline-block}
+.module-group-body{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(0.16,1,0.3,1)}
+.module-group-body-inner{padding:.25rem 1.25rem 1.1rem;display:flex;flex-direction:column;gap:.15rem}
+.module-row{display:flex;align-items:flex-start;gap:.75rem;padding:.65rem .5rem;border-radius:10px;transition:background .15s}
+.module-row:hover{background:var(--nui-surface-2)}
+.module-row.hi{position:relative}
+.module-row.hi::before{content:'';position:absolute;left:-1.25rem;top:.9rem;width:6px;height:6px;border-radius:50%;background:var(--nui-accent)}
+.module-row-icon{font-size:1.1rem;flex-shrink:0;margin-top:.05rem}
+.module-row-text{min-width:0}
+.module-row-name{font-family:var(--sans);font-size:.85rem;font-weight:600;color:var(--nui-text);margin-bottom:.15rem}
+.module-row-desc{font-size:.8rem;line-height:1.55;color:var(--nui-text-muted)}
+
+/* TESTIMONIALS */
+#testimonials{padding:4rem 0 6rem}
+.testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-top:3rem}
+@media(max-width:900px){.testi-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.testi-grid{grid-template-columns:1fr}}
+.testi-card{border:1px solid var(--nui-border);border-radius:18px;background:var(--nui-surface);padding:1.5rem;display:flex;flex-direction:column;transition:border-color .2s, box-shadow .2s; box-shadow: 0 4px 16px var(--nui-shadow);}
+.testi-card:hover{border-color:var(--nui-accent); box-shadow: 0 8px 24px var(--glow-a);}
+.testi-mark{font-family:var(--sans);font-size:2.25rem;font-weight:700;line-height:1;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.25rem}
+.testi-quote{font-size:.9rem;line-height:1.65;color:var(--nui-text-muted);flex-grow:1;margin-bottom:1.25rem}
+.testi-author{display:flex;align-items:center;gap:.65rem}
+.testi-avatar{width:34px;height:34px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:var(--sans);font-weight:700;font-size:.85rem;color:var(--nui-accent-ink);flex-shrink:0}
+.testi-name{font-family:var(--sans);font-size:.85rem;font-weight:600;color:var(--nui-text)}
+.testi-meta{font-size:.75rem;color:var(--nui-text-faint)}
+
+/* INSTALL */
+#install{padding:6rem 0;text-align:center;position:relative;overflow:hidden}
+.install-box{position:relative;display:inline-block;max-width:620px;width:100%}
+.install-title{margin-bottom:1.25rem}
+.install-sub{color:var(--nui-text-muted);margin-bottom:2.5rem;font-size:1.05rem;line-height:1.75}
+.code-row{display:flex;align-items:center;gap:.75rem;background:var(--nui-surface);border:1px solid var(--nui-border);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem;text-align:left; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);}
+.code-row code{flex:1;font-family:var(--mono);color:var(--nui-accent);word-break:break-all;font-size:.85rem}
+.copy-btn{padding:.4rem .85rem;border-radius:8px;border:1px solid var(--nui-border);background:var(--nui-surface-2);color:var(--nui-text);font-size:.8rem;font-weight:600;cursor:pointer;font-family:var(--body);transition:all .15s;white-space:nowrap;flex-shrink:0}
+.copy-btn:hover{background:var(--nui-surface);border-color:var(--nui-accent); color:var(--nui-accent);}
+.copy-btn.done{color:var(--nui-success);border-color:var(--nui-success);background:var(--nui-success-soft);}
+.install-note{font-size:.85rem;color:var(--nui-text-faint);margin-top:1.25rem}
+.install-note a{color:var(--nui-text-muted);text-decoration:underline;text-underline-offset:3px}
+
+/* FOOTER */
+footer{border-top:1px solid var(--nui-border);padding:2.5rem 0; background: var(--nui-surface);}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+.footer-credit{font-size:.85rem;color:var(--nui-text-muted)}
+.footer-credit strong{color:var(--nui-text)}
+.footer-links{display:flex;gap:1.5rem}
+.footer-links a{font-size:.85rem;color:var(--nui-text-muted);text-decoration:none;transition:color .15s}
+.footer-links a:hover{color:var(--nui-accent)}
+
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--nui-bg)}::-webkit-scrollbar-thumb{background:var(--nui-border);border-radius:3px}
+.fade-up{opacity:0;transform:translateY(24px);transition:opacity .6s cubic-bezier(0.16,1,0.3,1),transform .6s cubic-bezier(0.16,1,0.3,1)}
+.fade-up.in{opacity:1;transform:translateY(0)}
+@media(max-width:700px){
+  .nav-cta{display:none}
+  .btn-edit-toggle .label{display:none}
+  .btn-edit-toggle{padding:0.5rem;border-radius:50%;width:36px;height:36px;justify-content:center;}
+  .nav-controls{gap:0.5rem;}
+  .footer-inner{flex-direction:column;align-items:flex-start}
+}
+@media(max-width:600px){.caps-grid{grid-template-columns:1fr}.cap-block.wide{grid-column:unset}}
+</style>
+</head>
+<body>
+
+<!-- Ambient Glow Layer -->
+<div class="ambient-bg"></div>
+
+<nav id="nav" class="scrolled">
+  <div class="nav-inner">
+    <div class="nav-logo">NeoUI <span>Unified Suite</span></div>
+    <div class="nav-controls">
+      <a href="#install" class="nav-cta">Install Free →</a>
+    </div>
+  </div>
+</nav>
+
+<section id="hero">
+  <div class="container">
+    <div class="hero-badge"><span class="hero-badge-dot"></span><span class="editable-text">The ultimate Neopets enhancement suite</span></div>
+    <h1 class="display hero-title editable-text">Neopets,<br><span class="repainted">repainted.</span></h1>
+    <p class="hero-sub editable-text">One install, twelve worlds, 50+ improvements to vanilla Neopets. A ground-up overhaul of the Neopets experience. Mobile-first, with a persistent topbar, daily timers, quest tracking, and a design system for every corner of Neopia.</p>
+    <div class="hero-actions">
+      <a href="#install" class="btn-primary">Get NeoUI →</a>
+      <a href="#themes" class="btn-ghost">See all skins</a>
+    </div>
+  </div>
+</section>
+
+<section id="themes">
+  <div class="container">
+    <p class="eyebrow" style="margin-bottom:.75rem"><span class="eyebrow-num">01</span><span class="editable-text">Twelve worlds</span></p>
+    <h2 class="headline editable-text">Pick your <span class="repainted">aesthetic.</span></h2>
+    <p class="subhead editable-text" style="margin-top:.75rem;max-width:48ch">From Faerieland pastels to Krawk Island noir, each skin is a full design system. Surfaces, borders, and accents, hand-tuned per world. Flip between them instantly, or build your own from scratch.</p>
+    <div class="theme-layout">
+      <div style="padding: 2rem; background: var(--nui-surface); border: 1px solid var(--nui-border); border-radius: 20px; box-shadow: 0 12px 32px var(--nui-shadow); transition: all 0.4s ease;">
+        <h3 class="editable-text" style="font-family: var(--cafeteria); font-size: 2rem; font-weight: 400; color: var(--nui-text); margin-bottom: 0.5rem;">Live Preview Active</h3>
+        <p class="editable-text" style="font-size: 0.95rem; color: var(--nui-text-muted); line-height: 1.6;">Clicking any theme on the right dynamically swaps the CSS tokens for this entire website. Scroll down to see how the mockups inherit the changes in real time.</p>
+      </div>
+     <div class="skin-pills" id="skinPills">
+  <div class="skin-pill active" data-k="spacefaerie" onclick="selectSkin('spacefaerie')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#FF4FD8 0%,#4FE0FF 55%,#0D0E24 100%)"></span>
+    <span class="skin-pill-name">🌌 Space Faerie</span>
+  </div>
+  <div class="skin-pill" data-k="neopia" onclick="selectSkin('neopia')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#FF8A00 0%,#0F6FFF 55%,#FFF6E0 100%)"></span>
+    <span class="skin-pill-name">🏠 Neopia Central</span>
+  </div>
+  <div class="skin-pill" data-k="haunted" onclick="selectSkin('haunted')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#3DDC72 0%,#C77CFF 55%,#1A1626 100%)"></span>
+    <span class="skin-pill-name">🌙 Haunted Woods</span>
+  </div>
+  <div class="skin-pill" data-k="virtupets" onclick="selectSkin('virtupets')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#1EE060 0%,#44AAFF 55%,#0E1218 100%)"></span>
+    <span class="skin-pill-name">🛸 Virtupets</span>
+  </div>
+  <div class="skin-pill" data-k="kadoatery" onclick="selectSkin('kadoatery')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#4FA0D6 0%,#EE8FB6 55%,#FBF3F8 100%)"></span>
+    <span class="skin-pill-name">🐾 Kadoatery</span>
+  </div>
+  <div class="skin-pill" data-k="krawkisland" onclick="selectSkin('krawkisland')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#C8142A 0%,#B6B8C2 55%,#0A0A0A 100%)"></span>
+    <span class="skin-pill-name">🏴‍☠️ Krawk Island</span>
+  </div>
+  <div class="skin-pill" data-k="maractite" onclick="selectSkin('maractite')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#3B82F6 0%,#06B6D4 55%,#060B19 100%)"></span>
+    <span class="skin-pill-name">🌊 Maractite</span>
+  </div>
+  <div class="skin-pill" data-k="moltara" onclick="selectSkin('moltara')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#FF5722 0%,#FFC247 55%,#1B1411 100%)"></span>
+    <span class="skin-pill-name">🌋 Moltara</span>
+  </div>
+  <div class="skin-pill" data-k="maraqua" onclick="selectSkin('maraqua')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#00A8BC 0%,#FF7A33 55%,#DCF3F6 100%)"></span>
+    <span class="skin-pill-name">🌊 Maraqua</span>
+  </div>
+  <div class="skin-pill" data-k="gray" onclick="selectSkin('gray')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#C97D8C 0%,#6E7C82 55%,#EDEAE4 100%)"></span>
+    <span class="skin-pill-name">🐭 Grey Neopia</span>
+  </div>
+  <div class="skin-pill" data-k="tyrannia" onclick="selectSkin('tyrannia')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#5A8A3C 0%,#C0622A 55%,#F5EDD8 100%)"></span>
+    <span class="skin-pill-name">🦕 Tyrannia</span>
+  </div>
+  <div class="skin-pill" data-k="meridell" onclick="selectSkin('meridell')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#1E4FA0 0%,#B01E28 55%,#EDEADC 100%)"></span>
+    <span class="skin-pill-name">🛡️ Meridell</span>
+  </div>
+  <div class="skin-pill" data-k="shenkuu" onclick="selectSkin('shenkuu')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#3F7A3D 0%,#C9A227 55%,#F5DCD4 100%)"></span>
+    <span class="skin-pill-name">🏯 Shenkuu</span>
+  </div>
+  <div class="skin-pill" data-k="eventide" onclick="selectSkin('eventide')">
+    <span class="skin-pill-dot" style="background:linear-gradient(135deg,#FF3D7A 0%,#FF8A3D 55%,#2B1130 100%)"></span>
+    <span class="skin-pill-name">🌆 Eventide</span>
+  </div>
+</div>
+
+    </div>
+  </div>
+</section>
+
+<section id="capabilities">
+  <div class="container">
+    <p class="eyebrow" style="margin-bottom:.75rem"><span class="eyebrow-num">02</span><span class="editable-text">What's inside</span></p>
+    <h2 class="headline editable-text">A lot more than a <span class="repainted">skin.</span></h2>
+    <p class="subhead editable-text" style="margin-top:.75rem;max-width:48ch">50+ modules, each one a small rebuild rather than a paint job — every page rethought for mobile, restyled to match your world, and switchable on its own so nothing else breaks.</p>
+    <div class="caps-grid">
+
+      <div class="cap-block fade-up in">
+        <div class="cap-header">
+          <div class="cap-eyebrow editable-text">Sitewide Chrome &amp; AllEvents</div>
+          <div class="cap-title editable-text">Always-there Topbar &amp; Hub</div>
+          <p class="cap-desc editable-text">A fixed topbar showing your NP, NC, and notifications — always visible, never scrolling away. The daily hub surfaces every timed activity with its own countdown, so nothing gets missed.</p>
+        </div>
+        <div class="cap-demo">
+          <div class="nui-mockup" style="display:flex; flex-direction:column; height:480px; overflow-y:auto; background:var(--nui-bg);">
+  
+  <!-- Topbar -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:color-mix(in srgb, var(--nui-surface) 85%, transparent); backdrop-filter:blur(12px); border-bottom:1px solid var(--nui-border); position:sticky; top:0; z-index:10; transition:all 0.4s ease;">
+    
+    <!-- Left Slot (Buttons) -->
+    <div style="display:flex; gap:6px; z-index:2;">
+      <div style="width:24px; height:24px; border-radius:50%; background:var(--nui-accent-soft); border:none; display:flex; align-items:center; justify-content:center; color:var(--nui-accent); transition:all 0.4s ease;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M13.5 2.5 l2.2 6.2 l6.8 -1.2 l-4.6 5.3 l2.3 6.7 l-7.2 -3.2 l-6.4 4.8 l1.8 -7.1 l-6.2 -4.3 l7.1 -0.8 z"/></svg>
+      </div>
+      <div style="width:24px; height:24px; border-radius:50%; background:var(--nui-surface-2); border:1px solid var(--nui-border); display:flex; align-items:center; justify-content:center; color:var(--nui-text-muted); transition:all 0.4s ease;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v15.5l-6.5-4-6.5 4V4.5a1 1 0 0 1 1-1z"/></svg>
+      </div>
+      <div style="position:relative; width:24px; height:24px; border-radius:50%; background:var(--nui-surface-2); border:1px solid var(--nui-border); display:flex; align-items:center; justify-content:center; color:var(--nui-text-muted); transition:all 0.4s ease;">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+        <div style="position:absolute; bottom:-2px; right:-2px; width:8px; height:8px; background:#f59e0b; border:2px solid var(--nui-bg); border-radius:50%;"></div>
+      </div>
+    </div>
+
+    <!-- Center Slot (Logo) -->
+    <div style="position:absolute; left:50%; transform:translateX(-50%); width:76px; aspect-ratio:140/38; background-color:var(--nui-accent); -webkit-mask:url('https://images.neopets.com/brandhub/5ccf2080/images/Header_25Logo_new.svg') no-repeat center/contain; mask:url('https://images.neopets.com/brandhub/5ccf2080/images/Header_25Logo_new.svg') no-repeat center/contain; z-index:1; transition:all 0.4s ease;"></div>
+
+    <!-- Right Slot (Stats) -->
+    <div style="display:flex; align-items:center; z-index:2;">
+      <div class="editable-text" style="font-size:9px; color:var(--nui-text-muted); text-align:right; line-height:1.2; transition:all 0.4s ease;">NP: <b style="color:var(--nui-text);">3,062,985</b><br>NC: <b style="color:var(--nui-text);">69</b></div>
+    </div>
+  </div>
+
+  <!-- Page Content Wrapper -->
+  <div style="padding:14px; display:flex; flex-direction:column; gap:14px;">
+      
+      <!-- Hub Card -->
+      <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:12px; box-shadow:0 4px 12px var(--nui-shadow); transition:all 0.4s ease;">
+        <div>
+          <div class="editable-text" style="font-family:var(--cafeteria); font-size:24px; color:var(--nui-text); margin-bottom:2px; line-height:1.1;">The omelette's still warm, xXxKA55xXx. 🍳</div>
+          <div class="editable-text" style="font-size:11px; color:var(--nui-text-muted); font-weight:500;">9:57:40 AM NST</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="editable-text" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px; border-radius:8px; border:1px solid var(--nui-border); background:var(--nui-surface-2); color:var(--nui-text); font-size:11.5px; font-weight:600; width:fit-content; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05); transition:all 0.4s ease;">⚔️ CagedVex — <span style="color:var(--nui-accent-2);">57m 45s</span></div>
+          <div class="editable-text" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px; border-radius:8px; border:1px solid var(--nui-border); background:var(--nui-surface-2); color:var(--nui-text); font-size:11.5px; font-weight:600; width:fit-content; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05); transition:all 0.4s ease;">💀 Grave Danger — <span style="color:var(--nui-accent-2);">4h 29m 39s</span></div>
+          <div class="editable-text" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px; border-radius:8px; border:1px solid var(--nui-border); background:var(--nui-surface-2); color:var(--nui-text); font-size:11.5px; font-weight:600; width:fit-content; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05); transition:all 0.4s ease;">🗺️ Buried Treasure — <span style="color:var(--nui-accent-2);">2h 58m 44s</span></div>
+          <div class="editable-text" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px; border-radius:8px; border:1px solid var(--nui-border); background:var(--nui-surface-2); color:var(--nui-text); font-size:11.5px; font-weight:600; width:fit-content; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05); transition:all 0.4s ease;">⚔️ Obelisk — 🏆 Boon phase · 10/10 battles</div>
+        </div>
+      </div>
+
+      <!-- My Pets Card -->
+      <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:16px; padding:16px; box-shadow:0 4px 12px var(--nui-shadow); transition:all 0.4s ease;">
+        <div class="editable-text" style="font-weight:700; font-size:14px; margin-bottom:12px; display:flex; align-items:center; gap:6px;">🐾 My Pets</div>
+        
+        <div style="display:flex; gap:12px; align-items:center; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); padding-bottom:12px; margin-bottom:12px;">
+          <div style="width:64px; height:64px; border-radius:12px; background:var(--nui-surface-2) url('https://wardrobe.jellyneo.net/assets/imgs/rainbow-pool/unconverted/mynci_darigan.png') center/contain no-repeat; border:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent);"></div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div class="editable-text" style="font-weight:700; color:var(--nui-accent-2); font-size:15px; transition:all 0.4s ease;">CagedVex</div>
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text-muted);">Darigan Mynci</div>
+            <div style="display:flex; gap:6px; margin-top:2px;">
+              <span class="editable-text" style="background:var(--nui-surface-2); border:1px solid var(--nui-border); color:var(--nui-text-muted); font-size:9px; font-weight:700; padding:3px 6px; border-radius:6px; transition:all 0.4s ease;">LVL 131</span>
+              <span class="editable-text" style="background:var(--nui-success-soft); border:1px solid var(--nui-success); color:var(--nui-success); font-size:9px; font-weight:700; padding:3px 6px; border-radius:6px; transition:all 0.4s ease;">HP 323/323</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div style="width:32px; height:32px; border-radius:8px; background:var(--nui-surface-2) url('https://images.neopets.com/items/slorg_darigan.gif') center/contain no-repeat; border:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent);"></div>
+            <div style="display:flex; flex-direction:column;">
+              <div class="editable-text" style="font-weight:700; font-size:12px;">Snargan</div>
+              <div class="editable-text" style="font-size:10px; color:var(--nui-text-muted);">Darigan Slorg</div>
+            </div>
+          </div>
+          <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-accent-2); border:1px solid color-mix(in srgb, var(--nui-border) 80%, transparent); background:var(--nui-surface-2); padding:4px 10px; border-radius:12px; transition:all 0.4s ease;">Lab</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+          <div class="editable-text" style="background:var(--nui-surface-2); border:1px solid color-mix(in srgb, var(--nui-border) 60%, transparent); border-radius:10px; padding:8px; text-align:center; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.4s ease;">🎨 Customise</div>
+          <div class="editable-text" style="background:var(--nui-surface-2); border:1px solid color-mix(in srgb, var(--nui-border) 60%, transparent); border-radius:10px; padding:8px; text-align:center; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.4s ease;">📋 Quickref</div>
+        </div>
+
+        <div style="background:var(--nui-surface-2); border:1px solid color-mix(in srgb, var(--nui-border) 60%, transparent); border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; transition:all 0.4s ease;">
+          <span class="editable-text" style="font-size:12px; font-weight:600; color:var(--nui-text-muted);">Other Pets</span>
+          <span style="font-size:10px; color:var(--nui-text-muted);">▼</span>
+        </div>
+      </div>
+
+      <!-- My Dailies Card -->
+      <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:16px; padding:16px; box-shadow:0 4px 12px var(--nui-shadow); transition:all 0.4s ease;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div class="editable-text" style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:6px;">📅 My Dailies</div>
+          <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-text); background:var(--nui-surface-2); border:1px solid color-mix(in srgb, var(--nui-border) 60%, transparent); padding:4px 10px; border-radius:12px; transition:all 0.4s ease;">Edit</div>
+        </div>
+        
+        <div style="background:var(--nui-surface-2); border:1px solid color-mix(in srgb, var(--nui-border) 60%, transparent); border-radius:12px; overflow:hidden; transition:all 0.4s ease;">
+          <div style="padding:10px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 60%, transparent);">
+             <span class="editable-text" style="font-size:12px; font-weight:600; color:var(--nui-text-muted);">Dailies</span>
+             <span style="font-size:10px; color:var(--nui-text-muted);">▼</span>
+          </div>
+          <div style="padding:4px 12px;">
+             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent);">
+                <span class="editable-text" style="font-size:13px; font-weight:600; color:var(--nui-accent-2); display:flex; align-items:center; gap:8px; transition:all 0.4s ease;">🗺️ Buried Treasure</span>
+                <span class="editable-text" style="font-size:10px; font-weight:700; border:1px solid color-mix(in srgb, var(--nui-border) 80%, transparent); padding:4px 10px; border-radius:10px; color:var(--nui-text-muted); transition:all 0.4s ease;">Go</span>
+             </div>
+             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent);">
+                <span class="editable-text" style="font-size:13px; font-weight:600; color:var(--nui-accent-2); display:flex; align-items:center; gap:8px; transition:all 0.4s ease;">🧚 Faerie Quests</span>
+                <span class="editable-text" style="font-size:10px; font-weight:700; border:1px solid color-mix(in srgb, var(--nui-border) 80%, transparent); padding:4px 10px; border-radius:10px; color:var(--nui-text-muted); transition:all 0.4s ease;">Go</span>
+             </div>
+             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent);">
+                <span class="editable-text" style="font-size:13px; font-weight:600; color:var(--nui-accent-2); display:flex; align-items:center; gap:8px; transition:all 0.4s ease;">⛲ Healing Springs</span>
+                <span class="editable-text" style="font-size:10px; font-weight:700; border:1px solid color-mix(in srgb, var(--nui-border) 80%, transparent); padding:4px 10px; border-radius:10px; color:var(--nui-text-muted); transition:all 0.4s ease;">Go</span>
+             </div>
+             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0;">
+                <span class="editable-text" style="font-size:13px; font-weight:600; color:var(--nui-accent-2); display:flex; align-items:center; gap:8px; transition:all 0.4s ease;">🎣 Underwater Fishing</span>
+                <span class="editable-text" style="font-size:10px; font-weight:700; border:1px solid color-mix(in srgb, var(--nui-border) 80%, transparent); padding:4px 10px; border-radius:10px; color:var(--nui-text-muted); transition:all 0.4s ease;">Go</span>
+             </div>
+          </div>
+        </div>
+      </div>
+
+  </div>
+</div>
+
+        </div>
+      </div>
+
+      <div class="cap-block fade-up in">
+        <div class="cap-header">
+          <div class="cap-eyebrow editable-text">Module — Neomail</div>
+          <div class="cap-title editable-text">Threaded Neomail</div>
+          <p class="cap-desc editable-text">A full inbox overhaul. Tab switching, username search, message counts, and label tags — all without leaving the page or waiting for a full reload.</p>
+        </div>
+        <div class="cap-demo">
+          <div class="nui-mockup" style="position:relative; display:flex; flex-direction:column; height:480px; overflow:hidden; background:var(--nui-bg); border-radius:16px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); box-shadow:0 12px 32px var(--nui-shadow);">
+  
+  <!-- INBOX VIEW -->
+  <div id="nm-inbox" style="position:absolute; inset:0; display:flex; flex-direction:column; transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); transform:translateX(0); z-index:1; background:var(--nui-bg);">
+    
+    <!-- Top Nav -->
+    <div style="display:flex; gap:6px; padding:10px 14px; background:var(--nui-surface); border-bottom:1px solid var(--nui-border); overflow-x:auto;">
+      <div class="editable-text" style="display:inline-flex; align-items:center; background:var(--nui-accent-soft); color:var(--nui-accent); font-family:var(--cafeteria, sans-serif); font-size:18px; font-weight:400; letter-spacing:0.5px; padding:5px 12px; border-radius:8px; white-space:nowrap; flex-shrink:0; cursor:pointer;">Inbox (23)</div>
+      <div class="editable-text" style="display:inline-flex; align-items:center; background:var(--nui-surface-2); color:var(--nui-text-muted); font-family:var(--cafeteria, sans-serif); font-size:18px; font-weight:400; letter-spacing:0.5px; padding:5px 12px; border-radius:8px; white-space:nowrap; flex-shrink:0; cursor:pointer;">Sent</div>
+      <div class="editable-text" style="display:inline-flex; align-items:center; background:var(--nui-surface-2); color:var(--nui-text-muted); font-family:var(--cafeteria, sans-serif); font-size:18px; font-weight:400; letter-spacing:0.5px; padding:5px 12px; border-radius:8px; white-space:nowrap; flex-shrink:0; cursor:pointer;">Archive</div>
+      <div class="editable-text" style="display:inline-flex; align-items:center; background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text-muted); font-family:var(--cafeteria, sans-serif); font-size:18px; font-weight:400; letter-spacing:0.5px; padding:4px 11px; border-radius:8px; white-space:nowrap; flex-shrink:0; cursor:pointer;">Sort: Recent</div>
+      <div class="editable-text" style="display:inline-flex; align-items:center; background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text-muted); font-family:var(--cafeteria, sans-serif); font-size:18px; font-weight:400; letter-spacing:0.5px; padding:4px 11px; border-radius:8px; white-space:nowrap; flex-shrink:0; cursor:pointer;">Select</div>
+      <div class="editable-text" style="display:inline-flex; align-items:center; background:var(--nui-accent); color:var(--nui-accent-ink); font-family:var(--cafeteria, sans-serif); font-size:18px; font-weight:400; letter-spacing:0.5px; padding:5px 12px; border-radius:8px; white-space:nowrap; flex-shrink:0; cursor:pointer;">+ Compose</div>
+    </div>
+    
+    <!-- Search -->
+    <div style="padding:10px 14px 2px; background:var(--nui-surface); border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent);">
+      <input type="text" class="editable-text" placeholder="Search by username..." style="width:100%; box-sizing:border-box; padding:8px 12px; font-size:12px; font-weight:500; border-radius:14px; border:1px solid var(--nui-border); background:var(--nui-surface-2); color:var(--nui-text); outline:none; margin-bottom:8px;">
+    </div>
+
+    <!-- List -->
+    <div style="flex:1; overflow-y:auto; padding-bottom:12px;">
+      
+      <!-- Row 1: Frank -->
+      <div style="display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; margin: 8px 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, #1EE060 40%, transparent); background: linear-gradient(90deg, color-mix(in srgb, #1EE060 15%, transparent) 0%, var(--nui-surface) 80%); box-shadow: inset 4px 0 0 #1EE060, 0 4px 12px var(--nui-shadow); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(0.98)'" onmouseout="this.style.transform='scale(1)'" onclick="document.getElementById('nm-inbox').style.transform='translateX(-100%)'; document.getElementById('nm-thread').style.transform='translateX(0)'">
+        <div style="width: 36px; height: 36px; border-radius: 8px; background-color: var(--nui-surface-2); background-image: url('https://images.neopets.com/neoboards/avatars/sloth.gif'); background-size: cover; background-position: center;"></div>
+        <div style="display: flex; flex-direction: column; min-width: 0; gap: 2px;">
+          <div class="editable-text" style="font-weight: 700; color: var(--nui-text); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Frank</div>
+          <div class="editable-text" style="font-size: 12px; color: var(--nui-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Status report?</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+          <div class="editable-text" style="font-size: 11px; color: var(--nui-text-faint);">11/8/2026 3:40pm</div>
+          <div style="display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; max-width: 140px;">
+            <span class="editable-text" style="background: var(--nui-surface-2); color: var(--nui-text-muted); padding: 2px 7px; border-radius: 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">3 MSGS</span>
+            <span class="editable-text" style="color: var(--nui-text-faint); padding: 0; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">NOT_DR_SLOTH</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Darky -->
+      <div style="display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; margin: 8px 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, #b026ff 40%, transparent); background: linear-gradient(90deg, color-mix(in srgb, #b026ff 12%, transparent) 0%, var(--nui-surface) 80%); box-shadow: inset 4px 0 0 #b026ff, 0 4px 12px var(--nui-shadow);">
+        <div style="width: 36px; height: 36px; border-radius: 8px; background-color: var(--nui-surface-2); background-image: url('https://images.neopets.com/neoboards/avatars/darkestfaerie.gif'); background-size: cover; background-position: center;"></div>
+        <div style="display: flex; flex-direction: column; min-width: 0; gap: 2px;">
+          <div class="editable-text" style="font-weight: 700; color: var(--nui-text); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">The_Real_Darkest_Faerie</div>
+          <div class="editable-text" style="font-size: 12px; color: var(--nui-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">I need to borrow the symol.</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+          <div class="editable-text" style="font-size: 11px; color: var(--nui-text-faint);">11/8/2026 11:29am</div>
+          <div style="display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; max-width: 140px;">
+            <span class="editable-text" style="background: var(--nui-surface-2); color: var(--nui-text-muted); padding: 2px 7px; border-radius: 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">2 MSGS</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Sir Jeran -->
+      <div style="display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; margin: 8px 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, #4FE0FF 40%, transparent); background: linear-gradient(90deg, color-mix(in srgb, #4FE0FF 12%, transparent) 0%, var(--nui-surface) 80%); box-shadow: inset 4px 0 0 #4FE0FF, 0 4px 12px var(--nui-shadow);">
+        <div style="width: 36px; height: 36px; border-radius: 8px; background-color: var(--nui-surface-2); background-image: url('https://images.neopets.com/neoboards/avatars/jeranhero.gif'); background-size: cover; background-position: top;"></div>
+        <div style="display: flex; flex-direction: column; min-width: 0; gap: 2px;">
+          <div class="editable-text" style="font-weight: 700; color: var(--nui-text); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Jeran</div>
+          <div class="editable-text" style="font-size: 12px; color: var(--nui-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Surrender your forces immediately.</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+          <div class="editable-text" style="font-size: 11px; color: var(--nui-text-faint);">8/8/2026 12:46pm</div>
+          <div style="display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; max-width: 140px;">
+            <span class="editable-text" style="background: var(--nui-surface-2); color: var(--nui-text-muted); padding: 2px 7px; border-radius: 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">1 MSG</span>
+            <span class="editable-text" style="color: var(--nui-text-faint); padding: 0; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">heroJeran</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 4: Skarl -->
+      <div style="display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; margin: 8px 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); background: var(--nui-surface); box-shadow: 0 4px 12px var(--nui-shadow); opacity: 0.85;">
+        <div style="width: 36px; height: 36px; border-radius: 8px; background-color: var(--nui-surface-2); background-image: url('https://images.neopets.com/neoboards/avatars/moodyskarl.gif'); background-size: cover; background-position: center;"></div>
+        <div style="display: flex; flex-direction: column; min-width: 0; gap: 2px;">
+          <div class="editable-text" style="font-weight: 700; color: var(--nui-text); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">king_skarl</div>
+          <div class="editable-text" style="font-size: 12px; color: var(--nui-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Meridell Related</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+          <div class="editable-text" style="font-size: 11px; color: var(--nui-text-faint);">18/7/2026 5:47am</div>
+          <div style="display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; max-width: 140px;">
+            <span class="editable-text" style="background: var(--nui-warning-soft); color: var(--nui-warning); padding: 2px 7px; border-radius: 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">LOCAL ARCHIVE</span>
+            <span class="editable-text" style="background: var(--nui-surface-2); color: var(--nui-text-muted); padding: 2px 7px; border-radius: 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">6 MSGS</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 5: Frank (Local Archive) -->
+      <div style="display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; margin: 8px 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, #1EE060 40%, transparent); background: linear-gradient(90deg, color-mix(in srgb, #1EE060 15%, transparent) 0%, var(--nui-surface) 80%); box-shadow: inset 4px 0 0 #1EE060, 0 4px 12px var(--nui-shadow);">
+        <div style="width: 36px; height: 36px; border-radius: 8px; background-color: var(--nui-surface-2); background-image: url('https://images.neopets.com/neoboards/avatars/sloth.gif'); background-size: cover; background-position: center;"></div>
+        <div style="display: flex; flex-direction: column; min-width: 0; gap: 2px;">
+          <div class="editable-text" style="font-weight: 700; color: var(--nui-text); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Frank</div>
+          <div class="editable-text" style="font-size: 12px; color: var(--nui-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Neocola!</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+          <div class="editable-text" style="font-size: 11px; color: var(--nui-text-faint);">11/7/2026 04:01pm</div>
+          <div style="display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; max-width: 140px;">
+            <span class="editable-text" style="background: var(--nui-warning-soft); color: var(--nui-warning); padding: 2px 7px; border-radius: 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">LOCAL ARCHIVE</span>
+            <span class="editable-text" style="background: var(--nui-surface-2); color: var(--nui-text-muted); padding: 2px 7px; border-radius: 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">18 MSGS</span>
+            <span class="editable-text" style="color: var(--nui-text-faint); padding: 0; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">NOT_DR_SLOTH</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- THREAD VIEW -->
+  <div id="nm-thread" style="position:absolute; inset:0; display:flex; flex-direction:column; transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); transform:translateX(100%); z-index:2; background:var(--nui-bg); box-shadow: -12px 0 32px var(--nui-shadow);">
+    
+    <!-- Thread Header -->
+    <div style="padding:12px; background:var(--nui-surface-2); border-bottom:1px solid var(--nui-border);">
+      <div style="display:flex; align-items:center; gap: 10px;">
+        <button class="editable-text" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:6px 12px; font-size:13px; font-weight:700; font-family:inherit; border-radius:999px; cursor:pointer; border:1px solid var(--nui-border); background:var(--nui-surface); color:var(--nui-text);" onclick="document.getElementById('nm-thread').style.transform='translateX(100%)'; document.getElementById('nm-inbox').style.transform='translateX(0)'">
+          <span style="font-size:16px; line-height:0.8;">‹</span> Back
+        </button>
+        <div class="editable-text" style="flex:1; text-align:center; font-family:var(--nui-font-display); font-weight:800; font-size:18px; color:var(--nui-text); margin-right: 70px;">Status report?</div>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; margin-top:8px; color:var(--nui-text-muted);">
+        <span class="editable-text">Thread with</span> <span class="editable-text" style="color:#1EE060; font-weight:700;">Frank</span> <span class="editable-text" style="font-size:10px; opacity:0.7;">(Not_Dr_Sloth)</span>
+        <button class="editable-text" style="font-size:10px; font-family:inherit; font-weight:700; border:1px solid var(--nui-border); background:var(--nui-surface); color:var(--nui-text-muted); padding:3px 8px; border-radius:6px; margin-left:4px; cursor:pointer;">✏️ Edit nick</button>
+      </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div style="flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:14px;">
+      
+      <!-- Their Msg -->
+      <div style="background:linear-gradient(135deg, color-mix(in srgb, #1EE060 12%, transparent), var(--nui-surface)); border:1px solid color-mix(in srgb, #1EE060 30%, transparent); border-radius:14px; padding:12px; box-shadow:0 4px 12px var(--nui-shadow);">
+        <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid color-mix(in srgb, #1EE060 20%, transparent); padding-bottom:10px; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <img src="https://images.neopets.com/neoboards/avatars/sloth.gif" style="width:26px; height:26px; border-radius:6px; object-fit:cover;">
+            <span class="editable-text" style="font-weight:700; color:#1EE060; font-size:14px;">Not_Dr_Sloth</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; font-size:11px; font-weight:500; color:var(--nui-text-muted);">
+            <span class="editable-text">11/8/2026 02:40pm</span>
+            <span style="opacity:0.6; font-size:14px; cursor:pointer;">×</span>
+          </div>
+        </div>
+        <div class="editable-text" style="font-size:14px; color:var(--nui-text); line-height:1.5;">Kass. The Grundo clones unionized. Again. I am ten seconds away from throwing the entire sector out the airlock. Tell me your troops are at least functioning.</div>
+      </div>
+
+      <!-- My Msg -->
+      <div style="background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:14px; padding:12px; box-shadow:0 4px 12px var(--nui-shadow);">
+        <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--nui-border); padding-bottom:10px; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:26px; height:26px; border-radius:6px; background:var(--nui-accent-soft); color:var(--nui-accent); display:flex; align-items:center; justify-content:center; font-weight:800; font-family:var(--nui-font-display); font-size:16px;">x</div>
+            <span class="editable-text" style="font-weight:700; color:var(--nui-accent); font-size:14px;">xXxKA55xXx</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; font-size:11px; font-weight:500; color:var(--nui-text-muted);">
+            <span class="editable-text">11/8/2026 03:02pm</span>
+            <span style="opacity:0.6; font-size:14px; cursor:pointer;">×</span>
+          </div>
+        </div>
+        <div class="editable-text" style="font-size:14px; color:var(--nui-text); line-height:1.5;">My troops literally worship the ground I walk on. Have you tried simply being more intimidating? Or maybe investing in mind-control collars that actually work.</div>
+      </div>
+
+      <!-- Their Msg 2 -->
+      <div style="background:linear-gradient(135deg, color-mix(in srgb, #1EE060 12%, transparent), var(--nui-surface)); border:1px solid color-mix(in srgb, #1EE060 30%, transparent); border-radius:14px; padding:12px; box-shadow:0 4px 12px var(--nui-shadow);">
+        <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid color-mix(in srgb, #1EE060 20%, transparent); padding-bottom:10px; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <img src="https://images.neopets.com/neoboards/avatars/sloth.gif" style="width:26px; height:26px; border-radius:6px; object-fit:cover;">
+            <span class="editable-text" style="font-weight:700; color:#1EE060; font-size:14px;">Not_Dr_Sloth</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; font-size:11px; font-weight:500; color:var(--nui-text-muted);">
+            <span class="editable-text">11/8/2026 03:23pm</span>
+            <span style="opacity:0.6; font-size:14px; cursor:pointer;">×</span>
+            <div style="width:12px; height:12px; background:#1EE060; border-radius:50%; box-shadow:0 0 8px color-mix(in srgb, #1EE060 80%, transparent);"></div>
+          </div>
+        </div>
+        <div class="editable-text" style="font-size:14px; color:var(--nui-text); line-height:1.5;">Mind control collars are expensive, you avian nuisance. And my supplier on Kreludor just got raided. Are we still on for poker at the Lair this weekend?</div>
+      </div>
+
+    </div>
+
+    <!-- Reply Footer -->
+    <div style="padding:14px; background:var(--nui-surface-2); border-top:1px solid var(--nui-border);">
+      <textarea placeholder="Write a reply..." class="editable-text" style="width:100%; height:60px; box-sizing:border-box; padding:10px; font-size:13px; font-family:inherit; border-radius:8px; border:1px solid var(--nui-border); background:var(--nui-surface); color:var(--nui-text); outline:none; resize:none; margin-bottom:8px;"></textarea>
+      <div style="display:flex; justify-content:flex-end; font-size:10px; font-weight:700; color:var(--nui-text-faint); margin-bottom:10px;">0 / 2000</div>
+      <div style="display:flex; gap:8px;">
+        <button class="editable-text" style="flex:1; padding:8px 4px; font-size:12px; font-weight:700; font-family:inherit; border:1px solid var(--nui-warning-soft); border-radius:8px; background:var(--nui-warning-soft); color:var(--nui-warning); cursor:pointer;">Clear from Site</button>
+        <button class="editable-text" style="flex:1; padding:8px 4px; font-size:12px; font-weight:700; font-family:inherit; border:1px solid var(--nui-danger-soft); border-radius:8px; background:var(--nui-danger-soft); color:var(--nui-danger); cursor:pointer;">Delete Entirely</button>
+        <button class="editable-text" style="flex:1.2; padding:8px 4px; font-size:12px; font-weight:700; font-family:inherit; border:none; border-radius:8px; background:var(--nui-accent); color:var(--nui-accent-ink); cursor:pointer;">Send Reply</button>
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+
+        </div>
+      </div>
+
+      <div class="cap-block fade-up in">
+        <div class="cap-header">
+          <div class="cap-eyebrow editable-text">Module — Training Schools</div>
+          <div class="cap-title editable-text">Mystery Island Training</div>
+          <p class="cap-desc editable-text">Pet cards replace the native stat tables. Stats, active course, and countdown at a glance — no horizontal scrolling, no pinching and zooming.</p>
+        </div>
+        <div class="cap-demo">
+          <div class="nui-mockup" style="display:flex; flex-direction:column; height:480px; overflow-y:auto; background:var(--nui-bg); border-radius:16px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); box-shadow:0 12px 32px var(--nui-shadow);">
+  
+  <!-- Header -->
+  <div style="display:flex; align-items:center; gap:14px; padding:16px 20px; background:var(--nui-surface-2); border-bottom:1px solid var(--nui-border); position:sticky; top:0; z-index:10;">
+    <div style="width:48px; height:48px; background:var(--nui-surface); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; border:1px solid var(--nui-border);">
+      <img src="https://images.neopets.com/island/judo5.gif" style="width:100%; height:100%; object-fit:contain;">
+    </div>
+    <div style="display:flex; flex-direction:column; gap:2px;">
+      <div class="editable-text" style="font-family:var(--nui-font-display); font-size:22px; font-weight:800; color:var(--nui-text); letter-spacing:0.5px; line-height:1;">Mystery Island Training</div>
+      <div class="editable-text" style="font-size:13px; font-weight:500; color:var(--nui-text-muted);">Codestones accepted here</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex; gap:8px; padding:16px 14px; background:var(--nui-surface); border-bottom:1px solid var(--nui-border);">
+    <div class="editable-text" style="flex:1; display:flex; justify-content:center; align-items:center; background:var(--nui-accent); color:var(--nui-accent-ink); font-weight:800; font-size:13px; padding:10px 0; border-radius:10px; cursor:pointer;">📋 Status</div>
+    <div class="editable-text" style="flex:1; display:flex; justify-content:center; align-items:center; background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text-muted); font-weight:800; font-size:13px; padding:9px 0; border-radius:10px; cursor:pointer;">📚 Courses</div>
+    <div class="editable-text" style="flex:1; display:flex; justify-content:center; align-items:center; background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text-muted); font-weight:800; font-size:13px; padding:9px 0; border-radius:10px; cursor:pointer;">🥋 Wisdom</div>
+  </div>
+
+  <!-- Content -->
+  <div style="padding:16px 14px; display:flex; flex-direction:column;">
+    
+    <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:16px; padding:16px 12px; display:flex; flex-direction:column; gap:12px; box-shadow:0 4px 16px var(--nui-shadow);">
+      
+      <!-- Badge -->
+      <div class="editable-text" style="font-size:10px; font-weight:800; color:var(--nui-accent-2); background:color-mix(in srgb, var(--nui-accent-2) 15%, transparent); padding:4px 10px; border-radius:999px; width:max-content; letter-spacing:0.5px; margin-bottom:4px;">1 IN TRAINING</div>
+
+      <!-- Pet 1: Enrolled -->
+      <div style="display:flex; align-items:center; gap:12px; padding:12px; background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        <div style="width:52px; height:52px; border-radius:10px; background:var(--nui-surface) url('https://wardrobe.jellyneo.net/assets/imgs/rainbow-pool/unconverted/mynci_darigan.png') center/contain no-repeat; border:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); flex-shrink:0;"></div>
+        
+        <div style="flex:1; min-width:0; text-align:center; display:flex; flex-direction:column; gap:6px;">
+          <div class="editable-text" style="font-weight:800; font-size:14px; color:var(--nui-text); line-height:1;">CagedVex</div>
+          <div class="editable-text" style="font-size:11px; font-weight:700; color:var(--nui-success); display:flex; flex-direction:column; align-items:center; gap:2px; letter-spacing:0.3px; line-height:1.2;">
+            <div>📚 ENDURANCE</div>
+            <div>· 06:53:14</div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; column-gap:16px; row-gap:8px; text-align:center; flex-shrink:0;">
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">LVL</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">131</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">STR</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-danger);">263</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">DEF</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-accent-2);">234</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">SPD</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">129</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px; grid-column:span 2;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">HP</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-success);">162 / 325</span></div>
+        </div>
+      </div>
+
+      <!-- Pet 2 -->
+      <div style="display:flex; align-items:center; gap:12px; padding:12px; background:var(--nui-surface-2); border:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); border-radius:14px;">
+        <div style="width:52px; height:52px; border-radius:10px; background:var(--nui-surface) url('https://wardrobe.jellyneo.net/assets/imgs/rainbow-pool/unconverted/draik_darigan.png') center/contain no-repeat; border:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); flex-shrink:0;"></div>
+        
+        <div style="flex:1; min-width:0; text-align:center; display:flex; flex-direction:column; gap:6px;">
+          <div class="editable-text" style="font-weight:800; font-size:14px; color:var(--nui-text); line-height:1;">Master_Vex</div>
+          <div class="editable-text" style="font-size:11px; font-weight:700; color:var(--nui-text-faint); letter-spacing:0.3px; text-transform:uppercase; line-height:1.2;">
+            NOT<br>ENROLLED
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; column-gap:16px; row-gap:8px; text-align:center; flex-shrink:0;">
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">LVL</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">45</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">STR</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-danger);">88</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">DEF</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-accent-2);">92</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">SPD</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">40</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px; grid-column:span 2;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">HP</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-success);">85 / 85</span></div>
+        </div>
+      </div>
+
+      <!-- Pet 3 -->
+      <div style="display:flex; align-items:center; gap:12px; padding:12px; background:var(--nui-surface-2); border:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); border-radius:14px;">
+        <div style="width:52px; height:52px; border-radius:10px; background:var(--nui-surface) url('https://wardrobe.jellyneo.net/assets/imgs/rainbow-pool/unconverted/aisha_darigan.png') center/contain no-repeat; border:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); flex-shrink:0;"></div>
+        
+        <div style="flex:1; min-width:0; text-align:center; display:flex; flex-direction:column; gap:6px;">
+          <div class="editable-text" style="font-weight:800; font-size:14px; color:var(--nui-text); line-height:1;">CourtDancer</div>
+          <div class="editable-text" style="font-size:11px; font-weight:700; color:var(--nui-text-faint); letter-spacing:0.3px; text-transform:uppercase; line-height:1.2;">
+            NOT<br>ENROLLED
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; column-gap:16px; row-gap:8px; text-align:center; flex-shrink:0;">
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">LVL</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">60</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">STR</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-danger);">120</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">DEF</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-accent-2);">80</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">SPD</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">150</span></div>
+          <div style="display:flex; flex-direction:column; gap:2px; grid-column:span 2;"><span style="font-size:9px; color:var(--nui-text-faint); font-weight:800;">HP</span><span class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-success);">110 / 110</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+        </div>
+      </div>
+
+      <div class="cap-block fade-up in">
+        <div class="cap-header">
+          <div class="cap-eyebrow editable-text">Module — Kadoatery</div>
+          <div class="cap-title editable-text">Kadoatery Grid</div>
+          <p class="cap-desc editable-text">A dense grid view showing every Kadoatie's status at once. Fed, hungry, and who fed them — tap any cell to copy the item name straight to your clipboard.</p>
+        </div>
+        <div class="cap-demo">
+          <div class="nui-mockup" style="position:relative; display:flex; flex-direction:column; height:480px; overflow-y:auto; background:var(--nui-bg); border-radius:16px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); box-shadow:0 12px 32px var(--nui-shadow);">
+  
+  <!-- Header -->
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid var(--nui-border); position:sticky; top:0; background:color-mix(in srgb, var(--nui-bg) 95%, transparent); backdrop-filter:blur(8px); z-index:20;">
+    <div class="editable-text" style="font-family:var(--nui-font-display); font-weight:800; font-size:16px; color:var(--nui-text); display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
+      <span>🐱</span><span>KADWATCH</span>
+    </div>
+    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+      <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-text-muted); border:1px solid var(--nui-border); background:var(--nui-surface); border-radius:999px; padding:4px 10px; cursor:pointer;">HH:MM:SS</div>
+      <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-text-muted); border:1px solid var(--nui-border); background:var(--nui-surface); border-radius:999px; padding:4px 10px; cursor:pointer;">Main</div>
+      <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-text-muted); border:1px solid var(--nui-border); background:var(--nui-surface); border-radius:999px; padding:4px 10px; cursor:pointer;">Mini</div>
+      <div class="editable-text" style="font-size:10px; font-weight:800; background:var(--nui-accent); color:var(--nui-accent-ink); border-radius:999px; padding:4px 10px; border:none; display:flex; align-items:center; gap:4px; cursor:pointer;">📋 Copy</div>
+    </div>
+  </div>
+
+  <!-- Alert Box -->
+  <div style="margin:16px 16px 8px; padding:12px 16px; background:var(--nui-surface-2); border:1px solid color-mix(in srgb, var(--nui-accent) 20%, transparent); border-radius:12px; display:flex; justify-content:space-between; align-items:flex-start;">
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <div class="editable-text" style="font-size:11px; font-weight:700; color:var(--nui-text-muted);"><span style="color:var(--nui-accent-2); font-weight:800; font-size:12px;">MAIN</span> Refreshed: 11:14:32am</div>
+      <div class="editable-text" style="font-size:11px; font-weight:700; color:var(--nui-text-muted);">NEXT: <span style="color:var(--nui-text); font-size:12px;">11:49:32am</span> | IN: <span style="color:var(--nui-danger); font-size:15px; font-weight:800;">21:29</span></div>
+    </div>
+    <div class="editable-text" style="width:20px; height:20px; background:color-mix(in srgb, var(--nui-danger) 15%, transparent); color:var(--nui-danger); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; cursor:pointer; flex-shrink:0;">×</div>
+  </div>
+
+  <!-- Subheader -->
+  <div class="editable-text" style="text-align:center; font-size:12px; font-weight:700; color:var(--nui-text-muted); margin:8px 0 12px;">0 hungry · 20 fed</div>
+
+  <!-- 2-Row Grid -->
+  <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; padding:0 16px 16px;">
+    
+    <!-- Row 1: Friend Fed -->
+    <div style="display:flex; flex-direction:column; align-items:center; background:var(--nui-surface); border:1px solid #1EE060; border-radius:12px; padding:10px 4px 8px; gap:6px;">
+      <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text); line-height:1; width:100%; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Killer</div>
+      <img src="https://images.neopets.com/games/kadoatery/pink_happy.gif" style="width:100%; max-width:44px; aspect-ratio:1; object-fit:contain;">
+      <div class="editable-text" style="font-size:8.5px; font-weight:700; color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; gap:3px; width:100%; min-width:0;">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">✓ kanrik_the_thief</span>
+        <div style="width:6px; height:6px; background:#1EE060; border-radius:50%; flex-shrink:0;"></div>
+      </div>
+    </div>
+
+    <!-- Row 1: Bestie (Purple Vibe) -->
+    <div style="display:flex; flex-direction:column; align-items:center; background:var(--nui-surface); border:1px solid #b026ff; border-radius:12px; padding:10px 4px 8px; gap:6px;">
+      <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text); line-height:1; width:100%; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Raphael</div>
+      <img src="https://images.neopets.com/games/kadoatery/pink_happy.gif" style="width:100%; max-width:44px; aspect-ratio:1; object-fit:contain;">
+      <div class="editable-text" style="font-size:8.5px; font-weight:700; color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; gap:3px; width:100%; min-width:0;">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">✓ jhudoras_minion</span>
+        <div style="width:6px; height:6px; background:#b026ff; border-radius:50%; flex-shrink:0;"></div>
+      </div>
+    </div>
+
+    <!-- Row 1: Normal -->
+    <div style="display:flex; flex-direction:column; align-items:center; background:var(--nui-surface); border:1px solid var(--nui-surface-2); border-radius:12px; padding:10px 4px 8px; gap:6px;">
+      <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text); line-height:1; width:100%; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Hotdog</div>
+      <img src="https://images.neopets.com/games/kadoatery/pink_happy.gif" style="width:100%; max-width:44px; aspect-ratio:1; object-fit:contain;">
+      <div class="editable-text" style="font-size:8.5px; font-weight:700; color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; gap:3px; width:100%; min-width:0;">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">✓ master_vex_99</span>
+      </div>
+    </div>
+
+    <!-- Row 1: YOU FED THIS -->
+    <div style="display:flex; flex-direction:column; align-items:center; background:var(--nui-surface); border:1px solid var(--nui-surface-2); border-radius:12px; padding:10px 4px 8px; gap:6px;">
+      <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text); line-height:1; width:100%; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Percy</div>
+      <img src="https://images.neopets.com/games/kadoatery/pink_happy.gif" style="width:100%; max-width:44px; aspect-ratio:1; object-fit:contain;">
+      <div class="editable-text" style="font-size:8.5px; font-weight:800; color:var(--nui-text); display:flex; align-items:center; justify-content:center; gap:3px; width:100%; min-width:0;">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">You fed this!</span>
+      </div>
+    </div>
+
+    <!-- Row 2: Friend Fed -->
+    <div style="display:flex; flex-direction:column; align-items:center; background:var(--nui-surface); border:1px solid #1EE060; border-radius:12px; padding:10px 4px 8px; gap:6px;">
+      <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text); line-height:1; width:100%; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Mario</div>
+      <img src="https://images.neopets.com/games/kadoatery/pink_happy.gif" style="width:100%; max-width:44px; aspect-ratio:1; object-fit:contain;">
+      <div class="editable-text" style="font-size:8.5px; font-weight:700; color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; gap:3px; width:100%; min-width:0;">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">✓ dr_sloth_real</span>
+        <div style="width:6px; height:6px; background:#1EE060; border-radius:50%; flex-shrink:0;"></div>
+      </div>
+    </div>
+
+    <!-- Row 2: Normal -->
+    <div style="display:flex; flex-direction:column; align-items:center; background:var(--nui-surface); border:1px solid var(--nui-surface-2); border-radius:12px; padding:10px 4px 8px; gap:6px;">
+      <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text); line-height:1; width:100%; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Snotty</div>
+      <img src="https://images.neopets.com/games/kadoatery/pink_happy.gif" style="width:100%; max-width:44px; aspect-ratio:1; object-fit:contain;">
+      <div class="editable-text" style="font-size:8.5px; font-weight:700; color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; gap:3px; width:100%; min-width:0;">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">✓ court_dancer_xoxo</span>
+      </div>
+    </div>
+
+    <!-- Row 2: Normal -->
+    <div style="display:flex; flex-direction:column; align-items:center; background:var(--nui-surface); border:1px solid var(--nui-surface-2); border-radius:12px; padding:10px 4px 8px; gap:6px;">
+      <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text); line-height:1; width:100%; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Sausage</div>
+      <img src="https://images.neopets.com/games/kadoatery/pink_happy.gif" style="width:100%; max-width:44px; aspect-ratio:1; object-fit:contain;">
+      <div class="editable-text" style="font-size:8.5px; font-weight:700; color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; gap:3px; width:100%; min-width:0;">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">✓ the_three_shadows</span>
+      </div>
+    </div>
+
+    <!-- Row 2: Normal -->
+    <div style="display:flex; flex-direction:column; align-items:center; background:var(--nui-surface); border:1px solid var(--nui-surface-2); border-radius:12px; padding:10px 4px 8px; gap:6px;">
+      <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text); line-height:1; width:100%; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Pizza</div>
+      <img src="https://images.neopets.com/games/kadoatery/pink_happy.gif" style="width:100%; max-width:44px; aspect-ratio:1; object-fit:contain;">
+      <div class="editable-text" style="font-size:8.5px; font-weight:700; color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; gap:3px; width:100%; min-width:0;">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">✓ galem_darkhand</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Action Bar -->
+  <div style="position:sticky; bottom:0; margin-top:auto; padding:12px 16px; background:color-mix(in srgb, var(--nui-bg) 85%, transparent); backdrop-filter:blur(12px); border-top:1px solid var(--nui-border); display:flex; gap:8px; z-index:20;">
+    <button class="editable-text" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:#1e3a5f; color:#fff; border:1px solid #2a528a; border-radius:10px; padding:10px; font-weight:800; font-size:13px; font-family:inherit; cursor:pointer;"><span style="color:#ffc107; font-size:14px;">⚡</span> SSW</button>
+    <button class="editable-text" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:var(--nui-surface); color:var(--nui-text); border:1px solid var(--nui-border); border-radius:10px; padding:10px; font-weight:800; font-size:13px; font-family:inherit; cursor:pointer;"><span style="font-size:14px;">🧙‍♂️</span> SW</button>
+    <button class="editable-text" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:var(--nui-surface-2); color:var(--nui-text); border:1px solid var(--nui-border); border-radius:10px; padding:10px; font-weight:800; font-size:13px; font-family:inherit; cursor:pointer;"><span style="font-size:14px;">📦</span> SDB</button>
+  </div>
+
+</div>
+
+
+        </div>
+      </div>
+
+      <div class="cap-block wide fade-up in">
+        <div class="cap-header">
+          <div class="cap-eyebrow editable-text">Module — Games</div>
+          <div class="cap-title editable-text">Drag-and-drop Game Controller</div>
+          <p class="cap-desc editable-text">A virtual gamepad overlay for Flash games, fully playable by touch on mobile. Drag any button to reorder, resize each one independently, save layouts per-game or set a global default, and snap back to preset grids any time. Also allows you to use your favorite Neopets games cheat codes.</p>
+          <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:.5rem">
+            <span class="editable-text" style="font-size:.75rem;padding:.25rem .75rem;border-radius:999px;background:var(--nui-accent-soft);color:var(--nui-accent);border:1px solid color-mix(in srgb, var(--nui-accent) 40%, transparent);font-weight:600; transition: all 0.4s ease;">Drag to reorder</span>
+            <span class="editable-text" style="font-size:.75rem;padding:.25rem .75rem;border-radius:999px;background:var(--nui-accent-soft);color:var(--nui-accent);border:1px solid color-mix(in srgb, var(--nui-accent) 40%, transparent);font-weight:600; transition: all 0.4s ease;">Per-game saves</span>
+            <span class="editable-text" style="font-size:.75rem;padding:.25rem .75rem;border-radius:999px;background:var(--nui-accent-soft);color:var(--nui-accent);border:1px solid color-mix(in srgb, var(--nui-accent) 40%, transparent);font-weight:600; transition: all 0.4s ease;">Preset grids</span>
+            <span class="editable-text" style="font-size:.75rem;padding:.25rem .75rem;border-radius:999px;background:var(--nui-accent-soft);color:var(--nui-accent);border:1px solid color-mix(in srgb, var(--nui-accent) 40%, transparent);font-weight:600; transition: all 0.4s ease;">Touch-native</span>
+          </div>
+        </div>
+        <div class="cap-demo">
+          <div class="nui-mockup" style="display:flex; flex-direction:column; background:var(--nui-bg); border-radius:16px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); box-shadow:0 12px 32px var(--nui-shadow); padding:20px; overflow-y:auto;">
+  
+  <!-- Header -->
+  <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:14px;">
+    <div class="editable-text" style="font-family:var(--nui-font-display); font-weight:800; font-size:18px; color:var(--nui-text); display:flex; align-items:center; gap:8px;">
+      <span>🕹️</span><span>Games Room - Feed Florg</span>
+    </div>
+    <div class="editable-text" style="color:#e05a8b; font-size:12px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:4px;">
+      Full page <span style="font-size:14px; font-weight:400;">↗</span>
+    </div>
+  </div>
+
+  <!-- Game Canvas -->
+  <div style="background:#050505; border-radius:12px; border:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); display:flex; justify-content:center; align-items:center; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.4); aspect-ratio:4/3; width:100%;">
+    <img src="https://images.neopets.com/games/pages/icons/screenshots/645/1.jpg" style="width:100%; height:100%; object-fit:cover; opacity:0.95;">
+  </div>
+
+  <!-- Trophies -->
+  <div class="editable-text" style="display:flex; justify-content:center; align-items:center; gap:16px; margin: 16px 0; font-size:11px; font-weight:700; color:var(--nui-text-muted);">
+    <span style="display:flex; align-items:center; gap:4px;">🥇 268+</span>
+    <span style="display:flex; align-items:center; gap:4px;">🥈 256+</span>
+    <span style="display:flex; align-items:center; gap:4px;">🥉 251+</span>
+  </div>
+
+  <!-- Virtual Controller -->
+  <div style="background:var(--nui-surface-2); border-radius:16px; padding:16px; border:1px solid var(--nui-border); display:flex; flex-direction:column; gap:8px;">
+    
+    <!-- Top Actions -->
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button style="width:32px; height:32px; border-radius:8px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); background:var(--nui-bg); color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      </button>
+      <button style="width:32px; height:32px; border-radius:8px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); background:var(--nui-bg); color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <!-- D-Pad Buttons -->
+    <div style="display:flex; justify-content:space-around; align-items:center; padding:10px 0 32px;">
+      <button style="width:96px; height:96px; border-radius:50%; background:var(--nui-bg); border:1px solid color-mix(in srgb, var(--nui-border) 60%, transparent); display:flex; align-items:center; justify-content:center; color:var(--nui-text); cursor:pointer; padding:0; padding-right:4px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15 18l-6-6 6-6v12z"/></svg>
+      </button>
+      <button style="width:96px; height:96px; border-radius:50%; background:var(--nui-bg); border:1px solid color-mix(in srgb, var(--nui-border) 60%, transparent); display:flex; align-items:center; justify-content:center; color:var(--nui-text); cursor:pointer; padding:0; padding-left:4px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18l6-6-6-6v12z"/></svg>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- High Scores Accordion -->
+  <div style="margin-top:16px; background:var(--nui-surface-2); border-radius:16px; border:1px solid color-mix(in srgb, var(--nui-border) 60%, transparent); padding:16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+    <div class="editable-text" style="font-family:var(--nui-font-display); font-weight:800; font-size:14px; color:var(--nui-text); display:flex; align-items:center; gap:8px;">
+      🏆 High Scores
+    </div>
+    <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-text-muted);">tap to expand</div>
+  </div>
+
+</div>
+
+        </div>
+      </div>
+
+      <div class="cap-block fade-up in">
+        <div class="cap-header">
+          <div class="cap-eyebrow editable-text">Module — Economy</div>
+          <div class="cap-title editable-text">Super Shop Wizard in a Modal</div>
+          <p class="cap-desc editable-text">Results open in a NeoUI overlay so you never lose your place. Price-sorted, with a direct Buy link per shop — no new tab, no back button.</p>
+        </div>
+        <div class="cap-demo">
+              <div class="nui-mockup" style="position:relative; display:flex; flex-direction:column; height:540px; overflow:hidden; background:var(--nui-bg); border-radius:16px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); box-shadow:0 12px 32px var(--nui-shadow); font-family:var(--nui-font-body, sans-serif);">
+  
+  <!-- PANEL 1: SSW -->
+  <div id="nm-ssw" style="position:absolute; inset:0; display:flex; flex-direction:column; transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); transform:translateX(0); z-index:1; background:var(--nui-bg);">
+    
+    <!-- Header Area -->
+    <div style="padding:20px 20px 16px; display:flex; flex-direction:column; gap:16px; border-bottom:1px solid var(--nui-border);">
+      
+      <!-- Top Title Bar -->
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="editable-text" style="font-family:var(--nui-font-display, sans-serif); font-weight:800; font-size:18px; color:var(--nui-text); display:flex; align-items:center; gap:8px;">
+          <span style="color:#ffc107; font-size:18px;">⚡</span> Super Shop Wizard
+        </div>
+        <div class="editable-text" style="color:var(--nui-text-muted); font-size:20px; font-weight:800; cursor:pointer; line-height:1;">×</div>
+      </div>
+
+      <!-- Search Bar -->
+      <div style="display:flex; gap:12px;">
+        <div style="flex:1; background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:12px; padding:12px 16px; display:flex; align-items:center;">
+          <div class="editable-text" style="color:var(--nui-text); font-size:15px; font-weight:600; width:100%;">vo codestone</div>
+        </div>
+        <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); font-weight:800; font-family:inherit; font-size:15px; border:none; border-radius:12px; padding:0 24px; cursor:pointer;">Search</button>
+      </div>
+
+      <!-- Toggles -->
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div class="editable-text" style="background:var(--nui-surface-2); border:1px solid var(--nui-border); color:var(--nui-text); font-size:13px; font-weight:700; padding:6px 16px; border-radius:999px; cursor:pointer;">Exact match</div>
+        <div style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <div style="width:16px; height:16px; background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:4px; display:flex; align-items:center; justify-content:center;">
+             <div style="width:10px; height:10px; background:var(--nui-text); border-radius:2px;"></div>
+          </div>
+          <span class="editable-text" style="color:var(--nui-text); font-size:13px; font-weight:700;">Price only</span>
+        </div>
+        <div class="editable-text" style="background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text-muted); font-size:13px; font-weight:700; padding:6px 16px; border-radius:999px; cursor:pointer;">Shop</div>
+      </div>
+      
+    </div>
+
+    <!-- Results Table -->
+    <div style="flex:1; overflow-y:auto;">
+      <!-- Table Header -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:12px 20px; border-bottom:1px solid var(--nui-border); position:sticky; top:0; background:color-mix(in srgb, var(--nui-bg) 95%, transparent); backdrop-filter:blur(8px);">
+        <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase;">OWNER</div>
+        <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; font-weight:800; letter-spacing:0.5px; text-align:center; text-transform:uppercase;">STOCK</div>
+        <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; font-weight:800; letter-spacing:0.5px; text-align:right; text-transform:uppercase;">PRICE</div>
+      </div>
+
+      <!-- Row 1: Clickable to Shop View -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:14px 20px; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); cursor:pointer; align-items:center; transition:background 0.2s;" onmouseover="this.style.background='var(--nui-surface)'" onmouseout="this.style.background='transparent'" onclick="document.getElementById('nm-ssw').style.transform='translateX(-100%)'; document.getElementById('nm-shop').style.transform='translateX(0)'">
+        <div class="editable-text" style="color:var(--nui-accent); font-size:14px; font-weight:700;">kauvara_potions</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:center; font-weight:500;">1</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:right; font-weight:500;">3,000 NP</div>
+      </div>
+
+      <!-- Row 2 -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:14px 20px; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); background:var(--nui-surface-2); align-items:center;">
+        <div class="editable-text" style="color:var(--nui-accent); font-size:14px; font-weight:700;">brain_tree_fan</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:center; font-weight:500;">1</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:right; font-weight:500;">3,000 NP</div>
+      </div>
+
+      <!-- Row 3 -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:14px 20px; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); align-items:center;">
+        <div class="editable-text" style="color:var(--nui-accent); font-size:14px; font-weight:700;">x_lord_darigan_x</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:center; font-weight:500;">2</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:right; font-weight:500;">3,100 NP</div>
+      </div>
+
+      <!-- Row 4 -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:14px 20px; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); background:var(--nui-surface-2); align-items:center;">
+        <div class="editable-text" style="color:var(--nui-accent); font-size:14px; font-weight:700;">the_library_faerie</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:center; font-weight:500;">1</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:right; font-weight:500;">3,150 NP</div>
+      </div>
+
+      <!-- Row 5 -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:14px 20px; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); align-items:center;">
+        <div class="editable-text" style="color:var(--nui-accent); font-size:14px; font-weight:700;">soup_faerie_99</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:center; font-weight:500;">1</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:right; font-weight:500;">3,299 NP</div>
+      </div>
+
+      <!-- Row 6 -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:14px 20px; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); background:var(--nui-surface-2); align-items:center;">
+        <div class="editable-text" style="color:var(--nui-accent); font-size:14px; font-weight:700;">___dr_sloth___</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:center; font-weight:500;">18</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:right; font-weight:500;">3,398 NP</div>
+      </div>
+
+      <!-- Row 7 -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:14px 20px; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); align-items:center;">
+        <div class="editable-text" style="color:var(--nui-accent); font-size:14px; font-weight:700;">commander_garoo</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:center; font-weight:500;">20</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:right; font-weight:500;">3,399 NP</div>
+      </div>
+
+      <!-- Row 8 -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:14px 20px; border-bottom:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); background:var(--nui-surface-2); align-items:center;">
+        <div class="editable-text" style="color:var(--nui-accent); font-size:14px; font-weight:700;">hanso_the_thief</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:center; font-weight:500;">1</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:right; font-weight:500;">3,399 NP</div>
+      </div>
+
+      <!-- Row 9 -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; padding:14px 20px; align-items:center;">
+        <div class="editable-text" style="color:var(--nui-accent); font-size:14px; font-weight:700;">roxton_a_colgrave</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:center; font-weight:500;">23</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:14px; text-align:right; font-weight:500;">3,400 NP</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PANEL 2: SHOP VIEW -->
+  <div id="nm-shop" style="position:absolute; inset:0; display:flex; flex-direction:column; transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); transform:translateX(100%); z-index:2; background:var(--nui-bg); box-shadow:-12px 0 32px var(--nui-shadow);">
+    
+    <!-- Top Bar -->
+    <div style="background:var(--nui-surface-2); border:1px solid var(--nui-border); border-bottom:none; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-radius:16px 16px 0 0; margin:12px 12px 0;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="editable-text" style="color:var(--nui-text-muted); font-size:20px; font-weight:800; cursor:pointer; line-height:1; padding-bottom:2px;" onclick="document.getElementById('nm-shop').style.transform='translateX(100%)'; document.getElementById('nm-ssw').style.transform='translateX(0)'">×</div>
+        <div class="editable-text" style="color:var(--nui-text); font-size:15px; font-weight:700;">The Potions Tent — kauvara_potions</div>
+      </div>
+      <div class="editable-text" style="color:var(--nui-accent); font-weight:800; cursor:pointer;">↗</div>
+    </div>
+
+    <div style="flex:1; display:flex; flex-direction:column; padding:0 12px 12px; border-left:1px solid var(--nui-border); border-right:1px solid var(--nui-border); border-bottom:1px solid var(--nui-border); border-radius:0 0 16px 16px; margin:0 12px 12px; background:color-mix(in srgb, var(--nui-surface) 30%, transparent);">
+      
+      <!-- Subheader & Search -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 4px;">
+        <div class="editable-text" style="color:var(--nui-text); font-size:13px; font-weight:700;">Showing 1–29 of 29 items</div>
+        <div style="background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:8px; padding:8px 12px; width:160px;">
+          <div class="editable-text" style="color:var(--nui-text-muted); font-size:12px;">Search this shop...</div>
+        </div>
+      </div>
+
+      <!-- Item Grid -->
+      <div style="flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:10px; padding:6px; padding-bottom:16px;">
+        
+        <!-- Card 1: Searched Item -->
+        <div style="background:var(--nui-surface); border:2px solid var(--nui-accent); border-radius:12px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:6px; position:relative; box-shadow:0 4px 12px var(--nui-shadow);">
+          <div class="editable-text" style="position:absolute; top:-8px; left:50%; transform:translateX(-50%); background:var(--nui-accent); color:var(--nui-accent-ink); font-size:9px; font-weight:800; padding:2px 8px; border-radius:999px; letter-spacing:0.5px; z-index:2;">SEARCHED</div>
+          
+          <div style="position:relative; width:100%; max-width:72px; aspect-ratio:1; background:var(--nui-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent);">
+            <img src="https://images.neopets.com/items/codestone7.gif" style="width:80%; height:80%; object-fit:contain;">
+          </div>
+          
+          <div class="editable-text" style="color:var(--nui-text); font-size:12px; font-weight:800; text-align:center; line-height:1.2; word-break:break-word;">Vo Codestone</div>
+          <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; text-align:center;">1 in stock</div>
+          <div class="editable-text" style="color:var(--nui-accent); font-size:13px; font-weight:800; text-align:center;">3,000 NP</div>
+          <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); font-family:inherit; font-size:13px; font-weight:800; width:100%; border:none; border-radius:8px; padding:6px 0; margin-top:auto; cursor:pointer;">Buy</button>
+        </div>
+
+        <!-- Card 2 -->
+        <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div style="position:relative; width:100%; max-width:72px; aspect-ratio:1; background:var(--nui-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent);">
+            <img src="https://images.neopets.com/items/book_moehog5.gif" style="width:80%; height:80%; object-fit:contain;">
+          </div>
+          <div class="editable-text" style="color:var(--nui-text); font-size:12px; font-weight:800; text-align:center; line-height:1.2; word-break:break-word;">Looking Like A Moehog</div>
+          <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; text-align:center;">1 in stock</div>
+          <div class="editable-text" style="color:var(--nui-accent); font-size:13px; font-weight:800; text-align:center;">3,000 NP</div>
+          <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); font-family:inherit; font-size:13px; font-weight:800; width:100%; border:none; border-radius:8px; padding:6px 0; margin-top:auto; cursor:pointer;">Buy</button>
+        </div>
+
+        <!-- Card 3 -->
+        <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div style="position:relative; width:100%; max-width:72px; aspect-ratio:1; background:var(--nui-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent);">
+            <img src="https://images.neopets.com/items/nerk_plat_6.gif" style="width:80%; height:80%; object-fit:contain;">
+          </div>
+          <div class="editable-text" style="color:var(--nui-text); font-size:12px; font-weight:800; text-align:center; line-height:1.2; word-break:break-word;">Magical Platinum Nerkmid</div>
+          <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; text-align:center;">21 in stock</div>
+          <div class="editable-text" style="color:var(--nui-accent); font-size:13px; font-weight:800; text-align:center;">33,000 NP</div>
+          <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); font-family:inherit; font-size:13px; font-weight:800; width:100%; border:none; border-radius:8px; padding:6px 0; margin-top:auto; cursor:pointer;">Buy</button>
+        </div>
+
+        <!-- Card 4 -->
+        <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div style="position:relative; width:100%; max-width:72px; aspect-ratio:1; background:var(--nui-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent);">
+            <img src="https://images.neopets.com/items/tooth_bluebrush.gif" style="width:80%; height:80%; object-fit:contain;">
+          </div>
+          <div class="editable-text" style="color:var(--nui-text); font-size:12px; font-weight:800; text-align:center; line-height:1.2; word-break:break-word;">Deluxe Blue Toothbrush</div>
+          <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; text-align:center;">1 in stock</div>
+          <div class="editable-text" style="color:var(--nui-accent); font-size:13px; font-weight:800; text-align:center;">2,600 NP</div>
+          <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); font-family:inherit; font-size:13px; font-weight:800; width:100%; border:none; border-radius:8px; padding:6px 0; margin-top:auto; cursor:pointer;">Buy</button>
+        </div>
+
+        <!-- Card 5 -->
+        <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div style="position:relative; width:100%; max-width:72px; aspect-ratio:1; background:var(--nui-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent);">
+            <img src="https://images.neopets.com/items/food_butterball.gif" style="width:80%; height:80%; object-fit:contain;">
+          </div>
+          <div class="editable-text" style="color:var(--nui-text); font-size:12px; font-weight:800; text-align:center; line-height:1.2; word-break:break-word;">Butterlicious Muffin</div>
+          <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; text-align:center;">3 in stock</div>
+          <div class="editable-text" style="color:var(--nui-accent); font-size:13px; font-weight:800; text-align:center;">1,300 NP</div>
+          <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); font-family:inherit; font-size:13px; font-weight:800; width:100%; border:none; border-radius:8px; padding:6px 0; margin-top:auto; cursor:pointer;">Buy</button>
+        </div>
+
+        <!-- Card 6 -->
+        <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div style="position:relative; width:100%; max-width:72px; aspect-ratio:1; background:var(--nui-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent);">
+            <img src="https://images.neopets.com/items/book_petfolio.gif" style="width:80%; height:80%; object-fit:contain;">
+          </div>
+          <div class="editable-text" style="color:var(--nui-text); font-size:12px; font-weight:800; text-align:center; line-height:1.2; word-break:break-word;">Petfolio</div>
+          <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; text-align:center;">1 in stock</div>
+          <div class="editable-text" style="color:var(--nui-accent); font-size:13px; font-weight:800; text-align:center;">765,000 NP</div>
+          <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); font-family:inherit; font-size:13px; font-weight:800; width:100%; border:none; border-radius:8px; padding:6px 0; margin-top:auto; cursor:pointer;">Buy</button>
+        </div>
+
+        <!-- Card 7 -->
+        <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div style="position:relative; width:100%; max-width:72px; aspect-ratio:1; background:var(--nui-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent);">
+            <img src="https://images.neopets.com/items/bd_chomby_boot.gif" style="width:80%; height:80%; object-fit:contain;">
+          </div>
+          <div class="editable-text" style="color:var(--nui-text); font-size:12px; font-weight:800; text-align:center; line-height:1.2; word-break:break-word;">Chomby Thunder Boot</div>
+          <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; text-align:center;">1 in stock</div>
+          <div class="editable-text" style="color:var(--nui-accent); font-size:13px; font-weight:800; text-align:center;">1,800 NP</div>
+          <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); font-family:inherit; font-size:13px; font-weight:800; width:100%; border:none; border-radius:8px; padding:6px 0; margin-top:auto; cursor:pointer;">Buy</button>
+        </div>
+
+        <!-- Card 8 -->
+        <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div style="position:relative; width:100%; max-width:72px; aspect-ratio:1; background:var(--nui-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent);">
+            <img src="https://images.neopets.com/items/toy_balloon_birthday3.gif" style="width:80%; height:80%; object-fit:contain;">
+          </div>
+          <div class="editable-text" style="color:var(--nui-text); font-size:12px; font-weight:800; text-align:center; line-height:1.2; word-break:break-word;">Pink Birthday Balloon</div>
+          <div class="editable-text" style="color:var(--nui-text-muted); font-size:11px; text-align:center;">3 in stock</div>
+          <div class="editable-text" style="color:var(--nui-accent); font-size:13px; font-weight:800; text-align:center;">59,000 NP</div>
+          <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); font-family:inherit; font-size:13px; font-weight:800; width:100%; border:none; border-radius:8px; padding:6px 0; margin-top:auto; cursor:pointer;">Buy</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+        </div>
+      </div>
+
+      <div class="cap-block fade-up in">
+        <div class="cap-header">
+          <div class="cap-eyebrow editable-text">Module — Quests</div>
+          <div class="cap-title editable-text">Quest Ledger</div>
+          <p class="cap-desc editable-text">Logs every Taelia, Edna, and Kitchen Quest completion — items fetched, NP spent, rewards earned. Your full history, searchable, per NPC.</p>
+        </div>
+        <div class="cap-demo">
+         <div class="nui-mockup" style="position:relative; display:flex; flex-direction:column; height:640px; overflow:hidden; background:var(--nui-bg); border-radius:16px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); box-shadow:0 12px 32px var(--nui-shadow); font-family:var(--nui-font-body, sans-serif);">
+
+  <!-- PANEL 1: MAIN QUEST VIEW -->
+  <div id="nm-quest-main" style="position:absolute; inset:0; display:flex; flex-direction:column; overflow-y:auto; transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); transform:translateX(0); z-index:1; background:var(--nui-bg); padding:16px;">
+    
+    <!-- Top Header -->
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+      <button class="editable-text" style="width:36px; height:36px; border-radius:50%; background:var(--nui-accent); color:var(--nui-accent-ink); border:none; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; flex-shrink:0;">‹</button>
+      <div class="editable-text" style="font-family:var(--nui-font-display, sans-serif); font-weight:800; font-size:20px; color:var(--nui-text); display:flex; align-items:center; gap:6px;">
+        <span>❄️</span> Snow Faerie Taelia's Quest
+      </div>
+    </div>
+
+    <!-- Active Quest Card -->
+    <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:16px; padding:20px 16px 16px; display:flex; flex-direction:column; gap:16px; box-shadow:0 4px 12px var(--nui-shadow); margin-bottom:16px;">
+      
+      <!-- NPC Image -->
+      <div style="display:flex; justify-content:center;">
+        <div style="width:100px; height:100px; background:var(--nui-surface-2); border-radius:16px; border:1px solid var(--nui-border); display:flex; align-items:center; justify-content:center; overflow:hidden;">
+          <img src="https://images.neopets.com/winter/snowfaerie1.gif" style="width:100%; height:100%; object-fit:contain;">
+        </div>
+      </div>
+
+      <!-- Ingredients List -->
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-accent-2); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">Ingredients Needed</div>
+        
+        <!-- Row 1: Searched/Priced -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--nui-surface-2); border-radius:8px; border-left:3px solid var(--nui-accent-2);">
+          <div class="editable-text" style="font-size:14px; font-weight:600; color:var(--nui-text); flex:1;">Orange Gem Candy</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="editable-text" style="font-size:14px; font-weight:800; color:var(--nui-success);">4,100 NP</span>
+            <span class="editable-text" style="font-size:14px; cursor:pointer;">✏️</span>
+          </div>
+        </div>
+
+        <!-- Row 2: Unsearched -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--nui-surface-2); border-radius:8px; border:1px solid var(--nui-border);">
+          <div class="editable-text" style="font-size:14px; font-weight:600; color:var(--nui-text); flex:1;">Cinnamon Shell Spiral</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="editable-text" style="font-size:14px; cursor:pointer;">✏️</span>
+            <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); border:none; border-radius:999px; padding:4px 12px; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center;">🔍</button>
+          </div>
+        </div>
+
+        <!-- Row 3: Unsearched -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--nui-surface-2); border-radius:8px; border:1px solid var(--nui-border);">
+          <div class="editable-text" style="font-size:14px; font-weight:600; color:var(--nui-text); flex:1;">Tangleberry Sour Saucer</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="editable-text" style="font-size:14px; cursor:pointer;">✏️</span>
+            <button class="editable-text" style="background:var(--nui-accent); color:var(--nui-accent-ink); border:none; border-radius:999px; padding:4px 12px; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center;">🔍</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button class="editable-text" style="flex:0.8; background:var(--nui-surface-2); border:1px solid var(--nui-border); color:var(--nui-text); font-family:inherit; font-size:13px; font-weight:700; border-radius:12px; padding:12px 10px; cursor:pointer;">✅ Mark Complete Manually</button>
+        <button class="editable-text" style="flex:1.2; background:var(--nui-accent); border:none; color:var(--nui-accent-ink); font-family:inherit; font-size:15px; font-weight:800; border-radius:12px; padding:12px 10px; cursor:pointer;">I Have the Ingredients!</button>
+      </div>
+
+    </div>
+
+    <!-- Quest Ledger Widget -->
+    <div style="background:var(--nui-surface); border:1px solid var(--nui-accent-2); border-radius:16px; padding:14px; display:flex; flex-direction:column; box-shadow:0 4px 12px var(--nui-shadow);">
+      
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+        <div style="display:flex; align-items:flex-start; gap:8px;">
+          <span style="font-size:20px;">❄️</span>
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div class="editable-text" style="font-family:var(--nui-font-display, sans-serif); font-size:16px; font-weight:800; color:var(--nui-text); line-height:1;">Quest Ledger</div>
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text-muted);">1/10 today</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="editable-text" style="background:var(--nui-surface-2); border:1px solid var(--nui-border); color:var(--nui-text); font-family:inherit; font-size:11px; font-weight:700; border-radius:8px; padding:4px 8px; cursor:pointer;">↩ Undo</button>
+          <button class="editable-text" style="background:var(--nui-surface-2); border:1px solid var(--nui-border); color:var(--nui-text); font-family:inherit; font-size:11px; font-weight:700; border-radius:8px; padding:4px 8px; cursor:pointer;">⬇ CSV</button>
+          <button class="editable-text" style="background:var(--nui-accent); border:none; color:var(--nui-accent-ink); font-family:inherit; font-size:11px; font-weight:800; border-radius:8px; padding:4px 8px; cursor:pointer;" onclick="document.getElementById('nm-quest-main').style.transform='translateX(-100%)'; document.getElementById('nm-quest-stats').style.transform='translateX(0)'">📊 Stats</button>
+        </div>
+      </div>
+
+      <div class="editable-text" style="font-size:12px; font-weight:800; color:var(--nui-text); margin-bottom:8px; padding-top:8px; border-top:1px solid var(--nui-border);">▾ Today's Log</div>
+
+      <div style="display:grid; grid-template-columns:30px 1fr 1.5fr auto; gap:8px; align-items:center; padding-bottom:6px; border-bottom:1px solid var(--nui-border);">
+        <div class="editable-text" style="font-size:10px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">NPC</div>
+        <div class="editable-text" style="font-size:10px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Spent</div>
+        <div class="editable-text" style="font-size:10px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Reward</div>
+        <div class="editable-text" style="font-size:10px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px; text-align:right;">Net</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:30px 1fr 1.5fr auto; gap:8px; align-items:center; padding-top:8px;">
+        <div style="font-size:16px;">❄️</div>
+        <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">33,900 NP</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div class="editable-text" style="font-size:11px; color:var(--nui-text-muted);"><span style="color:var(--nui-warning); font-weight:700;">1,659 NP</span> + Coral Delight</div>
+          <div class="editable-text" style="font-size:11px; color:var(--nui-text); font-weight:600;"><span style="color:var(--nui-warning);">💰 28,000 NP</span> ✏️</div>
+        </div>
+        <div class="editable-text" style="font-size:14px; font-weight:800; color:var(--nui-danger); text-align:right;">-4,241</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PANEL 2: STATS MODAL -->
+  <div id="nm-quest-stats" style="position:absolute; inset:0; display:flex; flex-direction:column; transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); transform:translateX(100%); z-index:2; background:var(--nui-surface); box-shadow:-12px 0 32px var(--nui-shadow);">
+    
+    <!-- Top Bar -->
+    <div style="padding:16px; border-bottom:1px solid var(--nui-border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+      <div class="editable-text" style="font-family:var(--nui-font-display, sans-serif); font-size:18px; font-weight:800; color:var(--nui-text);">Last 30 Days</div>
+      <button class="editable-text" style="background:none; border:none; font-size:24px; font-weight:800; color:var(--nui-text-muted); cursor:pointer; line-height:1; padding:0;" onclick="document.getElementById('nm-quest-stats').style.transform='translateX(100%)'; document.getElementById('nm-quest-main').style.transform='translateX(0)'">×</button>
+    </div>
+
+    <div style="flex:1; display:flex; flex-direction:column; padding:16px; overflow-y:auto;">
+      
+      <!-- Date Select -->
+      <select class="editable-text" style="width:100%; padding:10px 12px; font-size:14px; font-family:inherit; color:var(--nui-text); background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:8px; outline:none; margin-bottom:16px;">
+        <option>Last 30 Days</option>
+        <option>All Time</option>
+      </select>
+
+      <!-- Summary Block -->
+      <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Quests</div>
+          <div class="editable-text" style="font-size:13px; font-weight:700; color:var(--nui-text);">❄️ 121 &nbsp; 🦇 1 &nbsp; 👨‍🍳 1</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px; text-align:right;">
+          <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Spent</div>
+          <div class="editable-text" style="font-size:16px; font-weight:800; color:var(--nui-text);">6,519,411</div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:16px; border-bottom:1px solid var(--nui-border); margin-bottom:12px;">
+        <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Net</div>
+        <div class="editable-text" style="font-size:24px; font-weight:800; color:var(--nui-success);">+30,390,734</div>
+      </div>
+
+      <!-- Badges -->
+      <div style="display:flex; gap:8px; margin-bottom:20px;">
+        <div class="editable-text" style="display:flex; align-items:center; gap:6px; background:var(--nui-surface-2); border:1px solid var(--nui-border); padding:6px 12px; border-radius:999px; font-size:11px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">
+          Stats Gained <span style="color:var(--nui-warning); font-size:13px;">⚡ Agility</span>
+        </div>
+      </div>
+
+      <!-- History Table Header -->
+      <div style="display:grid; grid-template-columns:30px 1fr 1.5fr auto; gap:8px; align-items:center; padding-bottom:8px; border-bottom:1px solid var(--nui-border);">
+        <div class="editable-text" style="font-size:10px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">NPC</div>
+        <div class="editable-text" style="font-size:10px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Spent</div>
+        <div class="editable-text" style="font-size:10px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Rewards</div>
+        <div class="editable-text" style="font-size:10px; font-weight:800; color:var(--nui-text-muted); text-transform:uppercase; letter-spacing:0.5px; text-align:right;">Net</div>
+      </div>
+
+      <!-- History Rows -->
+      <div style="display:flex; flex-direction:column; gap:16px; padding-top:12px;">
+        
+        <div style="display:grid; grid-template-columns:30px 1fr 1.5fr auto; gap:8px; align-items:center;">
+          <div style="font-size:16px;">❄️</div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">30,500 NP</div>
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text-muted);"><span style="color:var(--nui-warning); font-weight:700;">2,827 NP</span> +</div>
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text);">Stream of Light</div>
+            <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-success);">+1,200 NP</div>
+          </div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-danger); text-align:right;">-26,473</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:30px 1fr 1.5fr auto; gap:8px; align-items:center;">
+          <div style="font-size:16px;">❄️</div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">57,200 NP</div>
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text-muted);"><span style="color:var(--nui-warning); font-weight:700;">1,212 NP</span> +</div>
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text);">Shoyru Parfait</div>
+            <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-success);">+2,150 NP</div>
+          </div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-danger); text-align:right;">-53,838</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:30px 1fr 1.5fr auto; gap:8px; align-items:center;">
+          <div style="font-size:16px;">❄️</div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">62,284 NP</div>
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text-muted);"><span style="color:var(--nui-warning); font-weight:700;">1,878 NP</span> +</div>
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text);">Cheese Stuffed Mushrooms</div>
+            <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-success);">+990 NP</div>
+          </div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-danger); text-align:right;">-59,416</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:30px 1fr 1.5fr auto; gap:8px; align-items:center;">
+          <div style="font-size:16px;">❄️</div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">18,675 NP</div>
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text-muted);"><span style="color:var(--nui-warning); font-weight:700;">2,780 NP</span> +</div>
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text);">Amulet of Life</div>
+            <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-success);">+7 NP</div>
+          </div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-danger); text-align:right;">-15,888</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:30px 1fr 1.5fr auto; gap:8px; align-items:center;">
+          <div style="font-size:16px;">❄️</div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-text);">57,490 NP</div>
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text-muted);"><span style="color:var(--nui-warning); font-weight:700;">1,681 NP</span> +</div>
+            <div class="editable-text" style="font-size:11px; color:var(--nui-text);">Skeith Club</div>
+            <div class="editable-text" style="font-size:10px; font-weight:700; color:var(--nui-success);">+249 NP</div>
+          </div>
+          <div class="editable-text" style="font-size:13px; font-weight:800; color:var(--nui-danger); text-align:right;">-55,560</div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+        </div>
+      </div>
+
+      <div class="cap-block fade-up in">
+        <div class="cap-header">
+          <div class="cap-eyebrow editable-text">Module — Combat</div>
+          <div class="cap-title editable-text">Battledome</div>
+          <p class="cap-desc editable-text">Clearer ability selection, HP bars at a glance, and a layout that actually fits a phone screen. No pinching, no horizontal scroll mid-fight.</p>
+        </div>
+        <div class="cap-demo">
+          <div class="nui-mockup" style="position:relative; display:flex; flex-direction:column; height:640px; overflow:hidden; background:var(--nui-bg); border-radius:16px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); box-shadow:0 12px 32px var(--nui-shadow); font-family:var(--nui-font-body, sans-serif);">
+
+  <div style="width:100%; height:270px; position:relative; flex-shrink:0; background:var(--nui-bg) url('https://images.neopets.com/dome/arenas/008_3d3d828b3e_cosmicdome/cosmic_dome_bg.jpg') center/cover; border-bottom:1px solid var(--nui-border); display:flex; flex-direction:column; justify-content:space-between; padding:20px; box-sizing:border-box;">
+    
+    <div style="display:flex; align-items:flex-start; gap:12px; align-self:flex-end;">
+      <div style="text-align:right;">
+        <div class="editable-text" style="color:#fff; font-weight:800; font-size:16px; text-shadow:0 2px 4px rgba(0,0,0,0.8);">Jetsam Ace</div>
+        <div style="width:120px; height:12px; background:var(--nui-danger); border-radius:6px; margin-top:4px; box-shadow:0 0 8px color-mix(in srgb, var(--nui-danger) 50%, transparent);"></div>
+        <div class="editable-text" style="color:#fff; font-size:11px; font-weight:800; margin-top:4px; letter-spacing:0.5px; text-shadow:0 1px 2px rgba(0,0,0,0.8);">64 / 64</div>
+      </div>
+      <div style="width:64px; height:64px; border-radius:12px; background:var(--nui-surface-2) url('https://images.neopets.com/dome/npcs/00212_719eadcc38_jetsamace/portrait_212.png') center/cover; border:2px solid color-mix(in srgb, var(--nui-border) 40%, transparent); box-shadow:0 4px 12px rgba(0,0,0,0.5);"></div>
+    </div>
+
+    <div style="display:flex; align-items:flex-end; gap:12px;">
+      <div style="width:72px; height:72px; border-radius:12px; background:var(--nui-surface-2) url('https://wardrobe.jellyneo.net/assets/imgs/rainbow-pool/unconverted/draik_darigan.png') center/contain no-repeat; border:2px solid color-mix(in srgb, var(--nui-border) 40%, transparent); box-shadow:0 4px 12px rgba(0,0,0,0.5);"></div>
+      <div style="padding-bottom:4px;">
+        <div class="editable-text" style="color:#fff; font-weight:800; font-size:16px; text-shadow:0 2px 4px rgba(0,0,0,0.8);">Master_Vex</div>
+        <div style="width:140px; height:12px; background:var(--nui-success); border-radius:6px; margin-top:4px; box-shadow:0 0 8px color-mix(in srgb, var(--nui-success) 50%, transparent);"></div>
+        <div class="editable-text" style="color:#fff; font-size:11px; font-weight:800; margin-top:4px; letter-spacing:0.5px; text-shadow:0 1px 2px rgba(0,0,0,0.8);">325 / 325</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column; background:color-mix(in srgb, var(--nui-bg) 70%, var(--nui-surface-2));">
+    
+    <div style="padding:16px; display:flex; flex-direction:column; gap:16px; border-bottom:1px solid var(--nui-border); background:var(--nui-surface-2);">
+      
+      <div style="display:flex; gap:10px;">
+        
+        <div style="flex:1; background:var(--nui-surface); border-radius:12px; display:flex; flex-direction:column; align-items:center; padding:8px; cursor:pointer; border:2px solid var(--nui-accent); box-shadow:0 0 0 2px color-mix(in srgb, var(--nui-accent) 25%, transparent);">
+          <div style="width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
+            <img src="https://images.neopets.com/items/bd_grapesofwrath.gif" style="width:100%; height:100%; object-fit:contain;">
+          </div>
+        </div>
+        
+        <div style="flex:1; background:var(--nui-surface); border-radius:12px; display:flex; flex-direction:column; align-items:center; padding:8px; cursor:pointer; border:1px solid var(--nui-border);">
+          <div style="width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
+            <img src="https://images.neopets.com/items/darkfaerie_wand.gif" style="width:100%; height:100%; object-fit:contain;">
+          </div>
+        </div>
+        
+        <div style="flex:1; background:var(--nui-surface); border-radius:12px; display:flex; flex-direction:column; align-items:center; padding:8px; cursor:pointer; border:1px solid var(--nui-border); opacity:0.8;">
+          <div style="width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
+            <img src="https://images.neopets.com/bd2/abilities/0021_c4hje5rwjo_lensflare/thumb_21.png" style="width:100%; height:100%; object-fit:contain;">
+          </div>
+        </div>
+
+      </div>
+      
+      <button class="editable-text" style="width:100%; padding:14px; border-radius:12px; background:var(--nui-accent); color:var(--nui-accent-ink); font-family:var(--nui-font-display, sans-serif); font-size:20px; font-weight:800; text-transform:uppercase; letter-spacing:1px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px color-mix(in srgb, var(--nui-accent) 35%, transparent); transition:filter 0.2s;">
+        <span style="font-size:18px;">⚔️</span> FIGHT
+      </button>
+    </div>
+
+    <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+      
+      <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; overflow:hidden; box-shadow:0 4px 8px var(--nui-shadow);">
+        
+        <div style="padding:12px 16px; border-bottom:1px solid var(--nui-border); display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:var(--nui-surface-2);">
+          <div class="editable-text" style="font-family:var(--nui-font-display, sans-serif); font-size:18px; font-weight:800; color:var(--nui-accent);">Round 2</div>
+          <div style="width:28px; height:28px; border-radius:50%; background:var(--nui-surface); border:1px solid var(--nui-border); display:flex; align-items:center; justify-content:center; color:var(--nui-text-muted); font-size:11px;">▼</div>
+        </div>
+        
+        <div style="display:flex; border-bottom:1px solid var(--nui-border); background:var(--nui-surface);">
+          <div style="width:4px; background:var(--nui-accent); flex-shrink:0;"></div>
+          <div style="padding:14px 16px; flex:1; font-size:13px; line-height:1.5; color:var(--nui-text);">
+            You blind <b class="editable-text">Jetsam Ace</b> with a <i class="editable-text" style="color:var(--nui-warning);">Lens Flare</i> and they can't use weapons.
+          </div>
+        </div>
+        
+        <div style="display:flex; border-bottom:1px solid var(--nui-border); background:var(--nui-surface);">
+          <div style="width:4px; background:var(--nui-accent); flex-shrink:0;"></div>
+          <div style="padding:14px 16px; flex:1; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+            <div style="flex:1; min-width:180px; font-size:13px; line-height:1.5; color:var(--nui-text);">
+              <span class="editable-text">You strike at <b>Jetsam Ace</b> with your <b>Wand of the Dark Faerie!</b></span><br>
+            </div>
+            
+            <div class="editable-text" style="flex-shrink:0; font-size:12px; font-weight:800; color:var(--nui-text-muted); display:flex; align-items:center; gap:8px;">
+              <span style="display:flex; align-items:center; gap:2px;"><span style="filter:grayscale(100%);">☄️</span> x 4</span>
+              <span style="display:flex; align-items:center; gap:2px;">🌑 x 5</span>
+              <span style="display:flex; align-items:center; gap:2px;">☀️ x 4</span>
+            </div>
+          </div>
+        </div>
+        
+        <div style="padding:12px 16px; display:flex; gap:10px; background:var(--nui-surface-2);">
+          <div class="editable-text" style="flex:1; background:var(--nui-danger); color:#fff; font-weight:800; font-size:14px; text-align:center; padding:8px; border-radius:6px; box-shadow:inset 0 -2px 0 rgba(0,0,0,0.2);">0</div>
+          <div class="editable-text" style="flex:1; background:var(--nui-danger); color:#fff; font-weight:800; font-size:14px; text-align:center; padding:8px; border-radius:6px; box-shadow:inset 0 -2px 0 rgba(0,0,0,0.2);">88</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+        </div>
+      </div>
+
+      <div class="cap-block fade-up in">
+        <div class="cap-header">
+ <div class="cap-eyebrow editable-text">Module — Dailies</div>
+<div class="cap-title editable-text">Alien Aisha Vending Machine</div>
+<p class="cap-desc editable-text">A complete visual overhaul of the Vending Machine. Track your gambling sessions, monthly totals, and all-time Nerkmid stats (including NP won and Paint Brushes pulled), while easily selecting your Nerkmids and button combinations from a sleek, mobile-friendly interface.</p>
+</div>
+<div class="cap-demo">
+
+  <div class="nui-mockup" style="position:relative; display:flex; flex-direction:column; height:740px; overflow:hidden; background:var(--nui-bg); border-radius:16px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); box-shadow:0 12px 32px var(--nui-shadow); font-family:var(--nui-font-body, sans-serif);">
+
+    <div style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:16px; background:color-mix(in srgb, var(--nui-bg) 60%, var(--nui-surface-2));">
+      
+      <div style="background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:12px; padding:12px 16px; display:flex; align-items:center; gap:16px; box-shadow:0 2px 8px var(--nui-shadow);">
+        <div style="width:64px; height:64px; background:var(--nui-surface); border-radius:8px; border:1px solid color-mix(in srgb, var(--nui-border) 40%, transparent); flex-shrink:0; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+          <img src="https://images.neopets.com/images/alienaisha.gif" style="width:100%; height:100%; object-fit:contain;">
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div class="editable-text" style="font-family:var(--nui-font-display, sans-serif); font-size:18px; font-weight:800; color:var(--nui-text);">Alien Aisha Vending Machine</div>
+          <div class="editable-text" style="font-size:13px; color:var(--nui-text-muted); font-style:italic; margin-top:4px;">"My great machine will give you the loveliest foods in the world."</div>
+        </div>
+      </div>
+
+      <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 4px 12px var(--nui-shadow);">
+        <div style="padding:12px 16px; background:var(--nui-surface-2); border-bottom:1px solid var(--nui-border); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <div class="editable-text" style="font-size:15px; font-weight:800; color:var(--nui-text); display:flex; align-items:center; gap:8px;">📊 Statistics</div>
+          <div style="font-size:11px; color:var(--nui-text-muted);">▼</div>
+        </div>
+        
+        <div style="display:flex; border-bottom:1px solid var(--nui-border); background:var(--nui-surface-2);">
+          <div class="editable-text" style="flex:1; text-align:center; padding:10px 0; font-size:12px; font-weight:800; color:var(--nui-accent); border-bottom:3px solid var(--nui-accent); text-transform:uppercase;">Session</div>
+          <div class="editable-text" style="flex:1; text-align:center; padding:10px 0; font-size:12px; font-weight:800; color:var(--nui-text-muted); border-bottom:3px solid transparent; text-transform:uppercase;">Monthly</div>
+          <div class="editable-text" style="flex:1; text-align:center; padding:10px 0; font-size:12px; font-weight:800; color:var(--nui-text-muted); border-bottom:3px solid transparent; text-transform:uppercase;">All-Time</div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 16px; background:var(--nui-surface-2); border-bottom:1px solid var(--nui-border);">
+          <button class="nui-reset" style="width:28px; height:28px; border-radius:4px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); background:var(--nui-surface); color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer;">←</button>
+          <div style="text-align:center;">
+            <div class="editable-text" style="font-size:11px; font-weight:800; color:var(--nui-text); text-transform:uppercase; letter-spacing:0.5px;">Session 1 of 1</div>
+            <div class="editable-text" style="font-size:10px; color:var(--nui-text-muted); margin-top:2px;">7/22/2026, 12:07:42 PM</div>
+          </div>
+          <button class="nui-reset" style="width:28px; height:28px; border-radius:4px; border:1px solid color-mix(in srgb, var(--nui-border) 50%, transparent); background:var(--nui-surface); color:var(--nui-text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer;">→</button>
+        </div>
+
+        <div style="display:flex; padding:16px 0;">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; border-right:1px solid var(--nui-border);">
+            <div class="editable-text" style="font-size:20px; font-weight:800; color:var(--nui-text);">14</div>
+            <div class="editable-text" style="font-size:9px; font-weight:800; color:var(--nui-text-faint); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px;">Spins</div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; border-right:1px solid var(--nui-border);">
+            <div class="editable-text" style="font-size:20px; font-weight:800; color:var(--nui-success);">4,708</div>
+            <div class="editable-text" style="font-size:9px; font-weight:800; color:var(--nui-text-faint); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px;">NP Won</div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; border-right:1px solid var(--nui-border);">
+            <div class="editable-text" style="font-size:20px; font-weight:800; color:var(--nui-warning);">14</div>
+            <div class="editable-text" style="font-size:9px; font-weight:800; color:var(--nui-text-faint); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px;">Items</div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+            <div class="editable-text" style="font-size:20px; font-weight:800; color:var(--nui-accent-2);">0</div>
+            <div class="editable-text" style="font-size:9px; font-weight:800; color:var(--nui-text-faint); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px;">Paint Brushes</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:16px; box-shadow:0 4px 12px var(--nui-shadow);">
+        
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="editable-text" style="font-size:13px; font-weight:700; color:var(--nui-text);">Select a Nerkmid:</div>
+          <div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;">
+            
+            <div style="position:relative; width:56px; height:56px; border-radius:8px; background:var(--nui-surface-2); border:2px solid var(--nui-accent); box-shadow:0 0 0 2px color-mix(in srgb, var(--nui-accent) 25%, transparent); flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+              <img src="https://images.neopets.com/items/nerk4.gif" style="width:80%; height:80%; object-fit:contain;">
+              <div class="editable-text" style="position:absolute; top:-6px; right:-6px; background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text); font-size:10px; font-weight:800; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.15);">1</div>
+            </div>
+            
+            <div style="position:relative; width:56px; height:56px; border-radius:8px; background:var(--nui-surface-2); border:1px solid var(--nui-border); flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0.7; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+              <img src="https://images.neopets.com/items/nerk2.gif" style="width:80%; height:80%; object-fit:contain;">
+              <div class="editable-text" style="position:absolute; top:-6px; right:-6px; background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text); font-size:10px; font-weight:800; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.15);">1</div>
+            </div>
+
+            <div style="position:relative; width:56px; height:56px; border-radius:8px; background:var(--nui-surface-2); border:1px solid var(--nui-border); flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0.7; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+              <img src="https://images.neopets.com/items/nerkmid_good.gif" style="width:80%; height:80%; object-fit:contain;">
+              <div class="editable-text" style="position:absolute; top:-6px; right:-6px; background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text); font-size:10px; font-weight:800; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.15);">1</div>
+            </div>
+
+            <div style="position:relative; width:56px; height:56px; border-radius:8px; background:var(--nui-surface-2); border:1px solid var(--nui-border); flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0.7; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+              <img src="https://images.neopets.com/items/nerkmid_super.gif" style="width:80%; height:80%; object-fit:contain;">
+              <div class="editable-text" style="position:absolute; top:-6px; right:-6px; background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text); font-size:10px; font-weight:800; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.15);">1</div>
+            </div>
+
+            <div style="position:relative; width:56px; height:56px; border-radius:8px; background:var(--nui-surface-2); border:1px solid var(--nui-border); flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0.7; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+              <img src="https://images.neopets.com/items/nerkmid_aluminum.gif" style="width:80%; height:80%; object-fit:contain;">
+              <div class="editable-text" style="position:absolute; top:-6px; right:-6px; background:var(--nui-surface); border:1px solid var(--nui-border); color:var(--nui-text); font-size:10px; font-weight:800; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.15);">1</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="editable-text" style="background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:8px; padding:12px 14px; font-size:14px; font-weight:600; color:var(--nui-text);">Ultra Golden Nerkmid (x1)</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div class="editable-text" style="font-size:12px; font-weight:700; color:var(--nui-text-muted);">Large Button:</div>
+            <div class="editable-text" style="background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:8px; padding:10px 12px; font-size:14px; color:var(--nui-text);">1</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div class="editable-text" style="font-size:12px; font-weight:700; color:var(--nui-text-muted);">Small Button:</div>
+            <div class="editable-text" style="background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:8px; padding:10px 12px; font-size:14px; color:var(--nui-text);">Left Green</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div class="editable-text" style="font-size:12px; font-weight:700; color:var(--nui-text-muted);">Presses:</div>
+            <div class="editable-text" style="background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:8px; padding:10px 12px; font-size:14px; color:var(--nui-text);">1</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div class="editable-text" style="font-size:12px; font-weight:700; color:var(--nui-text-muted);">Levers:</div>
+            <div class="editable-text" style="background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:8px; padding:10px 12px; font-size:14px; color:var(--nui-text);">0</div>
+          </div>
+        </div>
+
+        <button class="editable-text" style="width:100%; padding:14px; border-radius:12px; background:var(--nui-accent); color:var(--nui-accent-ink); font-family:var(--nui-font-display, sans-serif); font-size:18px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; border:none; cursor:pointer; margin-top:4px; box-shadow:0 4px 12px color-mix(in srgb, var(--nui-accent) 30%, transparent); transition:filter 0.2s;">
+          INSERT NERKMID
+        </button>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+      </div>
+
+    
+
+
+</section>
+
+<section id="testimonials">
+  <div class="container">
+    <p class="eyebrow" style="margin-bottom:.75rem"><span class="eyebrow-num">03</span><span class="editable-text">What people are saying</span></p>
+    <h2 class="headline editable-text">Loved by <span class="repainted">the community.</span></h2>
+    <p class="subhead editable-text" style="margin-top:.75rem;max-width:48ch">From guild leaders to Kadoatery grinders — real players, real time saved.</p>
+    <div class="testi-grid" id="testiGrid">
+    <div class="testi-card fade-up in">
+      <div class="testi-mark">“</div>
+      <p class="testi-quote editable-text">When I saw there was a mobile companion app I thought it was going to look like NeoUl. It's functional, clean, intuitive, and customizable.</p>
+      <div class="testi-author">
+        <div class="testi-avatar">K</div>
+        <div>
+          <div class="testi-name editable-text">Kimber</div>
+          <div class="testi-meta editable-text">Biggest Opp</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi-card fade-up in">
+      <div class="testi-mark">“</div>
+      <p class="testi-quote editable-text">Its made keeping up with guild activities way easier!</p>
+      <div class="testi-author">
+        <div class="testi-avatar">C</div>
+        <div>
+          <div class="testi-name editable-text">Casaundra</div>
+          <div class="testi-meta editable-text">Guild Council</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi-card fade-up in">
+      <div class="testi-mark">“</div>
+      <p class="testi-quote editable-text">I use mobile almost exclusively for accessibility reasons, and this makes the Neopets experience on mobile actually usable.</p>
+      <div class="testi-author">
+        <div class="testi-avatar">M</div>
+        <div>
+          <div class="testi-name editable-text">Morgi</div>
+          <div class="testi-meta editable-text">Neopets Mobile Player</div>
+        </div>
+      </div>
+    </div>
+        <div class="testi-card fade-up in">
+      <div class="testi-mark">“</div>
+      <p class="testi-quote editable-text">I can finally recruit minions on the go with ease and efficiency!</p>
+      <div class="testi-author">
+        <div class="testi-avatar">F</div>
+        <div>
+          <div class="testi-name editable-text">Dr Frank Sloth</div>
+          <div class="testi-meta editable-text">Villain</div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+</section>
+
+<section id="stats">
+  <div class="container">
+    <div class="stats-inner">
+      <div class="stat-item"><span class="stat-num editable-text">12</span><div class="stat-lbl editable-text">Curated skins</div></div>
+      <div class="stat-item"><span class="stat-num editable-text">50+</span><div class="stat-lbl editable-text">Toggleable modules</div></div>
+      <div class="stat-item"><span class="stat-num editable-text">1</span><div class="stat-lbl editable-text">Install, zero config</div></div>
+      <div class="stat-item"><span class="stat-num editable-text">∞</span><div class="stat-lbl editable-text">Custom theme editor</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="modules">
+  <div class="container" style="text-align:center">
+    <p class="eyebrow" style="margin-bottom:.75rem;justify-content:center"><span class="eyebrow-num">04</span><span class="editable-text">Every module</span></p>
+    <h2 class="headline editable-text">All of Neopia, <span class="repainted">covered.</span></h2>
+    <p class="subhead editable-text" style="margin-top:.75rem;max-width:44ch;margin-left:auto;margin-right:auto">Flip on what helps, leave off what doesn't. Every module runs in isolation, so one broken page never drags the rest of the site down with it.</p>
+    <div class="module-groups" id="moduleGroups">
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(0)" aria-expanded="true">
+        <span class="module-group-title">Core</span>
+        <span class="module-group-count">4 modules</span>
+        <span class="module-group-chev" id="chev-0" style="transform: rotate(180deg);">⌄</span>
+      </button>
+      <div class="module-group-body open" id="group-0" style="max-height: 438px;">
+        <div class="module-group-body-inner">
+          
+            <div class="module-row hi">
+              <span class="module-row-icon">🎨</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Sitewide Chrome</div>
+                <div class="module-row-desc editable-text">The backbone of NeoUI — injects the persistent topbar, global styles, and the settings drawer across every Neopets page.</div>
+              </div>
+            </div>
+            <div class="module-row">
+              <span class="module-row-icon">🔍</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Item Search Buttons</div>
+                <div class="module-row-desc editable-text">Adds one-click search buttons within item images sitewide, firing the Shop Wizard or SSW without leaving your current page.</div>
+              </div>
+            </div>
+            <div class="module-row hi">
+              <span class="module-row-icon">🏠</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Home Dashboard</div>
+                <div class="module-row-desc editable-text">Transforms the Neopets homepage into a personal hub — greeting, active timer pills, and quick links to your most-used pages.</div>
+              </div>
+            </div>
+            <div class="module-row">
+              <span class="module-row-icon">⚡</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Quickref</div>
+                <div class="module-row-desc editable-text">Reskins the Quick Reference page with pet cards showing stats, species, and active training side-by-side.</div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(1)" aria-expanded="true">
+        <span class="module-group-title">Social</span>
+        <span class="module-group-count">5 modules</span>
+        <span class="module-group-chev" id="chev-1" style="transform: rotate(180deg);">⌄</span>
+      </button>
+      <div class="module-group-body open" id="group-1" style="max-height: 483px;">
+        <div class="module-group-body-inner">
+          
+            <div class="module-row hi">
+              <span class="module-row-icon">📬</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Neomail</div>
+                <div class="module-row-desc editable-text">Redesigns the inbox as a fast single-page app with tabbed folders, username search, message counts, and conversation labels.</div>
+              </div>
+            </div>
+            <div class="module-row hi">
+              <span class="module-row-icon">💬</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Neoboards</div>
+                <div class="module-row-desc editable-text">Cleans up the boards with better thread density, readable fonts, and a posting toolbar that stays in reach on mobile.</div>
+              </div>
+            </div>
+            <div class="module-row">
+              <span class="module-row-icon">🏰</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Guilds</div>
+                <div class="module-row-desc editable-text">Reskins the guild hub and notice board with your active theme — headers, tables, and post layouts all get the treatment.</div>
+              </div>
+            </div>
+            <div class="module-row">
+              <span class="module-row-icon">🤝</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Neofriends</div>
+                <div class="module-row-desc editable-text">Modernizes the friends list and online indicator with a card layout and cleaner status display.</div>
+              </div>
+            </div>
+            <div class="module-row">
+              <span class="module-row-icon">👤</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Profiles &amp; Lookups</div>
+                <div class="module-row-desc editable-text">Applies theme-aware styles to user lookups and pet pages, making them consistent with the rest of your NeoUI skin, all without making the original unviewable</div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(2)" aria-expanded="true">
+        <span class="module-group-title">Explore</span>
+        <span class="module-group-count">3 modules</span>
+        <span class="module-group-chev" id="chev-2" style="transform: rotate(180deg);">⌄</span>
+      </button>
+      <div class="module-group-body open" id="group-2" style="max-height: 293px;">
+        <div class="module-group-body-inner">
+          
+            <div class="module-row">
+              <span class="module-row-icon">📰</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Neopian Times</div>
+                <div class="module-row-desc editable-text">Cleans up the NT with readable article typography, better image handling, and a layout that actually works on mobile.</div>
+              </div>
+            </div>
+            <div class="module-row">
+              <span class="module-row-icon">📢</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">New Features</div>
+                <div class="module-row-desc editable-text">Reskins the New Features feed with a themed topbar and quicklinks, so site announcements read like the rest of NeoUI.</div>
+              </div>
+            </div>
+            <div class="module-row">
+              <span class="module-row-icon">🗺️</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Explore Neopia</div>
+                <div class="module-row-desc editable-text">Reskins the world map and location pages — backgrounds, headers, and navigation all brought into your active theme.</div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(3)" aria-expanded="true">
+        <span class="module-group-title">Training</span>
+        <span class="module-group-count">1 module</span>
+        <span class="module-group-chev" id="chev-3" style="transform: rotate(180deg);">⌄</span>
+      </button>
+      <div class="module-group-body open" id="group-3" style="max-height: 124px;">
+        <div class="module-group-body-inner">
+          
+            <div class="module-row">
+              <span class="module-row-icon">🌋</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Training Schools</div>
+                <div class="module-row-desc editable-text">Replaces the native stat table with responsive pet cards showing level, stats, active course, and a live countdown timer.</div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(4)" aria-expanded="false">
+        <span class="module-group-title">Combat</span>
+        <span class="module-group-count">1 module</span>
+        <span class="module-group-chev" id="chev-4">⌄</span>
+      </button>
+      <div class="module-group-body" id="group-4">
+        <div class="module-group-body-inner">
+          
+            <div class="module-row hi">
+              <span class="module-row-icon">⚔️</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Battledome</div>
+                <div class="module-row-desc editable-text">Overhauled battle UI with clearer ability selection, HP readouts, and a layout that fits on a phone screen without pinching.</div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(5)" aria-expanded="true">
+        <span class="module-group-title">Economy</span>
+        <span class="module-group-count">3 modules</span>
+        <span class="module-group-chev" id="chev-5" style="transform: rotate(180deg);">⌄</span>
+      </button>
+      <div class="module-group-body open" id="group-5" style="max-height: 294px;">
+        <div class="module-group-body-inner">
+          
+            <div class="module-row">
+              <span class="module-row-icon">💰</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Economy Suite</div>
+                <div class="module-row-desc editable-text">Cleaner bank, stock, and trade tables with color-coded gain/loss, your portfolio total, and sortable columns.</div>
+              </div>
+            </div>
+            <div class="module-row hi">
+              <span class="module-row-icon">🧙</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Shop Wizard</div>
+                <div class="module-row-desc editable-text">Results combine into a master list as you complete new searches for the same item, allowing you to be more efficient with your shop wizard use.</div>
+              </div>
+            </div>
+            <div class="module-row hi">
+              <span class="module-row-icon">🎒</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Inventory</div>
+                <div class="module-row-desc editable-text">A grid-based inventory view with item icons, stack counts, and one-tap actions — no more endlessly scrolling a flat list.</div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(6)" aria-expanded="true">
+        <span class="module-group-title">Quests</span>
+        <span class="module-group-count">1 module</span>
+        <span class="module-group-chev" id="chev-6" style="transform: rotate(180deg);">⌄</span>
+      </button>
+      <div class="module-group-body open" id="group-6" style="max-height: 124px;">
+        <div class="module-group-body-inner">
+          
+            <div class="module-row">
+              <span class="module-row-icon">👀</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Quest Watcher</div>
+                <div class="module-row-desc editable-text">Watches for a random faerie quest in the background and pings you the moment one shows up, keeping you reminded of what was asked for.&nbsp;</div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(7)" aria-expanded="true">
+        <span class="module-group-title">Dailies</span>
+        <span class="module-group-count">2 modules</span>
+        <span class="module-group-chev" id="chev-7" style="transform: rotate(180deg);">⌄</span>
+      </button>
+      <div class="module-group-body open" id="group-7" style="max-height: 228px;">
+        <div class="module-group-body-inner">
+          
+            <div class="module-row">
+              <span class="module-row-icon">⏱️</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">All Events</div>
+                <div class="module-row-desc editable-text">The daily hub — every timed activity in one panel with individual countdowns, ready indicators, and one-tap navigation.</div>
+              </div>
+            </div>
+            <div class="module-row hi">
+              <span class="module-row-icon">🐱</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Kadoatery</div>
+                <div class="module-row-desc editable-text">A dense grid showing every Kadoatie with fed/hungry status, who fed them, and tap-to-copy item name for speed feeding.</div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(8)" aria-expanded="true">
+        <span class="module-group-title">Games</span>
+        <span class="module-group-count">1 module</span>
+        <span class="module-group-chev" id="chev-8" style="transform: rotate(180deg);">⌄</span>
+      </button>
+      <div class="module-group-body open" id="group-8" style="max-height: 124px;">
+        <div class="module-group-body-inner">
+          
+            <div class="module-row hi">
+              <span class="module-row-icon">🎮</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">Games Room</div>
+                <div class="module-row-desc editable-text">The games directory restyled with better category navigation and game cards that actually show scores and rankings.</div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="container" style="display:flex;justify-content:center">
+    <div class="install-box">
+      <p class="eyebrow" style="margin-bottom:.875rem;justify-content:center"><span class="eyebrow-num">05</span><span class="editable-text">Get started</span></p>
+      <h2 class="headline install-title editable-text">Install in <span class="repainted">30 seconds.</span></h2>
+      <p class="install-sub editable-text">Grab Tampermonkey, install NeoUI, refresh Neopets. That's it — the topbar's already waiting for you.</p>
+      <div class="code-row">
+        <code id="iurl" class="editable-text">https://github.com/dinosauringg-ui/NeoUISuite/blob/main/NeoUI%20Unified%20Suite.user.js</code>
+        <button class="copy-btn" id="copyBtn" onclick="doCopy()">Copy</button>
+      </div>
+      <a href="https://github.com/dinosauringg-ui/NeoUISuite/blob/main/NeoUI%20Unified%20Suite.user.js" class="btn-primary" style="width:100%;justify-content:center;font-size:1.05rem;padding:1rem 2rem;">Install Now!</a>
+      <p class="install-note editable-text" style="margin-top:1.5rem">Requires <a href="https://www.tampermonkey.net/" target="_blank">Tampermonkey</a> or <a href="https://violentmonkey.github.io/" target="_blank">Violentmonkey</a>. Free, open source, MIT licensed.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-credit editable-text">Made by <strong>ext1nct</strong> · MIT License</div>
+      <div class="footer-links">
+        <a href="#install" class="editable-text">Install</a>
+        <a href="https://www.neopets.com/" target="_blank" class="editable-text">Neopets</a>
+        <a href="https://www.tampermonkey.net/" target="_blank" class="editable-text">Tampermonkey</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+
+
+const THEMES = {
+  neopia: {
+      label: 'Neopia Central', emoji: '🏠',
+      tokens: {
+          '--nui-bg': '#FFF6E0', '--nui-surface': '#FFFFFF', '--nui-surface-2': '#FFE9C2', '--nui-border': '#F5CE8A',
+          '--nui-text': '#2E2410', '--nui-text-muted': '#7A6A40', '--nui-text-faint': '#AE9C6E',
+          '--nui-accent': '#FF8A00', '--nui-accent-ink': '#FFFFFF', '--nui-accent-soft': '#FFD27A',
+          '--nui-accent-2': '#0F6FFF', '--nui-accent-2-soft': '#BFD9FF', '--nui-success': '#2FA84B',
+          '--nui-success-soft': '#CFEFD7', '--nui-warning': '#C99A06', '--nui-warning-soft': '#FBF0CB', '--nui-danger': '#E8392E', '--nui-danger-soft': '#FCD2CE', '--nui-shadow': 'rgba(46, 36, 16, 0.14)'
+      }
+  },
+  maraqua: {
+      label: 'Maraqua', emoji: '🌊',
+      tokens: {
+          '--nui-bg': '#DCF3F6', '--nui-surface': '#FFFFFF', '--nui-surface-2': '#B9EAF0', '--nui-border': '#6FCBD6',
+          '--nui-text': '#0B2E33', '--nui-text-muted': '#3F7A82', '--nui-text-faint': '#7DAFB5',
+          '--nui-accent': '#00A8BC', '--nui-accent-ink': '#FFFFFF', '--nui-accent-soft': '#7FE0EA',
+          '--nui-accent-2': '#FF7A33', '--nui-accent-2-soft': '#FFD2B0', '--nui-success': '#1F9E6E',
+          '--nui-success-soft': '#BFEFD9', '--nui-warning': '#C98A12', '--nui-warning-soft': '#F5DFA0', '--nui-danger': '#D9483F', '--nui-danger-soft': '#F8CFC9', '--nui-shadow': 'rgba(11, 46, 51, 0.16)'
+      }
+  },
+  kadoatery: {
+      label: 'Kadoatery', emoji: '🐾',
+      tokens: {
+          '--nui-bg': '#FBF3F8', '--nui-surface': '#FFFFFF', '--nui-surface-2': '#E8F2FA', '--nui-border': '#F0C6DD',
+          '--nui-text': '#332F45', '--nui-text-muted': '#79768F', '--nui-text-faint': '#B2AFC4',
+          '--nui-accent': '#4FA0D6', '--nui-accent-ink': '#FFFFFF', '--nui-accent-soft': '#D8EDFA',
+          '--nui-accent-2': '#EE8FB6', '--nui-accent-2-soft': '#FBDFEC', '--nui-success': '#57AE84',
+          '--nui-success-soft': '#DFF2E7', '--nui-warning': '#DFA23D', '--nui-warning-soft': '#FAEACB', '--nui-danger': '#E2657A', '--nui-danger-soft': '#FBDBE3', '--nui-shadow': 'rgba(51, 47, 69, 0.12)'
+      }
+  },
+  shenkuu: {
+      label: 'Shenkuu', emoji: '🏯',
+      tokens: {
+          '--nui-bg': '#F5DCD4', '--nui-surface': '#FFF4F0', '--nui-surface-2': '#EFAA98', '--nui-border': '#D97A64',
+          '--nui-text': '#3B1712', '--nui-text-muted': '#8A4535', '--nui-text-faint': '#BF8272',
+          '--nui-accent': '#3F7A3D', '--nui-accent-ink': '#FFFFFF', '--nui-accent-soft': '#CFE6C8',
+          '--nui-accent-2': '#C9A227', '--nui-accent-2-soft': '#F3E9C8', '--nui-success': '#3F7A3D',
+          '--nui-success-soft': '#D7EBDA', '--nui-warning': '#C68A2E', '--nui-warning-soft': '#F3E2BC', '--nui-danger': '#7A1710', '--nui-danger-soft': '#E8B9AC', '--nui-shadow': 'rgba(90, 20, 10, 0.18)'
+      }
+  },
+  gray: {
+      label: 'Grey Neopia', emoji: '🐭',
+      tokens: {
+          '--nui-bg': '#EDEAE4', '--nui-surface': '#FAF8F5', '--nui-surface-2': '#E1DCD3', '--nui-border': '#C9C1B4',
+          '--nui-text': '#322E28', '--nui-text-muted': '#766E62', '--nui-text-faint': '#A39A8C',
+          '--nui-accent': '#C97D8C', '--nui-accent-ink': '#FFFFFF', '--nui-accent-soft': '#E8C9D0',
+          '--nui-accent-2': '#6E7C82', '--nui-accent-2-soft': '#D6DCDE', '--nui-success': '#5C8C5A',
+          '--nui-success-soft': '#DCE9DA', '--nui-warning': '#9C7F3E', '--nui-warning-soft': '#E9DEC2', '--nui-danger': '#B5524F', '--nui-danger-soft': '#EBD2D0', '--nui-shadow': 'rgba(50, 46, 40, 0.12)'
+      }
+  },
+  tyrannia: {
+      label: 'Tyrannia', emoji: '🦕',
+      tokens: {
+          '--nui-bg': '#F5EDD8', '--nui-surface': '#FFFDF5', '--nui-surface-2': '#EDE0C4', '--nui-border': '#C9AD7A',
+          '--nui-text': '#2E2010', '--nui-text-muted': '#7A6440', '--nui-text-faint': '#B09A70',
+          '--nui-accent': '#5A8A3C', '--nui-accent-ink': '#FFFFFF', '--nui-accent-soft': '#C8DDB8',
+          '--nui-accent-2': '#C0622A', '--nui-accent-2-soft': '#F0CBB0', '--nui-success': '#4E8C3A',
+          '--nui-success-soft': '#C8E0BA', '--nui-warning': '#B87A20', '--nui-warning-soft': '#F0DBA8', '--nui-danger': '#C0422A', '--nui-danger-soft': '#F0C2B0', '--nui-shadow': 'rgba(46, 32, 16, 0.14)'
+      }
+  },
+  meridell: {
+      label: 'Meridell', emoji: '🛡️',
+      tokens: {
+          '--nui-bg': '#EDEADC', '--nui-surface': '#FAFAF2', '--nui-surface-2': '#DEDAC4', '--nui-border': '#5C74A0',
+          '--nui-text': '#1A2038', '--nui-text-muted': '#3A4868', '--nui-text-faint': '#8290A8',
+          '--nui-accent': '#1E4FA0', '--nui-accent-ink': '#FFFFFF', '--nui-accent-soft': '#BACCEA',
+          '--nui-accent-2': '#B01E28', '--nui-accent-2-soft': '#EFC0C4', '--nui-success': '#3A7A2A',
+          '--nui-success-soft': '#C0DCA8', '--nui-warning': '#A07818', '--nui-warning-soft': '#EADBA0', '--nui-danger': '#B01E28', '--nui-danger-soft': '#EFC0C4', '--nui-shadow': 'rgba(20, 26, 50, 0.16)'
+      }
+  },
+  maractite: {
+      label: 'Maractite', emoji: '🌊',
+      tokens: {
+          '--nui-bg': '#060B19', '--nui-surface': '#0D162B', '--nui-surface-2': '#162340', '--nui-border': '#263A64',
+          '--nui-text': '#E2E8F0', '--nui-text-muted': '#829AC1', '--nui-text-faint': '#485D82',
+          '--nui-accent': '#3B82F6', '--nui-accent-ink': '#FFFFFF', '--nui-accent-soft': '#162A5E',
+          '--nui-accent-2': '#06B6D4', '--nui-accent-2-soft': '#083344', '--nui-success': '#10B981',
+          '--nui-success-soft': '#064E3B', '--nui-warning': '#F59E0B', '--nui-warning-soft': '#452908', '--nui-danger': '#EF4444', '--nui-danger-soft': '#4A1212', '--nui-shadow': 'rgba(0, 0, 0, 0.7)'
+      }
+  },
+  haunted: {
+      label: 'Haunted Woods', emoji: '🌙',
+      tokens: {
+          '--nui-bg': '#1A1626', '--nui-surface': '#241E33', '--nui-surface-2': '#322A47', '--nui-border': '#473A5E',
+          '--nui-text': '#F1EBFF', '--nui-text-muted': '#B9A9DE', '--nui-text-faint': '#85729E',
+          '--nui-accent': '#3DDC72', '--nui-accent-ink': '#0B2412', '--nui-accent-soft': '#1F5C36',
+          '--nui-accent-2': '#C77CFF', '--nui-accent-2-soft': '#3A2A55', '--nui-success': '#3DDC72',
+          '--nui-success-soft': '#1A3A26', '--nui-warning': '#F0C24B', '--nui-warning-soft': '#433619', '--nui-danger': '#FF5F5A', '--nui-danger-soft': '#452228', '--nui-shadow': 'rgba(0, 0, 0, 0.5)'
+      }
+  },
+  moltara: {
+      label: 'Moltara', emoji: '🌋',
+      tokens: {
+          '--nui-bg': '#1B1411', '--nui-surface': '#241B17', '--nui-surface-2': '#3A2A22', '--nui-border': '#5A3F2E',
+          '--nui-text': '#FBE9DD', '--nui-text-muted': '#D2A98C', '--nui-text-faint': '#9C7259',
+          '--nui-accent': '#FF5722', '--nui-accent-ink': '#2B0E04', '--nui-accent-soft': '#5C2A14',
+          '--nui-accent-2': '#FFC247', '--nui-accent-2-soft': '#4A3318', '--nui-success': '#5FCB6B',
+          '--nui-success-soft': '#1E3A20', '--nui-warning': '#FFC247', '--nui-warning-soft': '#4A3318', '--nui-danger': '#FF6B5A', '--nui-danger-soft': '#4A211A', '--nui-shadow': 'rgba(0, 0, 0, 0.55)'
+      }
+  },
+  spacefaerie: {
+      label: 'Space Faerie', emoji: '🌌',
+      tokens: {
+          '--nui-bg': '#0D0E24', '--nui-surface': '#161A3A', '--nui-surface-2': '#222652', '--nui-border': '#3C3F75',
+          '--nui-text': '#EDEBFF', '--nui-text-muted': '#A7A8D9', '--nui-text-faint': '#6F71A8',
+          '--nui-accent': '#FF4FD8', '--nui-accent-ink': '#1A0A16', '--nui-accent-soft': '#4A1E45',
+          '--nui-accent-2': '#4FE0FF', '--nui-accent-2-soft': '#163C45', '--nui-success': '#4FE0A0',
+          '--nui-success-soft': '#163A2E', '--nui-warning': '#FFD24F', '--nui-warning-soft': '#4A3A14', '--nui-danger': '#FF5C7A', '--nui-danger-soft': '#451A24', '--nui-shadow': 'rgba(0, 0, 0, 0.55)'
+      }
+  },
+  eventide: {
+      label: 'Eventide', emoji: '🌆',
+      tokens: {
+          '--nui-bg': '#2B1130', '--nui-surface': '#3B1740', '--nui-surface-2': '#4C1F4A', '--nui-border': '#6B2F5C',
+          '--nui-text': '#FBEAF0', '--nui-text-muted': '#D9A0C4', '--nui-text-faint': '#A5709A',
+          '--nui-accent': '#FF3D7A', '--nui-accent-ink': '#2A0B1C', '--nui-accent-soft': '#5C1F42',
+          '--nui-accent-2': '#FF8A3D', '--nui-accent-2-soft': '#5A3018', '--nui-success': '#4FCB92',
+          '--nui-success-soft': '#1D3A2C', '--nui-warning': '#F5B23D', '--nui-warning-soft': '#4A3418', '--nui-danger': '#FF5C6B', '--nui-danger-soft': '#4A1F28', '--nui-shadow': 'rgba(20, 0, 20, 0.5)'
+      }
+  },
+  virtupets: {
+      label: 'Virtupets', emoji: '🛸',
+      tokens: {
+          '--nui-bg': '#0E1218', '--nui-surface': '#161C24', '--nui-surface-2': '#1E2830', '--nui-border': '#2C3C44',
+          '--nui-text': '#D8F0E0', '--nui-text-muted': '#7AAA90', '--nui-text-faint': '#3E6050',
+          '--nui-accent': '#1EE060', '--nui-accent-ink': '#021408', '--nui-accent-soft': '#0A3020',
+          '--nui-accent-2': '#44AAFF', '--nui-accent-2-soft': '#0A2840', '--nui-success': '#1EE060',
+          '--nui-success-soft': '#0A3020', '--nui-warning': '#FFD020', '--nui-warning-soft': '#302800', '--nui-danger': '#FF4040', '--nui-danger-soft': '#301010', '--nui-shadow': 'rgba(0, 0, 0, 0.6)'
+      }
+  },
+  krawkisland: {
+      label: 'Krawk Island', emoji: '🏴‍☠️',
+      tokens: {
+          '--nui-bg': '#0A0A0A', '--nui-surface': '#161616', '--nui-surface-2': '#242424', '--nui-border': '#585860',
+          '--nui-text': '#EAEAEC', '--nui-text-muted': '#ACACB4', '--nui-text-faint': '#6E6E76',
+          '--nui-accent': '#C8142A', '--nui-accent-ink': '#FFFFFF', '--nui-accent-soft': '#3A1418',
+          '--nui-accent-2': '#B6B8C2', '--nui-accent-2-soft': '#34343C', '--nui-success': '#3DA85A',
+          '--nui-success-soft': '#173A22', '--nui-warning': '#D0A82C', '--nui-warning-soft': '#3A3014', '--nui-danger': '#E01E30', '--nui-danger-soft': '#3A1418', '--nui-shadow': 'rgba(0, 0, 0, 0.6)'
+      }
+  }
+};
+    
+    const THEME_KEYS = [
+  'neopia',
+  'maraqua',
+  'kadoatery',
+  'shenkuu',
+  'gray',
+  'tyrannia',
+  'meridell',
+  'maractite',
+  'haunted',
+  'moltara',
+  'spacefaerie',
+  'eventide',
+  'virtupets',
+  'krawkisland'
+];
+
+const MODULES=[
+  {name:'Sitewide Chrome',icon:'🎨',cat:'Core',desc:'The backbone of NeoUI — injects the persistent topbar, global styles, and the settings drawer across every Neopets page.'},
+  {name:'Item Search Buttons',icon:'🔍',cat:'Core',desc:'Adds one-click search buttons next to item names sitewide, firing the Shop Wizard or SSW without leaving your current page.'},
+  {name:'Neomail',icon:'📬',cat:'Social',desc:'Redesigns the inbox as a fast single-page app with tabbed folders, username search, message counts, and conversation labels.'},
+  {name:'Neoboards',icon:'💬',cat:'Social',desc:'Cleans up the boards with better thread density, readable fonts, and a posting toolbar that stays in reach on mobile.'},
+  {name:'Guilds',icon:'🏰',cat:'Social',desc:'Reskins the guild hub and notice board with your active theme — headers, tables, and post layouts all get the treatment.'},
+  {name:'Neofriends',icon:'🤝',cat:'Social',desc:'Modernizes the friends list and online indicator with a card layout and cleaner status display.'},
+  {name:'Home Dashboard',icon:'🏠',cat:'Core',desc:'Transforms the Neopets homepage into a personal hub — greeting, active timer pills, and quick links to your most-used pages.'},
+  {name:'Quickref',icon:'⚡',cat:'Core',desc:'Reskins the Quick Reference page with pet cards showing stats, species, and active training or quest status side-by-side.'},
+  {name:'Profiles & Lookups',icon:'👤',cat:'Social',desc:'Applies theme-aware styles to user lookups and pet pages, making them consistent with the rest of your NeoUI skin.'},
+  {name:'Neopian Times',icon:'📰',cat:'Explore',desc:'Cleans up the NT with readable article typography, better image handling, and a layout that actually works on mobile.'},
+  {name:'New Features',icon:'📢',cat:'Explore',desc:'Reskins the New Features feed with a themed topbar and quicklinks, so site announcements read like the rest of NeoUI.'},
+  {name:'Explore Neopia',icon:'🗺️',cat:'Explore',desc:'Reskins the world map and location pages — backgrounds, headers, and navigation all brought into your active theme.'},
+  {name:'Training Schools',icon:'🌋',cat:'Training',desc:'Replaces the native stat table with responsive pet cards showing level, stats, active course, and a live countdown timer.'},
+  {name:'Battledome',icon:'⚔️',cat:'Combat',desc:'Overhauled battle UI with clearer ability selection, HP readouts, and a layout that fits on a phone screen without pinching.'},
+  {name:'Economy Suite',icon:'💰',cat:'Economy',desc:'Cleaner bank, stock, and trade tables with color-coded gain/loss, your portfolio total, and sortable columns.'},
+  {name:'Shop Wizard',icon:'🧙',cat:'Economy',desc:'Results open in a NeoUI modal so you never lose your place. Includes a direct Buy link per shop and price-sort.'},
+  {name:'Inventory',icon:'🎒',cat:'Economy',desc:'A grid-based inventory view with item icons, stack counts, and one-tap actions — no more endlessly scrolling a flat list.'},
+  {name:'Quest Watcher',icon:'👀',cat:'Quests',desc:'Watches for a random faerie quest in the background and pings you the moment one shows up — no more refreshing your userlookup.'},
+  {name:'All Events',icon:'⏱️',cat:'Dailies',desc:'The daily hub — every timed activity in one panel with individual countdowns, ready indicators, and one-tap navigation.'},
+  {name:'Games Room',icon:'🎮',cat:'Games',desc:'The games directory restyled with better category navigation and game cards that actually show scores and rankings.'},
+  {name:'Kadoatery',icon:'🐱',cat:'Dailies',desc:'A dense grid showing every Kadoatie with fed/hungry status, who fed them, and tap-to-copy item name for speed feeding.'},
+];
+
+const HI=['Sitewide Chrome','Home Dashboard','Shop Wizard','Games Room','Battledome','Neomail','Neoboards','Kadoatery','Inventory'];
+
+const TESTIMONIALS=[
+  {quote:'I was already the fastest mobile kad feeder in the west, but now I\'m nigh unbeatable.', name:'ext1nct', meta:'Overfeeder, 1000+ feeds'},
+  {quote:'Its made keeping up with guild activities way easier!', name:'Casaundra', meta:'Guild Council'},
+  {quote:'I use mobile almost exclusively for accessibility reasons, and this makes the Neopets experience on mobile actually usable.', name:'Morgi', meta:'Neopets mobile player'},
+  {quote:'I can finally recruit minions on the go with ease and efficiency!', name:'Dr. Frank Sloth', meta:'Villain'},
+];
+
+let isEditMode = false;
+
+function buildThemePicker(){
+  const pills=document.getElementById('skinPills');
+  pills.innerHTML=THEME_KEYS.map((k,i)=>{
+    const s = THEMES[k];
+    return `
+      <div class="skin-pill${i===0?' active':''}" data-k="${k}" onclick="selectSkin('${k}')">
+        <span class="skin-pill-dot" style="background:linear-gradient(135deg,${s.tokens['--nui-accent']} 0%,${s.tokens['--nui-accent-2']} 55%,${s.tokens['--nui-bg']} 100%)"></span>
+        <span class="skin-pill-name">${s.emoji} ${s.label}</span>
+      </div>`;
+  }).join('');
+}
+
+function selectSkin(k){
+  const s = THEMES[k];
+  const root = document.documentElement;
+  Object.keys(s.tokens).forEach(tokenKey => {
+      root.style.setProperty(tokenKey, s.tokens[tokenKey]);
+  });
+  document.querySelectorAll('.skin-pill').forEach(p => p.classList.toggle('active', p.dataset.k === k));
+}
+
+function buildModuleGroups(){
+  const cats=[...new Set(MODULES.map(m=>m.cat))];
+  const groups=cats.map(cat=>({cat,items:MODULES.filter(m=>m.cat===cat)}));
+  const el=document.getElementById('moduleGroups');
+  el.innerHTML=groups.map((g,i)=>`
+    <div class="module-group">
+      <button class="module-group-header" onclick="toggleGroup(${i})" aria-expanded="false">
+        <span class="module-group-title">${g.cat}</span>
+        <span class="module-group-count">${g.items.length} module${g.items.length>1?'s':''}</span>
+        <span class="module-group-chev" id="chev-${i}">⌄</span>
+      </button>
+      <div class="module-group-body" id="group-${i}">
+        <div class="module-group-body-inner">
+          ${g.items.map(m=>`
+            <div class="module-row${HI.includes(m.name)?' hi':''}">
+              <span class="module-row-icon">${m.icon}</span>
+              <div class="module-row-text">
+                <div class="module-row-name editable-text">${m.name}</div>
+                <div class="module-row-desc editable-text">${m.desc}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`).join('');
+    
+    if(isEditMode) refreshEditModeStates();
+}
+
+function toggleGroup(i){
+  const body=document.getElementById('group-'+i);
+  const chev=document.getElementById('chev-'+i);
+  const header=body.previousElementSibling;
+  const isOpen=body.classList.contains('open');
+  if(isOpen){
+    body.classList.remove('open');
+    body.style.maxHeight=null;
+    chev.style.transform='rotate(0deg)';
+    header.setAttribute('aria-expanded','false');
+  }else{
+    body.classList.add('open');
+    body.style.maxHeight=body.scrollHeight+'px';
+    chev.style.transform='rotate(180deg)';
+    header.setAttribute('aria-expanded','true');
+  }
+}
+
+function buildTestimonials(){
+  document.getElementById('testiGrid').innerHTML=TESTIMONIALS.map(t=>`
+    <div class="testi-card fade-up">
+      <div class="testi-mark">&ldquo;</div>
+      <p class="testi-quote editable-text">${t.quote}</p>
+      <div class="testi-author">
+        <div class="testi-avatar">${t.name.slice(0,1).toUpperCase()}</div>
+        <div>
+          <div class="testi-name editable-text">${t.name}</div>
+          <div class="testi-meta editable-text">${t.meta}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function initFade(){
+  const io=new IntersectionObserver(entries=>{
+    entries.forEach((e,i)=>{if(e.isIntersecting){setTimeout(()=>e.target.classList.add('in'),i*80);io.unobserve(e.target)}});
+  },{threshold:.05});
+  document.querySelectorAll('.fade-up').forEach(el=>io.observe(el));
+}
+
+function toggleEditMode() {
+  isEditMode = !isEditMode;
+  const btn = document.getElementById('editToggleBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  
+  btn.classList.toggle('active', isEditMode);
+  btn.innerHTML = isEditMode ? '<span class="icon">💾</span><span class="label">Disable Edit Mode</span>' : '<span class="icon">✏️</span><span class="label">Inline Edit Text</span>';
+  exportBtn.style.display = isEditMode ? 'inline-flex' : 'none';
+  
+  refreshEditModeStates();
+}
+
+function exportHTML() {
+  const clonedDoc = document.documentElement.cloneNode(true);
+  
+  const editBtn = clonedDoc.querySelector('#editToggleBtn');
+  if (editBtn) editBtn.remove();
+  
+  const expBtn = clonedDoc.querySelector('#exportBtn');
+  if (expBtn) expBtn.remove();
+  
+  const editableElements = clonedDoc.querySelectorAll('.editable-text');
+  editableElements.forEach(el => {
+    el.removeAttribute('contenteditable');
+    el.classList.remove('is-editable');
+  });
+  
+  const htmlContent = "<!DOCTYPE html>\n" + clonedDoc.outerHTML;
+  const blob = new Blob([htmlContent], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'neoui_marketing_production.html';
+  document.body.appendChild(a);
+  a.click();
+  
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function refreshEditModeStates() {
+  const editableElements = document.querySelectorAll('.editable-text');
+  editableElements.forEach(el => {
+    el.contentEditable = isEditMode;
+    el.classList.toggle('is-editable', isEditMode);
+    if (isEditMode) {
+      el.addEventListener('dragstart', preventDrag);
+    } else {
+      el.removeEventListener('dragstart', preventDrag);
+    }
+  });
+}
+
+function preventDrag(e) { e.preventDefault(); }
+
+window.addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scrolled',scrollY>40)});
+
+function doCopy(){
+  navigator.clipboard.writeText('https://github.com/ext1nct/neoui').then(()=>{
+    const b=document.getElementById('copyBtn');
+    b.textContent='Copied!';b.classList.add('done');
+    setTimeout(()=>{b.textContent='Copy';b.classList.remove('done')},2000);
+  });
+}
+
+// Check if we are loading an exported file where the DOM is already populated
+const needsInit = document.getElementById('skinPills').children.length === 0;
+
+if (needsInit) {
+  buildThemePicker();
+  buildTestimonials();
+  buildModuleGroups();
+}
+
+initFade();
+
+// Keep the active skin if one was set prior to exporting
+let activeSkin = 'spacefaerie';
+const activePill = document.querySelector('.skin-pill.active');
+if (activePill && activePill.dataset.k) {
+  activeSkin = activePill.dataset.k;
+}
+selectSkin(activeSkin);
+
+</script>
+
+</body>
+</html>
