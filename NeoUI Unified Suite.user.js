@@ -94,7 +94,7 @@
  *   53. NeoQuest
  *   54. NeoQuest II
  *   55. Faerie Crossword
- *   56. Qasalan Expellibox
+ *   63. Qasalan Expellibox
  *   59. Neolodge
  *
  * CHANGELOG  (last 5 versions)
