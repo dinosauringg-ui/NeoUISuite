@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeoUI: Unified Suite
 // @namespace    ext1nct
-// @version      2.0.0
+// @version      2.0.1
 // @description  NeoUI Unified Suite: polished theme system, global search, and a daily timer hub for timed Neopets activities, bundled into one mobile-forward userscript.
 // @author       ext1nct
 // @match        *://*.neopets.com/*
@@ -98,6 +98,23 @@
  *   59. Neolodge
  *
  * CHANGELOG  (last 5 versions)
+ *
+ * v2.0.1
+ *   - Negg Cave (Module 44): color and symbol widgets can now both be
+ *     selected at the same time. The click handler previously cleared
+ *     all .nui-mnc-selected elements across the entire #mnc_parch_ui
+ *     root, so picking a color wiped the symbol highlight and vice versa.
+ *     The clear is now scoped to target.parentNode — each picker group
+ *     (colors, symbols) lives in its own parent container inside
+ *     #mnc_parch_ui, so moving a selection within one group no longer
+ *     touches the other.
+ *   - Negg Cave (Module 44): rewards on the "Cave Sealed" state are now
+ *     properly styled. Previously the reward text was dumped as raw
+ *     Neopets HTML (legacy font tags, inline colors, etc.) into a plain
+ *     div. Now all legacy markup is stripped to plain text, item images
+ *     render as accent-bordered tiles with name labels beneath them
+ *     (sourced from img.alt), and the message text uses NeoUI tokens
+ *     so it looks correct on every theme.
  *
  * v1.9.6
  *   - Theme system: Eventide reworked to actually differentiate from Space
@@ -30733,9 +30750,9 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 (function () {
     var GRID_URL      = '/np-templates/ajax/inventory.php';
     var ITEMINFO_URL  = '/np-templates/views/iteminfo.phtml';
-    var BOXINFO_URL   = '/np-templates/views/boxinfo.phtml';
+    var BOXINFO_URL   = '/np-templates/views/ncmall/boxinfo.phtml';
     var USEOBJECT_URL = '/np-templates/views/useobject.phtml';
-    var PROCESS_CASH_URL = '/np-templates/views/process_cash_object.phtml';
+    var PROCESS_CASH_URL = '/process_cash_object.phtml';
 
     var TABS = [
         { action: 0, label: 'Full Inventory', icon: '🎒' },
@@ -43703,34 +43720,61 @@ return {
             clone.querySelectorAll('script, style, iframe, input, form, .bumper, #dimBackground').forEach(el => el.remove());
             clone.querySelectorAll('b').forEach(b => { if(b.textContent.includes('Mysterious Negg Cave')) b.remove(); });
 
-            // Extract item images to display securely
+            // Extract item images (and their names from alt text) before stripping
             let itemImages = Array.from(clone.querySelectorAll('img')).filter(img => img.src.includes('/items/'));
-            clone.querySelectorAll('img').forEach(img => img.remove()); // Remove from raw text dump
+            clone.querySelectorAll('img').forEach(img => img.remove());
 
-            // Clean up the text string for the display card
-            let resultHtml = clone.innerHTML.replace(/<br\s*[\/]?>/gi, ' ').trim();
+            // Strip all legacy Neopets markup — font tags, inline colors, tables,
+            // td/th wrappers — so only clean plain text remains for the message.
+            clone.querySelectorAll('font, span, td, th, tr, table, center').forEach(el => {
+                el.removeAttribute('color');
+                el.removeAttribute('size');
+                el.removeAttribute('face');
+                el.removeAttribute('style');
+                el.removeAttribute('align');
+                el.removeAttribute('bgcolor');
+            });
+
+            // Collapse everything to a plain text message
+            let resultText = clone.textContent.replace(/\s+/g, ' ').trim();
 
             // Build the Result Card
             let resultCard = document.createElement('div');
-            resultCard.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 16px; background: var(--nui-surface-2); padding: 24px; border-radius: var(--nui-radius-md); border: 1px solid var(--nui-border); max-width: 500px; width: 100%; box-shadow: 0 4px 12px var(--nui-shadow);';
+            resultCard.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 20px; background: var(--nui-surface-2); padding: 28px 24px; border-radius: var(--nui-radius-md); border: 1px solid var(--nui-border); max-width: 500px; width: 100%; box-shadow: 0 4px 12px var(--nui-shadow);';
 
             if (itemImages.length > 0) {
+                // One reward tile per item: image + name label stacked
                 let imgContainer = document.createElement('div');
-                imgContainer.style.cssText = 'display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px;';
+                imgContainer.style.cssText = 'display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;';
                 itemImages.forEach(img => {
+                    let tile = document.createElement('div');
+                    tile.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 6px;';
+
                     let wrappedImg = document.createElement('img');
                     wrappedImg.src = img.src;
-                    wrappedImg.style.cssText = 'width: 80px; height: 80px; border-radius: var(--nui-radius-md); border: 2px solid var(--nui-border); box-shadow: 0 2px 8px var(--nui-shadow); background: var(--nui-surface); object-fit: cover;';
-                    imgContainer.appendChild(wrappedImg);
+                    wrappedImg.alt = img.alt || '';
+                    wrappedImg.style.cssText = 'width: 80px; height: 80px; border-radius: var(--nui-radius-md); border: 2px solid var(--nui-accent); box-shadow: 0 2px 8px var(--nui-shadow); background: var(--nui-surface); object-fit: contain; padding: 4px; box-sizing: border-box;';
+                    tile.appendChild(wrappedImg);
+
+                    if (img.alt && img.alt.trim()) {
+                        let nameLabel = document.createElement('div');
+                        nameLabel.style.cssText = 'font-size: 11px; font-weight: 700; color: var(--nui-text-muted); text-align: center; max-width: 88px; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.3px;';
+                        nameLabel.textContent = img.alt.trim();
+                        tile.appendChild(nameLabel);
+                    }
+
+                    imgContainer.appendChild(tile);
                 });
                 resultCard.appendChild(imgContainer);
             }
 
-            let textDiv = document.createElement('div');
-            textDiv.style.cssText = 'font-size: 15px; line-height: 1.6; font-weight: 500; color: var(--nui-text); text-align: center;';
-            textDiv.innerHTML = resultHtml;
+            if (resultText) {
+                let textDiv = document.createElement('div');
+                textDiv.style.cssText = 'font-size: 14px; line-height: 1.6; color: var(--nui-text-muted); text-align: center; max-width: 380px;';
+                textDiv.textContent = resultText;
+                resultCard.appendChild(textDiv);
+            }
 
-            resultCard.appendChild(textDiv);
             contentArea.appendChild(resultCard);
 
             let returnBtn = document.createElement('a');
@@ -43842,11 +43886,18 @@ return {
             // Erasable click-driven highlight: tapping the currently
             // highlighted symbol/color clears it; tapping a different one
             // moves the highlight instead of leaving the old ring stuck.
+            //
+            // Scoped to target.parentNode — #mnc_parch_ui holds both the
+            // color picker and the symbol picker as sibling widget groups,
+            // each inside its own parent container. Clearing only within
+            // target.parentNode means a color pick never wipes the symbol
+            // highlight (and vice versa), so both can be selected at once.
             root.addEventListener('click', function (e) {
                 const target = e.target.closest(targetSelector);
                 if (!target || !root.contains(target)) return;
                 const wasSelected = target.classList.contains('nui-mnc-selected');
-                root.querySelectorAll('.nui-mnc-selected').forEach(el => el.classList.remove('nui-mnc-selected'));
+                const group = target.parentNode || root;
+                group.querySelectorAll('.nui-mnc-selected').forEach(el => el.classList.remove('nui-mnc-selected'));
                 if (!wasSelected) {
                     target.classList.add('nui-mnc-selected');
                 }
@@ -52706,6 +52757,16 @@ return {
 //
 // No fetch/AJAX involved: the real navigation already happened by the time
 // this runs, we're just reading and re-rendering what the server sent back.
+//
+// Dashboard sizing now uses clamp()/var(--nui-space-*) instead of fixed px,
+// matching the rest of the suite's responsive system, so it scales smoothly
+// on narrow phones instead of relying only on the two global breakpoints.
+//
+// This still cannot be embedded in the Dailies Hub's iframe viewer:
+// ncmall.neopets.com sends framing-blocking headers (X-Frame-Options / CSP
+// frame-ancestors), which is exactly why this entry is flagged noIframe and
+// routed to window.open() by openViewer() instead. That's enforced
+// server-side by Neopets and isn't something this script can override.
 // ==============================================================================
 
 (function () {
@@ -52792,23 +52853,23 @@ return {
         dashboard.style.cssText = 'border: 1px solid var(--nui-border); border-radius: var(--nui-radius-lg); overflow: hidden; box-shadow: 0 4px 16px var(--nui-shadow); text-align: center; display: flex; flex-direction: column; align-items: center; background: var(--nui-surface); padding-bottom: 24px;';
 
         dashboard.innerHTML = `
-            <div id="expo-stage" style="width: 100%; height: 120px; border-bottom: 2px solid var(--nui-border); background: var(--nui-surface-2); display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
-                <img src="https://images.neopets.com/items/bat_desert_scarab.gif" style="width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));">
+            <div id="expo-stage" style="width: 100%; height: clamp(90px, 26vw, 120px); border-bottom: 2px solid var(--nui-border); background: var(--nui-surface-2); display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                <img src="https://images.neopets.com/items/bat_desert_scarab.gif" style="width: clamp(46px, 15vw, 64px); height: clamp(46px, 15vw, 64px); object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));">
             </div>
 
-            <div style="padding: 24px 20px 0; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;">
-                <div style="font-family: var(--nui-font-display); font-size: 32px; font-weight: 800; color: var(--nui-text);">Qasalan Expellibox</div>
-                <div style="font-size: 14px; color: var(--nui-text-muted); font-weight: 600; margin-bottom: 12px;">Send the scarab down the tubes to win a prize!</div>
+            <div style="padding: clamp(16px, 5vw, 24px) var(--nui-space-4) 0; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;">
+                <div style="font-family: var(--nui-font-display); font-size: clamp(22px, 7.5vw, 32px); font-weight: 800; color: var(--nui-text); text-align: center; line-height: 1.15;">Qasalan Expellibox</div>
+                <div style="font-size: clamp(12px, 3.4vw, 14px); color: var(--nui-text-muted); font-weight: 600; margin-bottom: 12px; text-align: center;">Send the scarab down the tubes to win a prize!</div>
 
-                <div id="expo-result-box" style="width: 100%; max-width: 400px; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--nui-radius-md); background: var(--nui-surface-2); border: 1px solid var(--nui-border); font-size: 15px; font-weight: 700; color: var(--nui-text-muted); padding: 16px; margin: 16px 0; transition: all 0.2s; box-sizing: border-box;">
+                <div id="expo-result-box" style="width: 100%; max-width: min(400px, 100%); min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--nui-radius-md); background: var(--nui-surface-2); border: 1px solid var(--nui-border); font-size: clamp(13px, 3.6vw, 15px); font-weight: 700; color: var(--nui-text-muted); padding: var(--nui-space-4); margin: 16px 0; transition: all 0.2s; box-sizing: border-box; word-break: break-word;">
                     <span>Scarab is loaded and ready.</span>
                 </div>
 
-                <button type="button" id="btn-reveal" class="nui-btn nui-btn-primary" style="font-size: 18px; padding: 16px 32px; border-radius: 30px; width: 100%; max-width: 300px; margin-top: 8px; box-shadow: 0 4px 12px var(--nui-shadow);">
+                <button type="button" id="btn-reveal" class="nui-btn nui-btn-primary" style="font-size: clamp(15px, 4.2vw, 18px); padding: clamp(12px, 3.5vw, 16px) clamp(20px, 6vw, 32px); border-radius: 30px; width: 100%; max-width: min(300px, 100%); margin-top: 8px; box-shadow: 0 4px 12px var(--nui-shadow); box-sizing: border-box;">
                     Drop Scarab
                 </button>
 
-                <a href="https://www.neopets.com/home/index.phtml" id="btn-back" class="nui-btn nui-btn-secondary" style="display: none; font-size: 16px; padding: 14px 32px; border-radius: 30px; width: 100%; max-width: 300px; margin-top: 8px; justify-content: center; text-decoration: none;">
+                <a href="https://www.neopets.com/home/index.phtml" id="btn-back" class="nui-btn nui-btn-secondary" style="display: none; font-size: clamp(13px, 3.8vw, 16px); padding: clamp(11px, 3vw, 14px) clamp(20px, 6vw, 32px); border-radius: 30px; width: 100%; max-width: min(300px, 100%); margin-top: 8px; justify-content: center; text-decoration: none; box-sizing: border-box;">
                     Back to Neopets
                 </a>
             </div>
