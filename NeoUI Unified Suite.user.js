@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeoUI: Unified Suite
-// @namespace    ext1nct
-// @version      2.0.1
+// @namespace    https://github.com/dinosauringg-ui/NeoUISuite
+// @version      2.0.2
 // @description  NeoUI Unified Suite: polished theme system, global search, and a daily timer hub for timed Neopets activities, bundled into one mobile-forward userscript.
 // @author       ext1nct
 // @match        *://*.neopets.com/*
@@ -95,9 +95,33 @@
  *   54. NeoQuest II
  *   55. Faerie Crossword
  *   63. Qasalan Expellibox
+ *   64. Fishing Vortex Companion (pet switcher + local catch log)
  *   59. Neolodge
  *
  * CHANGELOG  (last 5 versions)
+ *
+ * v2.0.2
+ *   - Negg Cave (Module 44): fixed selection grouping. The 6 widgets in
+ *     #mnc_parch_ui are flat siblings, so the v2.0.1 parentNode scope was
+ *     identical to the root — it never actually isolated the two groups.
+ *     The click handler now splits by index (first half = symbols, second
+ *     half = colors) so picking within one group never clears the other.
+ *   - Negg Cave (Module 44): reward popup after selecting a negg is now
+ *     styled. Neopets injects raw legacy HTML (font tags, inline colours,
+ *     item image, #mncPrizeName) into .mnc_popup_generic.contents after
+ *     each pick. A MutationObserver now fires on that injection, strips the
+ *     legacy markup, and rebuilds the same accent-bordered image tile +
+ *     item name label + message text that the Cave Sealed page-refresh path
+ *     already uses.
+ *   - Global (all modules): fixed link text inheriting button background
+ *     color. The global a:link / a:visited rule uses !important to beat
+ *     Neopets' own link styles, but the existing .nui-btn carve-out only
+ *     reset opacity — not color — so the accent color bled through onto
+ *     every <a class="nui-btn-*"> element, making text invisible against
+ *     the button background. Fix: each button variant now gets its own
+ *     !important color declaration in the carve-out, and a[style*="color"]
+ *     is also exempted via color:revert to cover createElement('a') buttons
+ *     that set color inline (e.g. returnBtn, back-arrow buttons).
  *
  * v2.0.1
  *   - Negg Cave (Module 44): color and symbol widgets can now both be
@@ -2488,11 +2512,27 @@
             opacity: 0.8;
         }
         /* Buttons and NeoUI-styled elements that happen to be <a> tags should
-           keep their own colors — the nui-btn class resets opacity and color. */
+           keep their own colors. The global a:link rule above uses !important
+           to beat Neopets' own link styles, which means button variant rules
+           need !important too — otherwise the accent color bleeds through onto
+           primary/danger/warning buttons making text invisible against the bg.
+           The [style] carve-out covers createElement('a') buttons that set
+           color inline (e.g. returnBtn.style.cssText = '...color:...'). */
         body[data-neoui-theme] a.nui-btn,
-        [data-neoui-theme] a.nui-btn {
+        [data-neoui-theme] a.nui-btn,
+        body[data-neoui-theme] a[style*="color"],
+        [data-neoui-theme] a[style*="color"] {
             opacity: 1 !important;
+            color: revert !important;
         }
+        body[data-neoui-theme] a.nui-btn-primary,
+        [data-neoui-theme] a.nui-btn-primary { color: var(--nui-accent-ink) !important; }
+        body[data-neoui-theme] a.nui-btn-secondary,
+        [data-neoui-theme] a.nui-btn-secondary { color: var(--nui-text) !important; }
+        body[data-neoui-theme] a.nui-btn-danger,
+        [data-neoui-theme] a.nui-btn-danger { color: var(--nui-danger) !important; }
+        body[data-neoui-theme] a.nui-btn-warning,
+        [data-neoui-theme] a.nui-btn-warning { color: var(--nui-warning) !important; }
 
         /* ── Native profile dropdown (#navprofiledropdown__2020) ──────────────
            The native site renders this as a fixed-position white card with
@@ -3624,6 +3664,7 @@
         { id: 'closet-restyle', label: 'Closet',                     desc: 'Reskins the native Closet Vue app to NeoUI tokens (chrome-only, no rebuild)', group: 'Economy & Banking' },
         { id: 'stamp-album',    label: 'Stamp Album',                desc: 'Overview + per-album grid SPA',                  group: 'Economy & Banking' },
         { id: 'shop-wizard',    label: 'Shop Wizard',                desc: 'Full page rebuild — additive multi-search results, sorted by price', group: 'Economy & Banking' },
+        { id: 'shop-pricing-helper', label: 'Your Shop — Pricing Helper', desc: 'Per-item SW/SSW price lookup button (reference only) + unpriced highlighting on the Your Shop stock page', group: 'Economy & Banking' },
 
         { id: 'faerie-quests',  label: 'Faerie Quests',              desc: 'Quest watcher + full page SPA',                  group: 'Quests' },
         { id: 'faerie-bluffs',  label: "Jhudora's Bluff & Illusen's Glade", desc: "Level/score summary, 12h cooldown synced to Home timers, Level 26 avatar tip", group: 'Quests' },
@@ -3643,6 +3684,7 @@
         { id: 'kadoatery',      label: 'Kadoatery',                  desc: 'Mobile grid + tap-to-copy items',                group: 'Games & Daily Activities' },
         { id: 'kad-timer',      label: 'Kad Mode (Timer)',           desc: 'Kadoatery window timer, on Kadoatery page + Home', group: 'Games & Daily Activities' },
         { id: 'forgottenshore', label: 'Forgotten Shore',            desc: 'Daily bottle-hunt SPA',                          group: 'Games & Daily Activities' },
+        { id: 'fishing-vortex', label: 'Fishing Vortex Companion',   desc: 'Pet switcher + local catch log (item, skill) for Ye Olde Fishing Vortex', group: 'Games & Daily Activities' },
         { id: 'guessmarrow',    label: 'Guess the Marrow',           desc: 'Daily guessing-game SPA',                        group: 'Games & Daily Activities' },
         { id: 'kikopop',        label: 'Kiko Pop',                   desc: 'Dart game SPA / Flash bypass',                   group: 'Games & Daily Activities' },
         { id: 'lunartemple',    label: 'Lunar Temple',               desc: 'Daily puzzle SPA + auto-solver',                 group: 'Games & Daily Activities' },
@@ -3854,7 +3896,12 @@
             { id: 'money-tree', label: 'Money Tree', icon: '🎁', img: 'https://images.neopets.com/items/mini_moneytree.gif', href: '/donations.phtml', intervalHours: 24.0, note: 'Up to 10 items a day', category: 'Daily', sourceGroup: 'Freebies' },
             { id: 'monthly-freebies', label: 'Monthly Freebies', icon: '🎁', img: 'https://images.neopets.com/items/fur_y7_calendar.gif', href: '/freebies/', intervalHours: 24.0, note: 'Once a month', category: 'Daily', sourceGroup: 'Freebies' },
             { id: 'mysterious-negg-cave', label: 'Mysterious Negg Cave', icon: '🎁', img: 'https://images.neopets.com/items/gif_fony14_fg_darkmagic.gif', href: '/shenkuu/neggcave/', intervalHours: 24.0, note: 'Once a day', category: 'Daily', sourceGroup: 'Freebies' },
-            { id: 'qasalan-expellibox', label: 'Qasalan Expellibox', icon: '🎁', img: 'https://images.neopets.com/items/bat_desert_scarab.gif', href: 'https://ncmall.neopets.com/games/giveaway/process_giveaway.phtml', intervalHours: 7.0, note: 'Once every 7 hours 7 minutes', category: 'Timed', timed: true, sourceGroup: 'Freebies', noIframe: true },
+            // TEST BUILD: noIframe temporarily forced to false to verify whether
+            // ncmall.neopets.com actually blocks framing or whether the noIframe
+            // flag here was stale/overcautious. Check DevTools Network + Console
+            // for X-Frame-Options / CSP frame-ancestors errors when this loads.
+            // Revert to noIframe: true if the frame comes back blank/errored.
+            { id: 'qasalan-expellibox', label: 'Qasalan Expellibox', icon: '🎁', img: 'https://images.neopets.com/items/bat_desert_scarab.gif', href: 'https://ncmall.neopets.com/games/giveaway/process_giveaway.phtml', intervalHours: 7.0, note: 'Once every 7 hours 7 minutes', category: 'Timed', timed: true, sourceGroup: 'Freebies', noIframe: false },
             { id: 'rich-slorg-shop-of-offers', label: 'Rich Slorg  (Shop of Offers)', icon: '🎁', img: 'https://images.neopets.com/items/mall_roamingwindslorg.gif', href: '/shop_of_offers.phtml?slorg_payout=yes', intervalHours: 24.0, note: 'Once a day', category: 'Daily', sourceGroup: 'Freebies' },
             { id: 'rubbish-dump', label: 'Rubbish Dump', icon: '🎁', img: 'https://images.neopets.com/items/med_zeenanapeel.gif', href: '/medieval/rubbishdump.phtml', intervalHours: 24.0, note: 'Up to 10 items a day', category: 'Daily', sourceGroup: 'Freebies' },
             { id: 'second-hand-shoppe', label: 'Second-Hand Shoppe', icon: '🎁', img: 'https://images.neopets.com/items/clo_zombie_buzz_shirt.gif', href: '/thriftshoppe/index.phtml', intervalHours: 24.0, note: 'Up to 10 items a day', category: 'Daily', sourceGroup: 'Freebies' },
@@ -4459,12 +4506,30 @@
         function isNarrowLayout() {
             return modal.getBoundingClientRect().width < 700;
         }
+        // Cross-origin dailies (ncmall.neopets.com, etc.) run in a completely
+        // separate localStorage bucket, so a module rendering inside that
+        // iframe can't see the theme the person picked on neopets.com —
+        // it silently falls back to the default theme instead. Stamp the
+        // current theme onto the iframe URL as a query param so any module
+        // that wants to match the parent site's look can read it and call
+        // NeoUI.setTheme() itself. No-op for modules that don't look for it.
+        function withThemeParam(href) {
+            try {
+                const url = new URL(href, location.href);
+                url.searchParams.set('neoui_theme', NeoUI.getTheme());
+                return url.href;
+            } catch (e) {
+                return href;
+            }
+        }
         function openViewer(item) {
-            // Some dailies live on domains (ncmall.neopets.com, etc.) that send
-            // framing headers blocking them from ever loading inside our iframe —
-            // pointing the iframe at them just spins forever. Those are flagged
-            // noIframe at the data level; route straight to a new tab instead of
-            // pretending the in-hub viewer will work.
+            // Some dailies live on domains (ncmall.neopets.com, etc.) that we
+            // previously assumed sent framing headers blocking them from ever
+            // loading inside our iframe. Confirmed via manual test (see
+            // changelog) that at least ncmall.neopets.com does NOT block
+            // framing — noIframe here now only exists for dailies genuinely
+            // confirmed to break in-frame. Kept as an escape hatch; route
+            // those straight to a new tab instead of a dead viewer pane.
             if (item.noIframe) {
                 window.open(item.href, '_blank', 'noopener');
                 return;
@@ -4476,7 +4541,7 @@
             viewerPane.querySelector('#nui-dh-viewer-done').dataset.id = item.id;
             viewerPane.querySelector('#nui-dh-viewer-newtab').dataset.href = item.href;
             spinner.style.display = 'flex';
-            frame.src = item.href;
+            frame.src = withThemeParam(item.href);
             viewerPane.style.display = 'flex';
             if (isNarrowLayout()) {
                 listPane.style.display = 'none';
@@ -6225,7 +6290,7 @@
             tabB.type = 'button';
             tabB.className = 'nui-btn nui-btn-secondary';
             tabB.style.cssText = 'flex:1;';
-            tabB.textContent = '1 Item → Many People';
+            tabB.textContent = 'Items → Many People';
             tabRow.appendChild(tabA);
             tabRow.appendChild(tabB);
             content.appendChild(tabRow);
@@ -6488,31 +6553,52 @@
             });
         }
 
-        // ── Mode B: one item → many people ─────────────────────────────────
+        // ── Mode B: one-or-more items → many people ──────────────────────
+        // `cart` holds every item picked, each with its own per-person qty.
+        // Every item in the cart goes to every recipient on the list.
         function renderOneToMany(container, boot) {
             container.innerHTML = '';
-            var selected = null;
+            var cart = []; // [{item, qty}]
 
             var searchSection = document.createElement('div');
             container.appendChild(searchSection);
 
             var selectedLabel = document.createElement('div');
             selectedLabel.style.cssText = 'font-size:11px;font-weight:700;color:var(--nui-text-muted);text-transform:uppercase;letter-spacing:.04em;margin:4px 0;';
-            selectedLabel.textContent = 'Item to send';
+            selectedLabel.textContent = 'Items to send (0)';
             container.appendChild(selectedLabel);
 
             var selectedBox = document.createElement('div');
-            selectedBox.style.cssText = 'font-size:12px;color:var(--nui-text-faint);margin-bottom:12px;';
-            selectedBox.textContent = 'Search above and click an item to pick it.';
+            selectedBox.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-bottom:12px;';
+            selectedBox.innerHTML = '<div style="font-size:12px;color:var(--nui-text-faint);">Search above and click an item to add it — you can add more than one.</div>';
             container.appendChild(selectedBox);
 
-            var qtyWrap = document.createElement('div');
-            qtyWrap.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:12px;';
-            qtyWrap.innerHTML =
-                '<span style="font-size:12px;font-weight:700;color:var(--nui-text-muted);">Qty per person:</span>' +
-                '<input type="number" min="1" value="1" class="nui-input" style="width:60px;padding:5px;font-size:12px;text-align:center;">';
-            container.appendChild(qtyWrap);
-            var qtyInput = qtyWrap.querySelector('input');
+            function renderSelected() {
+                selectedLabel.textContent = 'Items to send (' + cart.length + ')';
+                if (!cart.length) {
+                    selectedBox.innerHTML = '<div style="font-size:12px;color:var(--nui-text-faint);">Search above and click an item to add it — you can add more than one.</div>';
+                    return;
+                }
+                selectedBox.innerHTML = '';
+                cart.forEach(function (entry, idx) {
+                    var row = document.createElement('div');
+                    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);';
+                    row.innerHTML =
+                        '<img src="' + sdbBulkImgUrl(entry.item) + '" style="width:24px;height:24px;object-fit:contain;flex-shrink:0;" onerror="this.style.visibility=\'hidden\'">' +
+                        '<span style="flex:1;font-size:12px;font-weight:700;color:var(--nui-text);">' + sdbBulkEsc(entry.item.obj_name) + '</span>' +
+                        '<span style="font-size:11px;color:var(--nui-text-faint);">Have: ' + entry.item.amount + '</span>' +
+                        '<span style="font-size:11px;color:var(--nui-text-muted);white-space:nowrap;">Qty/person:</span>' +
+                        '<input type="number" min="1" max="' + entry.item.amount + '" value="' + entry.qty + '" class="nui-input" style="width:56px;padding:3px;font-size:11px;text-align:center;">' +
+                        '<button type="button" class="nui-btn nui-btn-secondary" style="padding:2px 8px;font-size:11px;">✕</button>';
+                    row.querySelector('input').addEventListener('change', function () {
+                        var v = parseInt(this.value, 10) || 1;
+                        entry.qty = Math.max(1, Math.min(v, entry.item.amount));
+                        this.value = entry.qty;
+                    });
+                    row.querySelector('button').addEventListener('click', function () { cart.splice(idx, 1); renderSelected(); });
+                    selectedBox.appendChild(row);
+                });
+            }
 
             var recipientsWrap = document.createElement('div');
             recipientsWrap.style.cssText = 'margin-bottom:12px;';
@@ -6538,35 +6624,41 @@
 
             buildItemSearch(searchSection, boot, {
                 onPick: function (item) {
-                    selected = item;
-                    qtyInput.max = item.amount;
-                    selectedBox.innerHTML =
-                        '<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid var(--nui-accent);border-radius:var(--nui-radius-sm);background:var(--nui-accent-soft, var(--nui-surface-2));">' +
-                            '<img src="' + sdbBulkImgUrl(item) + '" style="width:26px;height:26px;object-fit:contain;">' +
-                            '<span style="font-size:12px;font-weight:700;color:var(--nui-text);flex:1;">' + sdbBulkEsc(item.obj_name) + '</span>' +
-                            '<span style="font-size:11px;color:var(--nui-text-faint);">Have: ' + item.amount + '</span>' +
-                        '</div>';
+                    if (cart.some(function (e) { return e.item.obj_info_id === item.obj_info_id; })) return;
+                    cart.push({ item: item, qty: 1 });
+                    renderSelected();
                 }
             });
 
             reviewBtn.addEventListener('click', function () {
-                if (!selected) { alert('Pick an item to send first.'); return; }
-                var qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+                if (!cart.length) { alert('Pick at least one item to send first.'); return; }
                 var recipients = recipientsArea.value.split(/[\n,]+/).map(function (s) { return s.trim(); }).filter(Boolean);
                 recipients = recipients.filter(function (r, idx) { return recipients.indexOf(r) === idx; }); // dedupe
                 if (!recipients.length) { alert('Enter at least one recipient.'); return; }
-                var totalNeeded = qty * recipients.length;
-                if (totalNeeded > selected.amount) {
+
+                // Every item in the cart needs enough copies for every
+                // recipient — check each item independently before sending.
+                var shortfalls = cart.filter(function (entry) {
+                    return (entry.qty * recipients.length) > entry.item.amount;
+                });
+                if (shortfalls.length) {
                     validationMsg.style.display = 'block';
-                    validationMsg.textContent = 'You only have ' + selected.amount + ' of this item — that\'s not enough for ' + recipients.length + ' people at ' + qty + ' each (needs ' + totalNeeded + ').';
+                    validationMsg.textContent = shortfalls.map(function (entry) {
+                        var needed = entry.qty * recipients.length;
+                        return entry.item.obj_name + ': only have ' + entry.item.amount + ', need ' + needed + ' for ' + recipients.length + ' people at ' + entry.qty + ' each';
+                    }).join('; ') + '.';
                     return;
                 }
                 validationMsg.style.display = 'none';
-                var totalSends = qty * recipients.length;
-                if (totalSends > 30 && !confirm('You\'re about to send ' + totalSends + ' separate gifts total (' + qty + ' each to ' + recipients.length + ' people). This will take a while and can\'t be undone once each send goes through — continue?')) return;
+
+                var totalSends = cart.reduce(function (sum, e) { return sum + e.qty; }, 0) * recipients.length;
+                if (totalSends > 30 && !confirm('You\'re about to send ' + totalSends + ' separate gifts total (' + cart.length + ' item type' + (cart.length === 1 ? '' : 's') + ' to ' + recipients.length + ' people). This will take a while and can\'t be undone once each send goes through — continue?')) return;
+
                 var jobs = [];
                 recipients.forEach(function (r) {
-                    jobs = jobs.concat(buildQtyJobs(selected.obj_name + ' → ' + r, selected.obj_info_id, qty, r, boot));
+                    cart.forEach(function (entry) {
+                        jobs = jobs.concat(buildQtyJobs(entry.item.obj_name + ' → ' + r, entry.item.obj_info_id, entry.qty, r, boot));
+                    });
                 });
                 runBatch(batchArea, boot, jobs);
             });
@@ -10089,6 +10181,48 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         document.head.appendChild(styleEl);
     }
 
+    // Switches the active pet using the classic process_changepet.phtml
+    // endpoint — a plain GET, no _ref_ck token needed. Lives on the core
+    // NeoUI object (available on every page) rather than inside any one
+    // page module: it used to be defined only inside Module 8 (Home), whose
+    // IIFE bails out immediately on any page that isn't /home/index.phtml —
+    // so window.nuiChangeActivePet simply didn't exist for callers on other
+    // pages (e.g. the Fishing Vortex Companion's pet switcher), and calling
+    // it there threw silently with no visible error. Kept as
+    // window.nuiChangeActivePet too, since existing inline onclick markup
+    // built by Home/Quickview already references that name directly.
+    //
+    // opts.reload (default true) controls what happens once the switch has
+    // gone through server-side: true reloads the page (the original,
+    // simplest behavior — most pages' content depends on the active pet
+    // throughout, not just in one widget); false skips the reload and just
+    // resolves true/false so a caller that already knows how to re-render
+    // itself (like Fishing's SPA) can update in place instead of losing its
+    // whole in-memory state to a full navigation.
+    function changeActivePet(petName, opts) {
+        if (!petName) return Promise.resolve(false);
+        opts = opts || {};
+        const doReload = opts.reload !== false;
+        return fetch(`/process_changepet.phtml?new_active_pet=${encodeURIComponent(petName)}`, { credentials: 'include' })
+            .then(function () {
+                if (doReload) window.location.reload();
+                return true;
+            })
+            .catch(function (err) {
+                console.error('NeoUI changeActivePet error:', err);
+                // Neopets applies the switch server-side on receipt of the GET
+                // even if something about reading the response goes sideways
+                // client-side — so a reload:true caller still gets its reload
+                // (the switch almost certainly went through regardless), but
+                // a reload:false caller gets a clean `false` so it can recover
+                // in place rather than being forced into a reload it opted
+                // out of.
+                if (doReload) { window.location.reload(); return true; }
+                return false;
+            });
+    }
+    window.nuiChangeActivePet = changeActivePet;
+
     function ensureCoreStyles() {
         injectStylesOnce();
         applyThemeVars(getStoredTheme());
@@ -10232,6 +10366,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         buildItemSearchButtons: buildItemSearchButtons,
         attachItemSearchButtons: attachItemSearchButtons,
         isPremium: isPremiumUser,
+        changeActivePet: changeActivePet,
         isModuleEnabled: isModuleEnabled,
         get isInitialized() { return initialized; },
         openNotificationDrawer: openNotificationDrawer,
@@ -17254,29 +17389,9 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
     // --- GLOBAL ACTIONS ---
 
-    // Switches the active pet using the classic process_changepet.phtml
-    // endpoint — the same one the Multi-Pet Manager module already uses
-    // successfully. It's a plain GET and needs no _ref_ck token at all.
-    //
-    // (An earlier version of this posted JSON to /np-templates/ajax/changepet.php
-    // with a token scraped via a hidden quickref.phtml iframe. That endpoint
-    // doesn't reliably behave the way this code assumed, so pet switching from
-    // the home page would silently fail or just reload without actually
-    // switching. process_changepet.phtml is simpler and is already proven to
-    // work elsewhere in this script.)
-    window.nuiChangeActivePet = function(petName) {
-        if (!petName) return;
-        fetch(`/process_changepet.phtml?new_active_pet=${encodeURIComponent(petName)}`, { credentials: 'include' })
-            .then(() => window.location.reload())
-            .catch(function(err) {
-                console.error('nuiChangeActivePet error:', err);
-                // Neopets applies the switch server-side on receipt of the GET
-                // even if something about reading the response goes sideways
-                // client-side, so reload regardless rather than leaving the
-                // user stuck on a dead button.
-                window.location.reload();
-            });
-    };
+    // Switching the active pet is now handled by the page-independent
+    // NeoUI.changeActivePet() (see core section) — window.nuiChangeActivePet
+    // still points to it, so the onclick markup built below needs no change.
 
     // --- EDITOR MODAL SYSTEM ---
     window.nuiOpenLinkEditor = function(type) {
@@ -19113,6 +19228,29 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         // 1. Scrape Global Profile Info BEFORE nuking the DOM
         const profile = NeoUI.scrapeLegacyProfile();
 
+        // 1b. _ref_ck does NOT live on quickref.phtml's own markup — it's
+        // specific to the real /neopetpet.phtml?neopet_name=<pet> page (that
+        // page's inline `function getCK(){ return '<hash>'; }`). Fetching it
+        // fresh from there — lazily, cached after the first successful
+        // lookup — mirrors the SDB Bulk Sender module's approach of pulling
+        // a bootstrap token from the page that actually owns it rather than
+        // trying to find it locally.
+        let refCkPromise = null;
+        function getRefCk(petNameForFetch) {
+            if (refCkPromise) return refCkPromise;
+            refCkPromise = fetch(`/neopetpet.phtml?neopet_name=${encodeURIComponent(petNameForFetch)}`, { credentials: 'include' })
+                .then(res => res.text())
+                .then(html => {
+                    const m = html.match(/function getCK\(\)\s*\{\s*return\s*['"]([a-f0-9]{32})['"]/)
+                        || html.match(/_ref_ck['":\s]+['"]([a-f0-9]{32})['"]/);
+                    if (!m) { refCkPromise = null; throw new Error('Could not find security token'); }
+                    return m[1];
+                })
+                .catch(err => { refCkPromise = null; throw err; });
+            return refCkPromise;
+        }
+
+
         // 2. Precision Scraper based on the provided Quickref DOM
         function scrapeQuickref() {
             const pets = [];
@@ -19449,12 +19587,6 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 });
             });
 
-            // ── Helper: scrape _ref_ck from page source ──
-            function getRefCk() {
-                const m = document.documentElement.innerHTML.match(/_ref_ck['":\s]+['"]([a-f0-9]{32})['"]/);
-                return m ? m[1] : '';
-            }
-
             // ── Helper: show petpet result message ──
             function showPetpetResult(panel, msg, isError) {
                 const el = panel.querySelector('.nui-petpet-result');
@@ -19464,7 +19596,52 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 el.style.color = isError ? 'var(--nui-danger)' : 'var(--nui-success)';
                 el.style.borderColor = isError ? 'var(--nui-danger)' : 'var(--nui-success)';
                 el.innerHTML = msg;
-                setTimeout(() => { el.style.display = 'none'; }, 4000);
+                setTimeout(() => { el.style.display = 'none'; }, isError ? 4000 : 6000);
+            }
+
+            // ── Helper: escape text pulled out of the legacy response before
+            // re-inserting it into our own HTML ──
+            function escText(s) {
+                const d = document.createElement('div');
+                d.textContent = s == null ? '' : s;
+                return d.innerHTML;
+            }
+
+            // ── Helper: the Talk endpoint returns raw legacy markup styled
+            // for /neopetpet.phtml's own dialogue.css/content.css (which
+            // quickref.phtml doesn't load) — a full-size pet image, a
+            // .h5-speaker/.h5-dialogue block, then the petpet's reaction
+            // image + text. Pull out just the reaction image + reaction
+            // text + what was said, and rebuild it with NeoUI tokens instead
+            // of dumping the raw response HTML into the panel. ──
+            function formatTalkResult(html) {
+                const tmp = document.createElement('div');
+                tmp.innerHTML = html;
+
+                const dialogueEl = tmp.querySelector('.h5-dialogue');
+                const saidText = dialogueEl ? dialogueEl.textContent.trim() : '';
+
+                const reactionImg = tmp.querySelector('img.item-single__2020, img[class*="item-single"]');
+                const reactionImgSrc = reactionImg ? reactionImg.getAttribute('src') : '';
+
+                // Reaction text is the first <p> in the response — usually
+                // sits right after the reaction image, but not guaranteed
+                // to be its literal next sibling (whitespace text nodes,
+                // stray closing tags), so just take the first <p> overall.
+                const reactionP = tmp.querySelector('p');
+                const reactionText = reactionP ? reactionP.textContent.trim() : '';
+
+                if (!reactionImgSrc && !reactionText && !saidText) return html; // nothing recognisable — fall back to raw
+
+                return `
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        ${reactionImgSrc ? `<img src="${reactionImgSrc}" style="width:40px;height:40px;object-fit:contain;flex-shrink:0;background:var(--nui-surface);border-radius:var(--nui-radius-sm);border:1px solid var(--nui-success);">` : ''}
+                        <div style="flex:1;min-width:0;">
+                            ${saidText ? `<div style="font-size:11px;font-style:italic;opacity:0.85;margin-bottom:2px;">You: "${escText(saidText)}"</div>` : ''}
+                            <div style="font-size:13px;font-weight:700;">${escText(reactionText)}</div>
+                        </div>
+                    </div>
+                `;
             }
 
             // ── Wire Talk buttons ──
@@ -19479,18 +19656,20 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     btn.textContent = '...';
                     btn.disabled = true;
                     try {
+                        const refCk = await getRefCk(petName);
                         const fd = new FormData();
                         fd.append('neopet_name', petName);
                         fd.append('type', 'talk');
                         fd.append('text', text);
-                        fd.append('_ref_ck', getRefCk());
+                        fd.append('_ref_ck', refCk);
                         const res = await fetch('/np-templates/ajax/process_neopetpet.php', {
                             method: 'POST',
                             headers: { 'x-requested-with': 'XMLHttpRequest' },
+                            referrer: `${location.origin}/neopetpet.phtml?neopet_name=${encodeURIComponent(petName)}`,
                             body: fd
                         });
                         const data = await res.json();
-                        showPetpetResult(panel, data.message, !data.success);
+                        showPetpetResult(panel, data.success ? formatTalkResult(data.message) : data.message, !data.success);
                         if (data.success && input) input.value = '';
                     } catch (err) {
                         showPetpetResult(panel, 'Error: ' + err.message, true);
@@ -19513,13 +19692,15 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     btn.textContent = '...';
                     btn.disabled = true;
                     try {
+                        const refCk = await getRefCk(petName);
                         const fd = new FormData();
                         fd.append('neopet_name', petName);
                         fd.append('pet_name', newName);
-                        fd.append('_ref_ck', getRefCk());
+                        fd.append('_ref_ck', refCk);
                         const res = await fetch('/np-templates/ajax/process_neopetpet.php', {
                             method: 'POST',
                             headers: { 'x-requested-with': 'XMLHttpRequest' },
+                            referrer: `${location.origin}/neopetpet.phtml?neopet_name=${encodeURIComponent(petName)}`,
                             body: fd
                         });
                         const data = await res.json();
@@ -19656,11 +19837,41 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
     const currentUrl = window.location.href;
 
+    // --- Global Helper: Detect a captcha / security-check page ---
+    // Neopets occasionally serves a security challenge instead of the real
+    // userlookup/petlookup content (usually after several automated-looking
+    // requests in a short window). The clean-mode takeover below hides every
+    // top-level element on the page that isn't NeoUI's own UI — which was
+    // silently hiding that challenge too, leaving the person stuck unless
+    // they manually hit "View Original Layout". Bail out before touching
+    // the page at all if this looks like one of those challenge pages, so
+    // it renders exactly as Neopets sent it and can be solved normally.
+    function nuiIsChallengePage() {
+        // Neopets' own invisible-recaptcha challenge form, observed directly
+        // on a live captcha page: <form id="formULRCI">...<div class="g-recaptcha"
+        // data-sitekey="...">. Checking the specific id/class combo first
+        // means we don't have to rely on wording alone.
+        if (document.getElementById('formULRCI')) return true;
+
+        if (document.querySelector(
+            'iframe[src*="hcaptcha.com"], iframe[src*="recaptcha"], ' +
+            '.g-recaptcha, .h-captcha, #h-captcha, [data-sitekey], ' +
+            'iframe[src*="captcha"]'
+        )) return true;
+
+        const bodyText = (document.body && document.body.innerText || '').slice(0, 4000);
+        if (/security check|verify you(?:'|’)?re human|please verify you are human|complete the (?:security )?challenge|unusual (?:traffic|activity)|meepits are diligently/i.test(bodyText)) {
+            return true;
+        }
+        return false;
+    }
+
     // --- Global Helper: Standardized NeoUI Card Builder ---
     function buildCard(title, innerHTML, gridClass = false) {
         const card = document.createElement('div');
         card.className = 'nui-surface';
         card.style.cssText = 'border-radius: var(--nui-radius-lg); border: 1px solid var(--nui-border); box-shadow: 0 2px 8px var(--nui-shadow); overflow: hidden; width: 100%; box-sizing: border-box; margin-bottom: 20px;';
+
 
         const details = document.createElement('details');
         details.open = true;
@@ -19697,6 +19908,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
     // ==========================================
     if (currentUrl.includes("userlookup.phtml")) {
         if (!window.NeoUI || !window.NeoUI.isModuleEnabled('lookups')) return;
+        if (nuiIsChallengePage()) return; // Let Neopets' security check render untouched.
 
         let isCleanMode = true;
         let customStyleNodes = [];
@@ -19760,10 +19972,24 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     let petNodes = content.querySelectorAll('#bxlist li');
                     if (petNodes.length === 0) petNodes = content.querySelectorAll('td.medText');
 
+                    // Carousels like this one (bxSlider-style, given the
+                    // #bxlist naming) clone the first/last slides in the DOM
+                    // so the rotation can loop seamlessly. Those clones are
+                    // real <li> elements pointing at the exact same pet,
+                    // which was making pets show up more than once in the
+                    // grid. De-dupe by pet name (from the petlookup URL) so
+                    // each pet is only added once, keeping the first
+                    // (non-cloned) copy encountered.
+                    const seenPetNames = new Set();
+
                     petNodes.forEach(node => {
                         const a = node.querySelector('a[href*="petlookup"]');
                         if (!a) return;
                         const img = a.querySelector('img');
+                        const petName = new URLSearchParams(a.search).get('pet') || 'Pet';
+
+                        if (seenPetNames.has(petName)) return;
+                        seenPetNames.add(petName);
 
                         let clone = node.cloneNode(true);
                         let aClone = clone.querySelector('a[href*="petlookup"]');
@@ -19772,7 +19998,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                         clone.querySelectorAll('*').forEach(el => el.removeAttribute('style'));
 
                         data.pets.push({
-                            name: new URLSearchParams(a.search).get('pet') || 'Pet',
+                            name: petName,
                             url: a.href,
                             image: img ? img.src : '',
                             info: clone.innerHTML.trim()
@@ -20022,6 +20248,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
     } else if (currentUrl.includes("petlookup.phtml")) {
 
         if (!window.NeoUI || !window.NeoUI.isModuleEnabled('lookups')) return;
+        if (nuiIsChallengePage()) return; // Let Neopets' security check render untouched.
 
         let isCleanMode = true;
         let customStyleNodes = [];
@@ -20044,14 +20271,27 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
         document.documentElement.classList.add('nui-spa-active');
 
+        // Tracked so the toggle button below can actually put these back —
+        // previously they were only ever hidden, never un-hidden, because
+        // the toggle only flipped the nui-clean-mode class and re-enabled
+        // customStyleNodes, neither of which overrides a direct inline
+        // display:none on the elements themselves.
+        const hiddenNativeEls = [];
+
         const contentDiv = document.querySelector('#content');
         if (contentDiv) {
             Array.from(contentDiv.children).forEach(child => {
-                if (child.id !== 'CustomNeopetView') child.style.display = 'none';
+                if (child.id !== 'CustomNeopetView') {
+                    hiddenNativeEls.push(child);
+                    child.style.display = 'none';
+                }
             });
         }
 
-        document.querySelectorAll('table').forEach(t => t.style.display = 'none');
+        document.querySelectorAll('table').forEach(t => {
+            hiddenNativeEls.push(t);
+            t.style.display = 'none';
+        });
 
         // 3. BUILD THE RESPONSIVE WRAPPER
         const profile = NeoUI.scrapeLegacyProfile();
@@ -20155,7 +20395,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         const petData = {
             name: fullTitle.split(' the ')[0] || 'Unknown',
             desc: fullTitle.split(' the ')[1] || 'Unknown Species',
-            owner: getMatch(/<b>Owner:<\/b>\s*([^<]+)/).replace('(You!)', '').trim(),
+            owner: getMatch(/<b>Owner:<\/b>[\s\S]*?userlookup\.phtml\?user=([^"'&]+)/i, ''),
             age: getMatch(/<b>Age:<\/b>\s*<b>([^<]+)<\/b>/),
             birthday: getMatch(/<b>Birthday:<\/b>\s*([^<]+)<br>/),
             level: getMatch(/<b>Level:<\/b>\s*([^<]+)<br/i),
@@ -20170,10 +20410,24 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             rank: getMatch(/<b>Job Rank:<\/b>\s*([^<]+)/i)
         };
 
-        // Advanced Petpet/Petpetpet Scraper
-        if (html.includes('has a Petpet!')) {
-            let imgMatches = [...html.matchAll(/<img src="([^"]+)"[^>]*width="80"/gi)];
-            let textMatch = html.match(/<b>([^<]+)<\/b>(?:\s+the\s+([A-Za-z0-9 ]+?))?(?:\s+and its\s+<b>([^<]+)<\/b>)?\s*<br>\(([^)]+)\)/i);
+        // Advanced Petpet/Petpetpet Scraper — scoped to the actual DOM element
+        // that contains the "has a Petpet!" text, not to a slice of the raw
+        // HTML string. A string slice cut off at the next "contentModuleHeader"
+        // (or a fixed 2000-char fallback) still isn't safe: some pets have
+        // extra badges/trophies/notices in that module that push the real
+        // content further away or that add other width="80" images before
+        // the header shows up. Querying the DOM directly removes that
+        // guesswork entirely — we only ever look inside the exact element
+        // that holds the petpet text, so nothing outside it (Statistics
+        // icons, topbar art, NC Mall promos, etc.) can be picked up.
+        const petpetContainer = Array.from(document.querySelectorAll('.contentModuleContent'))
+            .filter(el => el.textContent.includes('has a Petpet!'))
+            .sort((a, b) => a.innerHTML.length - b.innerHTML.length)[0];
+
+        if (petpetContainer) {
+            let imgMatches = Array.from(petpetContainer.querySelectorAll('img[width="80"]'))
+                .map(img => [null, img.getAttribute('src')]);
+            let textMatch = petpetContainer.innerHTML.match(/<b>([^<]+)<\/b>(?:\s+the\s+([A-Za-z0-9 ]+?))?(?:\s+and its\s+<b>([^<]+)<\/b>)?\s*<br>\(([^)]+)\)/i);
 
             if (imgMatches.length > 0 && textMatch) {
                 petData.petpet = {
@@ -20190,6 +20444,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 }
             }
         }
+
 
         // Custom Description Scraper
         let descHtml = '';
@@ -20313,6 +20568,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 document.body.classList.add('nui-clean-mode');
                 pageWrapper.style.display = 'flex';
                 customStyleNodes.forEach(el => el.disabled = true);
+                hiddenNativeEls.forEach(el => el.style.display = 'none');
                 toggleBtn.innerHTML = '✨ View Original Layout';
                 toggleBtn.style.background = 'var(--nui-accent)';
                 toggleBtn.style.color = 'var(--nui-accent-ink)';
@@ -20320,6 +20576,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 document.body.classList.remove('nui-clean-mode');
                 pageWrapper.style.display = 'none';
                 customStyleNodes.forEach(el => el.disabled = false);
+                hiddenNativeEls.forEach(el => el.style.display = '');
                 toggleBtn.innerHTML = '📱 Force Clean Mobile View';
                 toggleBtn.style.background = 'var(--nui-surface-2)';
                 toggleBtn.style.color = 'var(--nui-text)';
@@ -35685,12 +35942,25 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
     // exact entry count, since a missed betting day can leave the queue
     // under 8 rounds wide even while the oldest is still about to expire).
     function computeQueueInfo(rows) {
-        const parsed = (rows || [])
-            .map(r => {
-                const n = parseInt((r.winnings || '').replace(/[^0-9]/g, ''), 10);
-                return { round: r.round, roundNum: parseInt(r.round, 10), amount: isNaN(n) ? 0 : n };
-            })
-            .filter(r => !isNaN(r.roundNum));
+        // `rows` is one entry PER WINNING BET (you can place up to 10 bets a
+        // round, and any subset can win), but the real winnings queue is
+        // keyed by Round ID — multiple winning bets in the same round occupy
+        // one queue slot there, not several. Group and sum by round first,
+        // or `size`/`atCapacity` below end up counting bets instead of
+        // rounds (e.g. 5 rounds with 2 winning bets each would misreport as
+        // a 10-round queue and falsely trigger the 8-round capacity/expiry
+        // warnings).
+        const byRound = new Map(); // round -> { round, roundNum, amount }
+        (rows || []).forEach(r => {
+            const roundNum = parseInt(r.round, 10);
+            if (isNaN(roundNum)) return;
+            const n = parseInt((r.winnings || '').replace(/[^0-9]/g, ''), 10);
+            const amount = isNaN(n) ? 0 : n;
+            const existing = byRound.get(roundNum);
+            if (existing) existing.amount += amount;
+            else byRound.set(roundNum, { round: r.round, roundNum, amount });
+        });
+        const parsed = Array.from(byRound.values());
 
         if (parsed.length === 0) return null;
 
@@ -37044,16 +37314,31 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             // the trophy run, so we never re-log the same round's winnings —
             // the Neopets collect page shows a running total across every
             // uncollected round, not just the newest one.
-            let trophyRunForLog = null, loggedRounds = new Set(), newRows = [], newTotal = 0;
+            //
+            // `rows` is one entry PER WINNING BET, not per round — you can
+            // place up to 10 bets in a single round, and any subset of them
+            // can win. The real winnings queue is keyed by Round ID, so
+            // multiple winning bets in the same round combine into one queue
+            // slot there. Group by round and sum here too, before diffing
+            // against loggedRounds — otherwise two winning bets in the same
+            // round would survive the filter as two separate "new" rows and
+            // get logged as two round entries instead of one.
+            let trophyRunForLog = null, loggedRounds = new Set(), newRows = [], newTotal = 0, totalRoundCount = 0;
             if (trophyOn) {
                 trophyRunForLog = loadTrophyRun();
                 if (!trophyRunForLog) trophyRunForLog = startTrophyRun();
                 loggedRounds = loggedRoundSet(trophyRunForLog);
-                newRows = rows.filter(r => !loggedRounds.has(String(r.round)));
-                newRows.forEach(r => {
+                const roundTotals = new Map(); // round -> summed winnings (NP), in first-seen order
+                rows.forEach(r => {
                     const n = parseInt((r.winnings || '').replace(/[^0-9]/g, ''));
-                    if (!isNaN(n)) newTotal += n;
+                    if (isNaN(n)) return;
+                    roundTotals.set(r.round, (roundTotals.get(r.round) || 0) + n);
                 });
+                totalRoundCount = roundTotals.size;
+                newRows = Array.from(roundTotals.entries())
+                    .filter(([round]) => !loggedRounds.has(String(round)))
+                    .map(([round, amount]) => ({ round: round, winnings: String(amount) }));
+                newRows.forEach(r => { newTotal += parseInt(r.winnings, 10) || 0; });
             }
 
             if (totalWin > 0) {
@@ -37111,7 +37396,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
                 if (newRows.length === 0) {
                     holdBtn.className = 'nui-btn nui-btn-secondary nui-btn-block';
-                    holdBtn.textContent = `✔ All ${rows.length} round${rows.length === 1 ? '' : 's'} already logged`;
+                    holdBtn.textContent = `✔ All ${totalRoundCount} round${totalRoundCount === 1 ? '' : 's'} already logged`;
                     holdBtn.disabled = true;
                 } else {
                     holdBtn.className = 'nui-btn nui-btn-primary nui-btn-block';
@@ -43884,20 +44169,26 @@ return {
             syncMncSelectionHighlight(root); // catch anything already selected on load
 
             // Erasable click-driven highlight: tapping the currently
-            // highlighted symbol/color clears it; tapping a different one
-            // moves the highlight instead of leaving the old ring stuck.
+            // highlighted widget clears it; tapping a different one moves
+            // the highlight within the same group.
             //
-            // Scoped to target.parentNode — #mnc_parch_ui holds both the
-            // color picker and the symbol picker as sibling widget groups,
-            // each inside its own parent container. Clearing only within
-            // target.parentNode means a color pick never wipes the symbol
-            // highlight (and vice versa), so both can be selected at once.
+            // The puzzle has 6 widgets flat under #mnc_parch_ui — the first 3
+            // are symbols and the last 3 are colors (or vice versa). We split
+            // them by index into two halves so a pick within one half never
+            // clears the selection in the other half, letting you hold one
+            // symbol + one color selected simultaneously.
             root.addEventListener('click', function (e) {
                 const target = e.target.closest(targetSelector);
                 if (!target || !root.contains(target)) return;
+
+                const allTargets = Array.from(root.querySelectorAll(targetSelector));
+                const idx = allTargets.indexOf(target);
+                const mid = Math.ceil(allTargets.length / 2);
+                // Which half does the clicked widget belong to?
+                const groupItems = idx < mid ? allTargets.slice(0, mid) : allTargets.slice(mid);
+
                 const wasSelected = target.classList.contains('nui-mnc-selected');
-                const group = target.parentNode || root;
-                group.querySelectorAll('.nui-mnc-selected').forEach(el => el.classList.remove('nui-mnc-selected'));
+                groupItems.forEach(el => el.classList.remove('nui-mnc-selected'));
                 if (!wasSelected) {
                     target.classList.add('nui-mnc-selected');
                 }
@@ -43927,7 +44218,7 @@ return {
         if (data.intercept) document.body.appendChild(data.intercept);
         data.popups.forEach(p => document.body.appendChild(p));
 
-        // 5. Fix native Popup styling
+        // 5. Fix native Popup positioning & chrome
         const popupStyle = document.createElement('style');
         popupStyle.textContent = `
             div[id^="mnc_popup_generic_"] {
@@ -43938,11 +44229,136 @@ return {
             .mnc_popup_generic.middle { width: 100% !important; }
             .mnc_popup_generic.t, .mnc_popup_generic.b { width: calc(100% - 30px) !important; }
             .mnc_popup_generic.bg { width: calc(100% - 10px) !important; height: calc(100% - 10px) !important; }
-            .mnc_popup_generic.contents { color: var(--nui-text) !important; padding: 24px !important; font-family: var(--nui-font-body) !important; font-size: 15px; }
+            .mnc_popup_generic.contents {
+                display: flex; flex-direction: column; align-items: center;
+                gap: 16px; padding: 24px !important;
+                font-family: var(--nui-font-body) !important;
+                color: var(--nui-text) !important;
+            }
             .mnc_popup_generic.close { top: -10px !important; right: -10px !important; transform: scale(1.2); }
-            #mncPrizeName { font-family: var(--nui-font-display); font-size: 18px; margin-top: 12px; }
         `;
         document.head.appendChild(popupStyle);
+
+        // 6. Rebuild popup reward content when Neopets fills it.
+        //
+        // After you click a negg, Neopets reveals the prize by injecting raw
+        // legacy HTML into .mnc_popup_generic.contents (font tags, inline
+        // colours, item image, #mncPrizeName). The MutationObserver fires on
+        // that injection and rebuilds the same styled reward tile that the
+        // "Cave Sealed" page-refresh path uses.
+        function buildMncRewardPopup(contents, popupId) {
+            if (contents.dataset.nuiBuilt) return; // already rebuilt this round
+
+            // The "correct" popup ships with a placeholder ("---" prize name,
+            // no image src) baked into the page from load, and only gets its
+            // real prize name/image filled in later via jQuery .html()/.attr()
+            // inside submitGrid()'s success handler. Treat the placeholder as
+            // "nothing to show yet" so we don't rebuild — and destructively
+            // wipe out #mncClaimForm / the Continue button — before the
+            // person has even played the puzzle.
+            if (popupId === 'mnc_popup_generic_correct') {
+                const nameEl = contents.querySelector('#mncPrizeName');
+                const imgEl = contents.querySelector('#mncPrizeImg');
+                const hasRealName = nameEl && nameEl.textContent.trim() && nameEl.textContent.trim() !== '---';
+                const hasRealImg = imgEl && imgEl.getAttribute('src');
+                if (!hasRealName && !hasRealImg) return; // still just the template placeholder
+            }
+
+            contents.dataset.nuiBuilt = '1';
+
+            // Preserve the functional claim form + Continue button so the
+            // person can still actually claim the prize after we restyle
+            // everything else around them.
+            const claimForm = contents.querySelector('#mncClaimForm');
+            const continueContainer = contents.querySelector('#mnc_popup_complete_container');
+
+            const clone = contents.cloneNode(true);
+
+            // Pull item images before stripping
+            const itemImages = Array.from(clone.querySelectorAll('img'))
+                .filter(img => img.src && img.src.includes('/items/'));
+            clone.querySelectorAll('img').forEach(img => img.remove());
+
+            // Pull prize name from #mncPrizeName if Neopets injected it
+            const prizeNameEl = clone.querySelector('#mncPrizeName');
+            const prizeName = prizeNameEl ? prizeNameEl.textContent.trim() : '';
+            if (prizeNameEl) prizeNameEl.remove();
+
+            // Strip all legacy attributes so textContent is clean
+            clone.querySelectorAll('font, span, td, th, tr, table, center, b, div').forEach(el => {
+                ['color','size','face','style','align','bgcolor','width','height'].forEach(a => el.removeAttribute(a));
+            });
+            const resultText = clone.textContent.replace(/\s+/g, ' ').trim();
+
+            // Rebuild the popup contents with NeoUI-themed elements
+            contents.innerHTML = '';
+
+            if (itemImages.length > 0) {
+                const imgRow = document.createElement('div');
+                imgRow.style.cssText = 'display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;';
+                itemImages.forEach(img => {
+                    const tile = document.createElement('div');
+                    tile.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 6px;';
+
+                    const styledImg = document.createElement('img');
+                    styledImg.src = img.src;
+                    styledImg.alt = img.alt || prizeName || '';
+                    styledImg.style.cssText = 'width: 80px; height: 80px; border-radius: var(--nui-radius-md); border: 2px solid var(--nui-accent); box-shadow: 0 2px 8px var(--nui-shadow); background: var(--nui-surface); object-fit: contain; padding: 4px; box-sizing: border-box;';
+                    tile.appendChild(styledImg);
+
+                    const labelText = img.alt || prizeName;
+                    if (labelText) {
+                        const nameEl = document.createElement('div');
+                        nameEl.style.cssText = 'font-size: 11px; font-weight: 700; color: var(--nui-text-muted); text-align: center; max-width: 88px; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.3px;';
+                        nameEl.textContent = labelText.trim();
+                        tile.appendChild(nameEl);
+                    }
+                    imgRow.appendChild(tile);
+                });
+                contents.appendChild(imgRow);
+            } else if (prizeName) {
+                // No item image but we have a name — show it as a heading
+                const nameEl = document.createElement('div');
+                nameEl.style.cssText = 'font-family: var(--nui-font-display); font-size: 18px; font-weight: 800; color: var(--nui-text); text-align: center;';
+                nameEl.textContent = prizeName;
+                contents.appendChild(nameEl);
+            }
+
+            if (resultText) {
+                const textEl = document.createElement('div');
+                textEl.style.cssText = 'font-size: 14px; line-height: 1.6; color: var(--nui-text-muted); text-align: center; max-width: 320px;';
+                textEl.textContent = resultText;
+                contents.appendChild(textEl);
+            }
+
+            // Re-attach the claim form (invisible, just carries the POST) and
+            // a restyled Continue button so the prize can actually be claimed.
+            if (claimForm) contents.appendChild(claimForm);
+            if (continueContainer) {
+                continueContainer.style.cssText = 'position: relative; width: auto; height: auto; margin-top: 4px;';
+                const btn = continueContainer.querySelector('#mnc_popup_complete_continue');
+                if (btn) {
+                    btn.style.cssText = 'position: relative; padding: 12px 28px; border-radius: var(--nui-radius-pill); background: var(--nui-accent); color: var(--nui-accent-ink); font-weight: 700; text-align: center; cursor: pointer; box-shadow: 0 2px 8px var(--nui-shadow);';
+                    const btnText = btn.querySelector('#mnc_popup_complete_continue_text');
+                    if (btnText) {
+                        btnText.style.cssText = 'background: none !important; width: auto; height: auto;';
+                        btnText.textContent = 'Continue';
+                    }
+                }
+                contents.appendChild(continueContainer);
+            }
+        }
+
+        // Attach observer to each popup's .contents so we catch the injection
+        data.popups.forEach(popup => {
+            const contents = popup.querySelector('.mnc_popup_generic.contents');
+            if (!contents) return;
+            // Handle the case where the popup already has real result data
+            // (e.g. the module reran after a submission already went through)
+            if (contents.children.length > 0) buildMncRewardPopup(contents, popup.id);
+            const obs = new MutationObserver(() => buildMncRewardPopup(contents, popup.id));
+            obs.observe(contents, { childList: true, subtree: true });
+        });
 
     }
 
@@ -44514,7 +44930,7 @@ return {
     'use strict';
 
     const path = window.location.pathname;
-    if (!path.includes('/prehistoric/ticketbooth.phtml') && !path.includes('/prehistoric/concerthall.phtml')) return;
+    if (!path.includes('/prehistoric/ticketbooth.phtml') && !path.includes('/prehistoric/concerthall.phtml') && !path.includes('/prehistoric/concerthall2.phtml')) return;
 
     // Standard NeoUI initialization & toggle guard
     if (window.NeoUI && window.NeoUI.isModuleEnabled && !window.NeoUI.isModuleEnabled('concert-hall')) return;
@@ -44524,6 +44940,42 @@ return {
     let profile = { username: 'Neopian', np: '0', nc: '0', hasNotification: false };
     if (typeof scrapeLegacyProfile === 'function') {
         profile = scrapeLegacyProfile();
+    }
+
+    const isWatching = path.includes('/prehistoric/concerthall2.phtml');
+
+    // concerthall2.phtml is reached via a real form POST from the "Enter the
+    // Arena" button below — by the time this module runs, Neopets' own
+    // swfobject.js has already executed synchronously and the concert is
+    // already live in the DOM as a <ruffle-embed> (or similar Ruffle custom
+    // element). We never re-trigger SWFObject/re-request the concert
+    // ourselves — that would risk a second server-side prize issuance or a
+    // broken re-init of a Flash emulator that expects to run exactly once
+    // per real page load. Instead we detach the already-running embed here
+    // (before wiping the DOM) and reparent the SAME live node into our
+    // styled shell below, same technique Module 36 (Games Room) uses for
+    // ruffle-player. Also grab the free-item reward line + image while the
+    // native markup is still around to read it from.
+    let nativeConcertEmbed = null, prizeImg = '', prizeMsg = '';
+    if (isWatching) {
+        nativeConcertEmbed = document.querySelector('ruffle-embed, ruffle-object, ruffle-player, embed[type="application/x-shockwave-flash"]');
+        if (nativeConcertEmbed && nativeConcertEmbed.parentNode) {
+            nativeConcertEmbed.parentNode.removeChild(nativeConcertEmbed);
+        }
+        const content = document.querySelector('.content') || document.body;
+        const itemImgEl = content.querySelector('.nph-item-scanned img, img[src*="/items/"]');
+        if (itemImgEl) {
+            const src = itemImgEl.getAttribute('src') || '';
+            prizeImg = src.indexOf('//') === 0 ? 'https:' + src : src;
+        }
+        // The exact reward wording varies by band/item ("don't forget your
+        // free X", "you've won a Y", etc.) — grab whichever <b> mentions it
+        // rather than matching one hardcoded phrase.
+        content.querySelectorAll('b').forEach(function (b) {
+            if (!prizeMsg && /don.?t forget|you.?ve won|free /i.test(b.textContent)) {
+                prizeMsg = b.textContent.replace(/\s+/g, ' ').trim();
+            }
+        });
     }
 
     // Wipe DOM immediately—we rely exclusively on clean server fetches now
@@ -44553,7 +45005,7 @@ return {
     header.style.cssText = 'margin-bottom: var(--nui-space-2); text-align: center;';
     header.innerHTML = `
         <div style="font-family: var(--nui-font-display); font-size: 28px; font-weight: 800; color: var(--nui-text); margin-bottom: 4px;">🎸 Tyrannian Concert Hall</div>
-        <div style="font-size: 14px; color: var(--nui-text-muted);">Buy tickets and enter the arena.</div>
+        <div style="font-size: 14px; color: var(--nui-text-muted);">${isWatching ? 'Enjoy the show!' : 'Buy tickets and enter the arena.'}</div>
     `;
     container.appendChild(header);
 
@@ -44568,8 +45020,11 @@ return {
         ticketsLeft: '',
         hasTicket: false,
         canBuy: false,
-        loading: true,
-        activeView: path.includes('ticketbooth') ? 'booth' : 'hall'
+        loading: !isWatching,
+        activeView: isWatching ? 'watching' : (path.includes('ticketbooth') ? 'booth' : 'hall'),
+        concertEmbed: nativeConcertEmbed,
+        prizeImg: prizeImg,
+        prizeMsg: prizeMsg
     };
 
     // Keeps the address bar in sync with whichever view is showing. This matters
@@ -44578,7 +45033,9 @@ return {
     // still ticketbooth.phtml (e.g. after switching tabs or auto-routing post-
     // purchase), that submission gets bounced with a redirect error.
     function syncUrl(view) {
-        const target = view === 'booth' ? '/prehistoric/ticketbooth.phtml' : '/prehistoric/concerthall.phtml';
+        const target = view === 'booth' ? '/prehistoric/ticketbooth.phtml'
+            : view === 'watching' ? '/prehistoric/concerthall2.phtml'
+            : '/prehistoric/concerthall.phtml';
         if (window.location.pathname !== target) {
             history.pushState(null, '', target);
         }
@@ -44589,6 +45046,68 @@ return {
 
         if (state.loading) {
             contentArea.innerHTML = '<div class="nui-surface" style="border-radius: var(--nui-radius-lg); border: 1px solid var(--nui-border); padding: 60px 20px; text-align: center; color: var(--nui-text-muted);">Checking tickets...</div>';
+            return;
+        }
+
+        // --- Render the concert itself — no Booth/Arena pills here, since
+        // the ticket is already spent and there's nothing left to switch
+        // back to mid-show.
+        if (state.activeView === 'watching') {
+            const embedWrap = document.createElement('div');
+            embedWrap.className = 'nui-surface';
+            embedWrap.style.cssText = 'border-radius: var(--nui-radius-lg); border: 1px solid var(--nui-border); box-shadow: 0 4px 12px var(--nui-shadow); overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: var(--nui-space-3); padding: var(--nui-space-4);';
+
+            const stageWrap = document.createElement('div');
+            stageWrap.className = 'nui-concert-stage';
+            stageWrap.style.cssText = 'width: 100%; max-width: 500px; aspect-ratio: 5 / 4; position: relative; overflow: hidden; border-radius: var(--nui-radius-md); background: #000;';
+            embedWrap.appendChild(stageWrap);
+
+            if (state.concertEmbed) {
+                const embed = state.concertEmbed;
+                embed.style.position = 'absolute';
+                embed.style.top = '0';
+                embed.style.left = '0';
+                embed.style.transformOrigin = 'top left';
+                embed.style.border = '0';
+                stageWrap.appendChild(embed);
+
+                // The embed's own width/height attrs are the real Flash stage
+                // size (baked server-side, e.g. 500×400) — CSS can't resize
+                // that content, so scale visually to fit whatever width this
+                // card actually has, same technique Module 36 uses for the
+                // Games Room player.
+                function rescale() {
+                    const nativeW = parseInt(embed.getAttribute('width'), 10) || 500;
+                    const nativeH = parseInt(embed.getAttribute('height'), 10) || 400;
+                    const scale = stageWrap.clientWidth / nativeW;
+                    embed.style.width = nativeW + 'px';
+                    embed.style.height = nativeH + 'px';
+                    embed.style.transform = 'scale(' + scale + ')';
+                    stageWrap.style.aspectRatio = nativeW + ' / ' + nativeH;
+                }
+                rescale();
+                window.addEventListener('resize', rescale);
+            } else {
+                stageWrap.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;text-align:center;padding:0 20px;">Couldn\u2019t find the live performance — try reloading this page directly.</div>';
+            }
+
+            if (state.prizeImg || state.prizeMsg) {
+                const rewardRow = document.createElement('div');
+                rewardRow.style.cssText = 'display:flex;align-items:center;gap:12px;width:100%;';
+                rewardRow.innerHTML =
+                    (state.prizeImg ? `<img src="${state.prizeImg}" style="width:56px;height:56px;border-radius:var(--nui-radius-sm);border:1px solid var(--nui-border);flex-shrink:0;object-fit:contain;background:var(--nui-surface-2);">` : '') +
+                    `<div style="font-size:14px;color:var(--nui-text);line-height:1.4;">${state.prizeMsg || 'They ROCK!'}</div>`;
+                embedWrap.appendChild(rewardRow);
+            }
+
+            const backBtn = document.createElement('a');
+            backBtn.href = '/prehistoric/plateau.phtml';
+            backBtn.className = 'nui-btn nui-btn-secondary nui-btn-block';
+            backBtn.style.cssText = 'text-align:center;';
+            backBtn.textContent = '‹ Back to the Tyrannian Plateau';
+            embedWrap.appendChild(backBtn);
+
+            contentArea.appendChild(embedWrap);
             return;
         }
 
@@ -44745,14 +45264,20 @@ return {
         render();
     }
 
-    // Keep the listeners active just in case someone DOES use the SSW to buy one while
-    // sitting on this page, so it still updates instantly.
-    window.addEventListener('nui:ssw-purchase', loadData);
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') loadData();
-    });
+    if (isWatching) {
+        // Nothing to fetch — the concert and its reward were already scraped
+        // from the native page above, before the DOM got wiped.
+        render();
+    } else {
+        // Keep the listeners active just in case someone DOES use the SSW to buy one while
+        // sitting on this page, so it still updates instantly.
+        window.addEventListener('nui:ssw-purchase', loadData);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') loadData();
+        });
 
-    loadData();
+        loadData();
+    }
 })();
 
 // ==============================================================================
@@ -50199,13 +50724,21 @@ return {
 // (neoui_labray_protected_v1) keyed by lowercased pet name, unscoped to
 // account — same convention as neoui_theme_v1 / neoui_daily_timers_v1.
 //
-// A second, much lighter IIFE below handles /petpetlab.phtml (Petpet Lab
-// Ray). That page is classic server-rendered markup driven by petpetlab.js
-// (selectPetpet()/zapPetpet(), no data object to rebuild from and no known
-// AJAX contract to reimplement), so rather than a full rebuild this is a
-// chrome-only reskin: native nav hidden, NeoUI topbar/tokens applied over
-// the existing content, but the actual <select>/button and their onchange/
-// onclick handlers are left completely alone.
+// A second IIFE below handles /petpetlab.phtml (Petpet Lab Ray), matching
+// this module's pick screen as closely as the page allows: same pet-grid
+// card layout, same tap-to-select interaction, and the same per-pet
+// "protection" lock, persisted separately (neoui_petpetlabray_protected_v1)
+// since it's a different roster of things (petpets, not pets). Unlike
+// /lab.phtml there's no window.__labData to rebuild from — this page is
+// classic server-rendered markup driven by petpetlab.js (selectPetpet()/
+// zapPetpet()) with no exposed AJAX contract — so the grid is built by
+// reading the petpet options/images/reactions already sitting in the DOM,
+// and picking a card drives the real <select> (value + change event) so
+// selectPetpet() still runs untouched. The zap button forwards its click to
+// the real button so zapPetpet() fires normally; since what it does to the
+// DOM afterward isn't a documented contract, the module watches
+// #PetPetLabContent for the resulting change and reveals/reskins whatever
+// petpetlab.js produces rather than guessing at a custom result screen.
 //
 // Toggle ID: 'lab-ray' (shared by both flows)
 // Group:     'Games & Daily Activities'
@@ -50673,11 +51206,13 @@ return {
     }
 })();
 
-// ── Petpet Lab Ray (/petpetlab.phtml) — chrome-only reskin ─────────────────
-// See the Module 58 header above for why this doesn't rebuild the flow the
-// way the pet Lab Ray does above: petpetlab.js drives the actual select →
-// zap → result behaviour server-side with no exposed data contract, so this
-// only restyles what's already on the page.
+// ── Petpet Lab Ray (/petpetlab.phtml) — grid picker over the native flow ──
+// See the Module 58 header above for the constraints this works within:
+// no window.__labData equivalent here, so the pet-grid is built by reading
+// the petpet options/images/reactions petpetlab.js already rendered into
+// the DOM (hidden #PPL<key> divs + the <select> options), and every action
+// on our grid drives the real <select>/#PPLButton so selectPetpet()/
+// zapPetpet() keep running exactly as Neopets shipped them.
 (function () {
     'use strict';
 
@@ -50686,21 +51221,109 @@ return {
     const NeoUI = window.NeoUI;
     if (!NeoUI.isModuleEnabled('lab-ray')) return;
 
+    const content = document.getElementById('PetPetLabContent');
+    const nativeSelect = content ? content.querySelector('select') : null;
+    const nativeZapBtn = document.getElementById('PPLButton');
+    // If the page shape ever changes and these aren't where we expect,
+    // bail out to the native flow rather than render a broken shell.
+    if (!content || !nativeSelect || !nativeZapBtn) return;
+
+    // Hide the native content the instant we know we're driving this page,
+    // before doing any other work (profile scraping, topbar build, etc.).
+    // Previously this hide happened at the end of buildShell(), after a
+    // handful of other DOM operations — @run-at document-end already means
+    // the browser may have painted the raw page once before our script
+    // runs at all, and every extra statement before the hide widened that
+    // window, which is what let the raw, unpaired petpet reaction text
+    // (all 12 hidden <p>*reaction*</p> blocks stacked one after another —
+    // "yelp", "cower", "growl", etc.) flash on screen for a frame.
+    content.style.display = 'none';
+    nativeSelect.style.display = 'none';
+
     function showFatalError(err) {
         try {
             const box = document.createElement('div');
             box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fee2e2;color:#7f1d1d;font:14px monospace;padding:15px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-bottom:3px solid #dc2626;';
-            box.textContent = 'Petpet Lab Ray reskin crashed:\n' + (err && err.stack ? err.stack : String(err));
+            box.textContent = 'Petpet Lab Ray SPA crashed:\n' + (err && err.stack ? err.stack : String(err));
             document.body.insertBefore(box, document.body.firstChild);
         } catch (e2) {}
     }
 
-    function reskin() {
+    // ── Protected-petpet storage (separate key from the pet Lab Ray's,
+    // since it's a different roster) ───────────────────────────────────────
+    const PROTECT_KEY = 'neoui_petpetlabray_protected_v1';
+    function loadProtected() {
+        try {
+            const raw = localStorage.getItem(PROTECT_KEY);
+            const obj = raw ? JSON.parse(raw) : {};
+            return (obj && typeof obj === 'object') ? obj : {};
+        } catch (e) { return {}; }
+    }
+    function saveProtected(obj) {
+        try { localStorage.setItem(PROTECT_KEY, JSON.stringify(obj)); } catch (e) {}
+    }
+    let protectedMap = loadProtected();
+    function isProtected(key) { return !!protectedMap[String(key).toLowerCase()]; }
+    function toggleProtected(key) {
+        const k = String(key).toLowerCase();
+        if (protectedMap[k]) delete protectedMap[k];
+        else protectedMap[k] = true;
+        saveProtected(protectedMap);
+    }
+
+    // ── Read the petpet roster out of the DOM before we hide anything ──────
+    // Each option's value matches a hidden div's id suffix (option
+    // value="abyyxia" ↔ <div id="PPLabyyxia">), which holds the petpet's
+    // image and its little reaction line.
+    function parsePets() {
+        const opts = Array.from(nativeSelect.querySelectorAll('option')).filter(function (o) {
+            return o.value && !o.disabled;
+        });
+        return opts.map(function (o) {
+            const div = document.getElementById('PPL' + o.value);
+            const img = div ? div.querySelector('img') : null;
+            const reaction = div ? div.querySelector('p') : null;
+            return {
+                key: o.value,
+                name: o.textContent.trim(),
+                img: img ? img.getAttribute('src') : '',
+                reaction: reaction ? reaction.textContent.trim() : '',
+            };
+        });
+    }
+    const pets = parsePets();
+
+    function parseZaps() {
+        const el = content.querySelector('.ppl-zaps');
+        const text = el ? el.textContent : '';
+        const m = text.match(/(\d+)\s*\/\s*(\d+)/);
+        return m ? { left: parseInt(m[1], 10), max: parseInt(m[2], 10) } : { left: 1, max: 1 };
+    }
+    const zapInfo = parseZaps();
+
+    // Warning copy from the two small <p> blocks below the button — carried
+    // over verbatim so nothing Neopets-legal gets dropped.
+    const warningHtml = Array.from(content.querySelectorAll('p')).filter(function (p) {
+        return p.querySelector('span') && /WARNING|Important Warnings/i.test(p.textContent);
+    }).map(function (p) { return p.innerHTML; }).join('');
+
+    const kookithEl = content.querySelector('.ppl-kookith');
+    
+    // FIX APPLIED HERE: Exclude reaction paragraphs inside .ppl-petpet from intro copy
+    const introHtml = Array.from(content.querySelectorAll('p')).filter(function (p) {
+        return !p.closest('.ppl-petpet') && !p.classList.contains('ppl-zaps') && !p.querySelector('span');
+    }).map(function (p) { return p.outerHTML; }).join('');
+
+    // ── State ────────────────────────────────────────────────────────────────
+    let chosen = '';
+    let submitting = false;
+    let zapsLeft = zapInfo.left;
+    const maxZaps = zapInfo.max;
+    let fcBonusText = '';
+
+    function buildShell() {
         const profile = NeoUI.scrapeLegacyProfile();
 
-        // Hide native nav chrome and the bookmark/currency subbar sitting
-        // between it and the page content — same pattern the full-rebuild
-        // SPAs use, just without touching #PetPetLabContent itself.
         ['navtop__2020', 'navbottom__2020'].forEach(function (id) {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
@@ -50715,41 +51338,226 @@ return {
         NeoUI.setProfileInfo(profile);
         NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
 
-        const container = document.getElementById('container__2020');
-        if (container) container.style.cssText += 'padding-top:var(--nui-topbar-h);box-sizing:border-box;background:var(--nui-bg);';
+        const containerEl = document.getElementById('container__2020');
+        if (containerEl) containerEl.style.cssText += 'padding-top:var(--nui-topbar-h);box-sizing:border-box;background:var(--nui-bg);';
 
-        const content = document.getElementById('PetPetLabContent');
-        if (content) {
-            content.style.cssText += 'background:var(--nui-surface);border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg);box-shadow:0 4px 16px var(--nui-shadow);padding:var(--nui-space-4);text-align:center;box-sizing:border-box;max-width:600px;margin:var(--nui-space-4) auto;color:var(--nui-text);';
-        }
+        content.style.cssText += 'background:transparent;border:none;box-shadow:none;padding:0;text-align:center;box-sizing:border-box;max-width:600px;margin:var(--nui-space-4) auto;color:var(--nui-text);';
 
-        // Narrative text, "Zaps Left Today", and each petpet's reaction
-        // line all ship as plain <p> tags with no color of their own —
-        // they inherit whatever the ambient page color happens to be,
-        // which breaks on dark themes. Force them onto the theme token.
-        document.querySelectorAll('#PetPetLabContent p').forEach(function (p) {
-            p.style.color = 'var(--nui-text)';
-        });
-
-        const select = content ? content.querySelector('select') : null;
-        if (select) select.classList.add('nui-select');
-
-        const zapBtn = document.getElementById('PPLButton');
-        if (zapBtn) {
-            zapBtn.classList.remove('button-default__2020', 'button-yellow__2020', 'btn-single__2020');
-            zapBtn.classList.add('nui-btn', 'nui-btn-primary', 'nui-btn-block');
-            zapBtn.style.marginTop = 'var(--nui-space-3)';
+        const fcBanner = document.querySelector('.fc-banner-header');
+        if (fcBanner) {
+            const bonusEl = fcBanner.querySelector('.extra-zaps-count');
+            const bonus = bonusEl ? bonusEl.textContent.trim() : '';
+            if (bonus) fcBonusText = '+' + bonus + ' extra zap' + (bonus === '1' ? '' : 's') + ' a day from your fortune cookie';
+            fcBanner.style.display = 'none';
         }
 
         const titleBar = document.querySelector('.page-title__2020 h1');
         if (titleBar) titleBar.style.color = 'var(--nui-text)';
 
+        const style = document.createElement('style');
+        style.textContent = `
+            .nui-lab-card { background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:var(--nui-radius-lg); box-shadow:0 4px 16px var(--nui-shadow); padding:var(--nui-space-4); text-align:center; box-sizing:border-box; margin-bottom:var(--nui-space-4); }
+            .nui-lab-sub { color:var(--nui-text-muted); font-size:14px; line-height:1.6; }
+            .nui-lab-warning { color:var(--nui-danger); font-size:12px; font-weight:700; text-align:left; margin-top:8px; }
+            .nui-lab-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:10px; width:100%; }
+            .nui-lab-pet {
+                position:relative; border:2px solid var(--nui-border); border-radius:var(--nui-radius-md);
+                background:var(--nui-surface-2); padding:8px 6px 10px; cursor:pointer; text-align:center;
+                transition:all var(--nui-dur-fast) var(--nui-ease);
+            }
+            .nui-lab-pet:hover { border-color:var(--nui-accent); }
+            .nui-lab-pet.is-selected { border-color:var(--nui-accent); background:var(--nui-surface); box-shadow:0 0 0 2px var(--nui-accent) inset; }
+            .nui-lab-pet.is-protected { opacity:0.45; cursor:not-allowed; }
+            .nui-lab-pet img { width:100%; max-width:64px; height:64px; object-fit:contain; display:block; margin:0 auto 4px; pointer-events:none; }
+            .nui-lab-pet-name { font-size:11px; font-weight:700; color:var(--nui-text); word-break:break-word; }
+            .nui-lab-pet-owner { font-size:10px; color:var(--nui-text-faint); word-break:break-word; }
+            .nui-lab-pet-reaction { font-size:10px; font-style:italic; color:var(--nui-text-muted); margin-top:2px; word-break:break-word; }
+            .nui-lab-lock {
+                position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%;
+                background:var(--nui-surface); border:1px solid var(--nui-border); font-size:12px;
+                display:flex; align-items:center; justify-content:center; cursor:pointer; line-height:1; z-index:1;
+            }
+            .nui-lab-lock.is-locked { background:var(--nui-danger-soft); border-color:var(--nui-danger); }
+            .nui-lab-zaps { font-size:12px; font-weight:700; color:var(--nui-text-muted); text-align:center; }
+            .nui-lab-preview { display:flex; flex-direction:column; align-items:center; gap:4px; }
+            .nui-lab-preview img { width:100px; height:100px; object-fit:contain; }
+            .nui-lab-protect-hint { font-size:11px; color:var(--nui-text-faint); text-align:center; }
+        `;
+        document.head.appendChild(style);
+
+        const appWrapper = document.createElement('div');
+        appWrapper.id = 'nui-ppl-app';
+        content.parentNode.insertBefore(appWrapper, content);
+        return appWrapper;
+    }
+
+    const appEl = buildShell();
+
+    // ── Renderers ────────────────────────────────────────────────────────────
+    function petCardHtml(p) {
+        const locked = isProtected(p.key);
+        const selected = chosen === p.key;
+        return `
+            <div class="nui-lab-pet${selected ? ' is-selected' : ''}${locked ? ' is-protected' : ''}" data-pet="${p.key}">
+                <div class="nui-lab-lock${locked ? ' is-locked' : ''}" data-lock="${p.key}" title="${locked ? 'Unprotect ' + p.name : 'Protect ' + p.name + ' from the ray'}">${locked ? '\u{1F512}' : '\u{1F513}'}</div>
+                <img src="${p.img}" alt="${p.name}" loading="lazy">
+                <div class="nui-lab-pet-name">${p.name}</div>
+                <div class="nui-lab-pet-owner">Belongs to ${p.key}</div>
+                ${p.reaction ? `<div class="nui-lab-pet-reaction">${p.reaction}</div>` : ''}
+            </div>
+        `;
+    }
+
+    function renderPick() {
+        appEl.innerHTML = '';
+
+        if (zapsLeft <= 0) {
+            const limitCard = document.createElement('div');
+            limitCard.className = 'nui-lab-card';
+            limitCard.innerHTML = `<p class="nui-lab-sub">You're out of zaps for today — come back tomorrow!</p>${fcBonusText ? `<p class="nui-lab-sub">${fcBonusText}</p>` : ''}`;
+            appEl.appendChild(limitCard);
+            return;
+        }
+
+        const protectedCount = pets.filter(function (p) { return isProtected(p.key); }).length;
+
+        const introCard = document.createElement('div');
+        introCard.className = 'nui-lab-card';
+        introCard.innerHTML = introHtml;
+        appEl.appendChild(introCard);
+
+        const previewWrap = document.createElement('div');
+        previewWrap.id = 'nui-ppl-preview';
+        previewWrap.style.display = 'none';
+        appEl.appendChild(previewWrap);
+
+        const gridCard = document.createElement('div');
+        gridCard.className = 'nui-lab-card';
+        gridCard.innerHTML = `
+            <div class="nui-lab-protect-hint">Tap the lock on a petpet to protect it from the ray${protectedCount ? ' — ' + protectedCount + ' protected' : ''}.</div>
+            <div class="nui-lab-grid" id="nui-ppl-grid" style="margin-top:10px;">
+                ${pets.map(petCardHtml).join('')}
+            </div>
+        `;
+        appEl.appendChild(gridCard);
+
+        const zapsEl = document.createElement('div');
+        zapsEl.className = 'nui-lab-zaps';
+        zapsEl.textContent = 'Zaps Left Today: ' + zapsLeft + '/' + maxZaps;
+        appEl.appendChild(zapsEl);
+
+        if (fcBonusText) {
+            const fcEl = document.createElement('div');
+            fcEl.className = 'nui-lab-sub';
+            fcEl.style.textAlign = 'center';
+            fcEl.textContent = fcBonusText;
+            appEl.appendChild(fcEl);
+        }
+
+        const zapBtn = document.createElement('button');
+        zapBtn.type = 'button';
+        zapBtn.id = 'nui-ppl-zap-btn';
+        zapBtn.className = 'nui-btn nui-btn-primary nui-btn-block';
+        zapBtn.style.marginTop = 'var(--nui-space-3)';
+        zapBtn.textContent = 'Zap the poor Petpet!';
+        zapBtn.disabled = !chosen || submitting || isProtected(chosen);
+        appEl.appendChild(zapBtn);
+
+        if (warningHtml) {
+            const warnCard = document.createElement('div');
+            warnCard.className = 'nui-lab-card nui-lab-warning';
+            warnCard.innerHTML = warningHtml;
+            appEl.appendChild(warnCard);
+        }
+
+        const grid = gridCard.querySelector('#nui-ppl-grid');
+
+        function updatePreview() {
+            const pet = pets.find(function (p) { return p.key === chosen; });
+            if (!pet) { previewWrap.style.display = 'none'; previewWrap.innerHTML = ''; previewWrap.className = ''; return; }
+            previewWrap.className = 'nui-lab-card nui-lab-preview';
+            previewWrap.style.display = 'flex';
+            previewWrap.innerHTML = `<img src="${pet.img}" alt="${pet.name}">`;
+        }
+
+        grid.addEventListener('click', function (e) {
+            const lockEl = e.target.closest('[data-lock]');
+            if (lockEl) {
+                e.stopPropagation();
+                const key = lockEl.getAttribute('data-lock');
+                toggleProtected(key);
+                if (chosen === key && isProtected(key)) chosen = '';
+                renderPick();
+                return;
+            }
+            const cardEl = e.target.closest('[data-pet]');
+            if (!cardEl) return;
+            const key = cardEl.getAttribute('data-pet');
+            if (isProtected(key)) return;
+            chosen = (chosen === key) ? '' : key;
+
+            nativeSelect.value = chosen;
+            nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+            grid.querySelectorAll('.nui-lab-pet').forEach(function (el) { el.classList.remove('is-selected'); });
+            if (chosen) cardEl.classList.add('is-selected');
+            zapBtn.disabled = !chosen || submitting || nativeZapBtn.disabled;
+            updatePreview();
+        });
+
+        updatePreview();
+
+        zapBtn.addEventListener('click', function () {
+            if (!chosen || submitting || isProtected(chosen)) return;
+            submitting = true;
+            zapBtn.disabled = true;
+            zapBtn.textContent = '\u2026';
+            watchForResult();
+            nativeZapBtn.click();
+        });
+    }
+
+    function watchForResult() {
+        let settled = false;
+        const finish = function () {
+            if (settled) return;
+            settled = true;
+            observer.disconnect();
+            revealNative();
+        };
+
+        const observer = new MutationObserver(function () { finish(); });
+        observer.observe(content, { childList: true, subtree: true, attributes: true });
+
+        setTimeout(finish, 8000);
+    }
+
+    function revealNative() {
+        appEl.style.display = 'none';
+        nativeSelect.style.display = '';
+        content.style.display = '';
+        content.style.cssText += 'background:var(--nui-surface);border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg);box-shadow:0 4px 16px var(--nui-shadow);padding:var(--nui-space-4);';
+        content.querySelectorAll('p').forEach(function (p) { p.style.color = 'var(--nui-text)'; });
+        nativeSelect.classList.add('nui-select');
+        nativeZapBtn.classList.remove('button-default__2020', 'button-yellow__2020', 'btn-single__2020');
+        nativeZapBtn.classList.add('nui-btn', 'nui-btn-primary', 'nui-btn-block');
+        nativeZapBtn.style.marginTop = 'var(--nui-space-3)';
         const errMsg = document.getElementById('PPLErrorMsg');
         if (errMsg) errMsg.style.color = 'var(--nui-text)';
+
+        const errorPopup = document.getElementById('PPLErrorPopup');
+        if (errorPopup && errorPopup.style.display !== 'none') {
+            appEl.style.display = '';
+            content.style.display = 'none';
+            submitting = false;
+            const zapInfoNow = parseZaps();
+            zapsLeft = zapInfoNow.left;
+            renderPick();
+        }
     }
 
     try {
-        reskin();
+        renderPick();
     } catch (err) {
         showFatalError(err);
     }
@@ -52762,11 +53570,17 @@ return {
 // matching the rest of the suite's responsive system, so it scales smoothly
 // on narrow phones instead of relying only on the two global breakpoints.
 //
-// This still cannot be embedded in the Dailies Hub's iframe viewer:
-// ncmall.neopets.com sends framing-blocking headers (X-Frame-Options / CSP
-// frame-ancestors), which is exactly why this entry is flagged noIframe and
-// routed to window.open() by openViewer() instead. That's enforced
-// server-side by Neopets and isn't something this script can override.
+// Manual test confirmed ncmall.neopets.com does NOT block framing — the
+// noIframe: true flag on this dailies entry was stale/overcautious and has
+// been flipped to false, so it now loads inside the Dailies Hub's iframe
+// viewer like any other daily instead of opening a new tab.
+//
+// Because ncmall.neopets.com is a different origin from neopets.com, this
+// page's own localStorage can't see the theme picked on the main site —
+// openViewer() now stamps the current theme onto the iframe URL as a
+// ?neoui_theme= param, and initAppShell() below reads it and calls
+// NeoUI.setTheme() so the result screen actually matches instead of
+// silently falling back to the default theme.
 // ==============================================================================
 
 (function () {
@@ -52815,10 +53629,21 @@ return {
     function initAppShell() {
         const profile = NeoUI.scrapeLegacyProfile();
 
-        Array.from(document.body.children).forEach(function (child) {
-            const tag = child.tagName.toLowerCase();
+        // Element children only — misses the raw response text when it isn't
+        // wrapped in a <pre> (happens whenever ncmall serves this response
+        // without a text/plain content-type: the text then sits as a bare
+        // TextNode directly under <body>, which .children can't see). Walk
+        // childNodes instead so stray text nodes get cleared too, or the old
+        // raw text sticks around next to the new dashboard and blows out the
+        // page's size/layout.
+        Array.from(document.body.childNodes).forEach(function (node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                node.textContent = '';
+                return;
+            }
+            const tag = node.tagName.toLowerCase();
             if (tag === 'script' || tag === 'style' || tag === 'link') return;
-            child.style.display = 'none';
+            node.style.display = 'none';
         });
 
         // Force full width/height and kill native NC Mall margins
@@ -52831,6 +53656,17 @@ return {
         document.body.className = 'nui-reset nui-spa-active';
 
         NeoUI.init();
+        // ncmall.neopets.com is a different origin from neopets.com, so this
+        // page's own localStorage has no idea what theme the person picked —
+        // NeoUI.init() just fell back to the default theme above. If we got
+        // here via the Dailies Hub iframe, the parent stamped its current
+        // theme onto the URL; apply it now so this screen actually matches.
+        // Opening this page directly (no param) just keeps the default,
+        // same as before.
+        try {
+            const themeParam = new URLSearchParams(location.search).get('neoui_theme');
+            if (themeParam) NeoUI.setTheme(themeParam);
+        } catch (e) {}
         NeoUI.setProfileInfo(profile);
         NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
 
@@ -53551,6 +54387,448 @@ return {
 
 
 // ==============================================================================
+// MODULE 64: FISHING VORTEX COMPANION
+// ==============================================================================
+// Full NeoUI SPA takeover of /water/fishing.phtml — same approach as the Lab
+// Ray / Petpet Lab Ray / Forgotten Shore modules: native nav/chrome hidden
+// immediately, NeoUI topbar built on top, custom card rendered in its place.
+//
+// Unlike a plain hide-and-decorate pass, casting the line does NOT navigate
+// or resubmit the native <form>. The native form only ever sends one field
+// (go_fish=1) to this same URL, so re-casting is done with a same-origin
+// fetch() POST of that exact field, the response HTML is parsed for the
+// result, and the card re-renders in place — no full page reload between
+// casts. This is still just a real request triggered by a real click; it
+// does not loop, retry, or fire on its own.
+//
+// There is no reliable cooldown signal on this page and no rarity/value
+// data worth trusting, so — as agreed — this module only tracks fishing
+// skill and item name, logged locally to localStorage.
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!/\/water\/fishing\.phtml/.test(location.pathname)) return;
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('fishing-vortex')) return;
+
+    const container = document.getElementById('container__2020');
+    const pageTitle = container ? container.querySelector('.page-title__2020') : null;
+    // If the page shape ever changes and these aren't where we expect,
+    // bail out to the native flow rather than render a broken shell.
+    if (!container || !pageTitle) return;
+
+    // Hide the native game content the instant we know we're driving this
+    // page, before any other work — same reasoning as Petpet Lab Ray: every
+    // extra statement before the hide widens the window for raw native
+    // markup to flash on screen for a frame. The nodes are moved into a
+    // hidden holding pen (not deleted) purely so the first response's
+    // markup can be parsed the same way every later fetch() response is.
+    const nativeHold = document.createElement('div');
+    nativeHold.id = 'nui-fishing-native-hold';
+    nativeHold.style.display = 'none';
+    let holdNode = pageTitle.nextSibling;
+    while (holdNode) {
+        const next = holdNode.nextSibling;
+        nativeHold.appendChild(holdNode);
+        holdNode = next;
+    }
+    container.appendChild(nativeHold);
+
+    function showFatalError(err) {
+        try {
+            const box = document.createElement('div');
+            box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fee2e2;color:#7f1d1d;font:14px monospace;padding:15px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-bottom:3px solid #dc2626;';
+            box.textContent = 'Fishing Vortex SPA crashed:\n' + (err && err.stack ? err.stack : String(err));
+            document.body.insertBefore(box, document.body.firstChild);
+        } catch (e2) {}
+    }
+
+    const LOG_KEY = 'neoui_fishing_log_v1';
+    function loadLog() {
+        try { return JSON.parse(localStorage.getItem(LOG_KEY)) || []; }
+        catch (e) { return []; }
+    }
+    function saveLog(entries) {
+        try { localStorage.setItem(LOG_KEY, JSON.stringify(entries)); } catch (e) {}
+    }
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = String(str == null ? '' : str);
+        return d.innerHTML;
+    }
+    function formatTs(ts) {
+        const d = new Date(ts);
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
+               d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    }
+
+    // ── Parse a "catch" vs "idle" state out of any container__2020-shaped
+    // fragment — the freshly-hidden native content on first load, or the
+    // #container__2020 pulled out of a later fetch() response. Both are
+    // read identically so there's exactly one place this logic lives. ──────
+    function parseState(scopeEl) {
+        const itemTile = scopeEl.querySelector('.item-single__2020');
+        const skillMatch = scopeEl.textContent.match(/fishing skill (?:is|increases to)\s+(\d+)/i);
+        const skill = skillMatch ? parseInt(skillMatch[1], 10) : null;
+
+        if (itemTile) {
+            let itemName = null;
+            let itemImage = null;
+            let n = itemTile.nextElementSibling;
+            while (n && !(n.tagName === 'P' && n.querySelector('b'))) n = n.nextElementSibling;
+            if (n) itemName = n.querySelector('b').textContent.trim();
+            const bg = itemTile.style.backgroundImage;
+            const m = bg && bg.match(/url\(['"]?(.*?)['"]?\)/);
+            if (m) itemImage = m[1].indexOf('//') === 0 ? 'https:' + m[1] : m[1];
+            return { mode: 'catch', itemName: itemName, itemImage: itemImage, skill: skill };
+        }
+        return { mode: 'idle', skill: skill };
+    }
+
+    // ── Catch logging ────────────────────────────────────────────────────
+    function logCatchIfNeeded(state, activePetName) {
+        if (state.mode !== 'catch' || !state.itemName) return null;
+        const entry = { ts: Date.now(), pet: activePetName, item: state.itemName, image: state.itemImage, skill: state.skill };
+        const log = loadLog();
+        const last = log[log.length - 1];
+        const isDupe = last && last.item === entry.item && last.pet === entry.pet && (entry.ts - last.ts) < 5000;
+        if (!isDupe) {
+            log.push(entry);
+            saveLog(log);
+            return entry;
+        }
+        return last;
+    }
+
+    function computeStats(log) {
+        const perPet = {};
+        log.forEach(function (e) {
+            if (!perPet[e.pet]) perPet[e.pet] = { catches: 0, lastSkill: null };
+            perPet[e.pet].catches++;
+            if (e.skill != null) perPet[e.pet].lastSkill = e.skill;
+        });
+        return perPet;
+    }
+
+    // Same /quickref.phtml scrape already proven in the Home + Quickref
+    // "Make Active" flows — works from any page, no _ref_ck token needed.
+    async function fetchPetRoster() {
+        try {
+            const res = await fetch('/quickref.phtml', { credentials: 'include' });
+            const html = await res.text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const pets = [];
+            doc.querySelectorAll('.contentModule').forEach(function (module) {
+                if (!module.id || !module.id.endsWith('_details')) return;
+                let image = 'https://images.neopets.com/themes/h5/basic/images/mystery-icon.png';
+                const imageDiv = module.querySelector('.pet_image');
+                if (imageDiv && imageDiv.style.backgroundImage) {
+                    const m = imageDiv.style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
+                    if (m) { let src = m[1]; if (src.indexOf('//') === 0) src = 'https:' + src; image = src; }
+                }
+                pets.push({
+                    name: module.id.replace('_details', ''),
+                    isActive: !!module.querySelector('th.contentModuleHeader'),
+                    image: image,
+                });
+            });
+            return pets;
+        } catch (err) {
+            console.error('NeoUI Fishing Vortex: failed to fetch pet roster', err);
+            return [];
+        }
+    }
+
+    // ── Shell ────────────────────────────────────────────────────────────
+    function buildShell() {
+        const profile = NeoUI.scrapeLegacyProfile();
+
+        ['navtop__2020', 'navbottom__2020'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        document.querySelectorAll('.navsub-left__2020, .navsub-right__2020, #navsub-buffer__2020').forEach(function (el) {
+            el.style.display = 'none';
+        });
+
+        document.body.classList.add('nui-reset');
+        NeoUI.ensureCoreStyles();
+        NeoUI.init();
+        NeoUI.setProfileInfo(profile);
+        NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
+
+        container.style.cssText += 'padding-top:var(--nui-topbar-h);box-sizing:border-box;background:var(--nui-bg);';
+
+        const h1 = pageTitle.querySelector('h1');
+        if (h1) h1.style.color = 'var(--nui-text)';
+
+        const style = document.createElement('style');
+        style.textContent = `
+            .nui-fish-card { background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:var(--nui-radius-lg); box-shadow:0 4px 16px var(--nui-shadow); padding:var(--nui-space-4); box-sizing:border-box; margin:var(--nui-space-4) auto; max-width:480px; text-align:center; }
+            .nui-fish-skill { font-size:12.5px; font-weight:700; color:var(--nui-text-muted); margin-bottom:var(--nui-space-3); }
+            .nui-fish-idle-art { font-size:40px; margin-bottom:var(--nui-space-3); line-height:1; }
+            .nui-fish-tile { width:72px; height:72px; margin:0 auto var(--nui-space-3); background-size:contain; background-repeat:no-repeat; background-position:center; }
+            .nui-fish-name { font-size:15px; font-weight:700; color:var(--nui-text); margin-bottom:4px; }
+            .nui-fish-skillup { font-size:12.5px; color:var(--nui-success); margin-bottom:var(--nui-space-3); }
+            .nui-fish-error { font-size:12.5px; color:var(--nui-danger); margin-bottom:var(--nui-space-3); }
+            .nui-fish-companion { background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:var(--nui-radius-lg); padding:var(--nui-space-4); box-sizing:border-box; margin:0 auto var(--nui-space-4); max-width:480px; text-align:left; }
+            .nui-fish-companion h3 { margin:0 0 var(--nui-space-3); font-size:14px; color:var(--nui-text); }
+            .nui-fish-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:var(--nui-space-3); }
+            .nui-fish-row label { font-size:12.5px; color:var(--nui-text-muted); }
+            .nui-fish-row select { flex:1; min-width:140px; padding:6px 8px; border-radius:var(--nui-radius-md); border:1px solid var(--nui-border); background:var(--nui-surface-2); color:var(--nui-text); }
+            .nui-fish-pet-grid { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:var(--nui-space-3); }
+            .nui-fish-pet-tile { display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px; border-radius:var(--nui-radius-sm); background:var(--nui-surface-2); border:1px solid var(--nui-border); min-width:60px; max-width:80px; cursor:pointer; transition:border-color .15s, transform .1s, opacity .15s; }
+            .nui-fish-pet-tile:hover { border-color:var(--nui-accent); transform:translateY(-1px); }
+            .nui-fish-pet-tile img { width:44px; height:44px; border-radius:50%; border:1px solid var(--nui-border); object-fit:cover; background:var(--nui-bg); }
+            .nui-fish-pet-tile span { font-size:10px; font-weight:700; color:var(--nui-text); text-align:center; overflow:hidden; text-overflow:ellipsis; width:100%; white-space:nowrap; }
+            .nui-fish-pet-tile.is-active { border-color:var(--nui-accent); background:var(--nui-accent-soft, var(--nui-surface-2)); cursor:default; }
+            .nui-fish-pet-tile.is-active:hover { transform:none; }
+            .nui-fish-pet-tile.is-active span { color:var(--nui-accent); }
+            .nui-fish-pet-tile.is-switching { opacity:0.55; cursor:wait; pointer-events:none; }
+            .nui-fish-stat-row { display:flex; justify-content:space-between; gap:8px; padding:3px 0; border-bottom:1px solid var(--nui-border); font-size:12.5px; }
+            .nui-fish-stat-row span:last-child { color:var(--nui-text-muted); }
+            .nui-fish-history { max-height:240px; overflow-y:auto; margin-top:8px; }
+            .nui-fish-history-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--nui-border); }
+            .nui-fish-history-row img { width:26px; height:26px; object-fit:contain; flex-shrink:0; }
+            .nui-fish-history-row .meta { flex:1; min-width:0; }
+            .nui-fish-history-row .item { font-size:12.5px; color:var(--nui-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .nui-fish-history-row .sub { font-size:11px; color:var(--nui-text-muted); }
+            .nui-fish-empty { font-size:12.5px; color:var(--nui-text-muted); }
+        `;
+        document.head.appendChild(style);
+
+        const appWrapper = document.createElement('div');
+        appWrapper.id = 'nui-fishing-app';
+        container.appendChild(appWrapper);
+        return { appEl: appWrapper, profile: profile };
+    }
+
+    // ── Game card (idle / catch, both same fetch-driven cast action) ───────
+    function renderGameCard(appEl, state, activePetName) {
+        let card = appEl.querySelector('.nui-fish-card');
+        if (!card) {
+            card = document.createElement('div');
+            card.className = 'nui-fish-card';
+            appEl.insertBefore(card, appEl.firstChild);
+        }
+
+        card.innerHTML = state.mode === 'catch'
+            ? `
+                <div class="nui-fish-skill">Fishing Skill: ${state.skill != null ? state.skill : '—'}</div>
+                <div class="nui-fish-tile" style="background-image:url('${state.itemImage ? escapeHtml(state.itemImage) : ''}')"></div>
+                <div class="nui-fish-name">${escapeHtml(state.itemName)}!</div>
+                ${state.skill != null ? `<div class="nui-fish-skillup">Skill increased to ${state.skill}!</div>` : ''}
+                <button type="button" id="nui-fish-cast-btn" class="nui-btn nui-btn-primary nui-btn-block">Cast Your Line Again</button>
+            `
+            : `
+                <div class="nui-fish-idle-art">🎣</div>
+                <div class="nui-fish-skill">Fishing Skill: ${state.skill != null ? state.skill : '—'}</div>
+                <button type="button" id="nui-fish-cast-btn" class="nui-btn nui-btn-primary nui-btn-block">Reel In Your Line</button>
+            `;
+
+        card.querySelector('#nui-fish-cast-btn').addEventListener('click', function () {
+            castLine(appEl, activePetName);
+        });
+    }
+
+    async function castLine(appEl, activePetName) {
+        const btn = appEl.querySelector('#nui-fish-cast-btn');
+        if (!btn || btn.disabled) return;
+        btn.disabled = true;
+        btn.textContent = '…';
+
+        try {
+            const res = await fetch('/water/fishing.phtml', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'go_fish=1',
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const html = await res.text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const freshContainer = doc.getElementById('container__2020') || doc.body;
+
+            const state = parseState(freshContainer);
+            const loggedEntry = logCatchIfNeeded(state, activePetName);
+            renderGameCard(appEl, state, activePetName);
+            flashLoggedEntry(appEl, loggedEntry);
+            refreshCompanionStats(appEl);
+        } catch (err) {
+            const card = appEl.querySelector('.nui-fish-card');
+            if (card) {
+                const errEl = document.createElement('div');
+                errEl.className = 'nui-fish-error';
+                errEl.textContent = 'Couldn\u2019t reach the fishing vortex — try again.';
+                card.insertBefore(errEl, card.firstChild);
+            }
+            const retryBtn = appEl.querySelector('#nui-fish-cast-btn');
+            if (retryBtn) { retryBtn.disabled = false; retryBtn.textContent = 'Try Again'; }
+            console.error('NeoUI Fishing Vortex: cast failed', err);
+        }
+    }
+
+    function flashLoggedEntry(appEl, entry) {
+        if (!entry) return;
+        const card = appEl.querySelector('.nui-fish-card');
+        if (!card) return;
+        const flash = document.createElement('div');
+        flash.style.cssText = 'font-size:11.5px;color:var(--nui-accent);margin-top:8px;';
+        flash.textContent = 'Logged: ' + entry.item + (entry.skill != null ? ' — skill ' + entry.skill : '');
+        card.appendChild(flash);
+    }
+
+    // ── Companion panel: pet switcher + local stats/history ────────────────
+    async function renderCompanion(appEl, activePetName) {
+        const panel = document.createElement('div');
+        panel.className = 'nui-fish-companion';
+        panel.innerHTML = `
+            <h3>🎣 Fishing Companion</h3>
+            <div class="nui-fish-row" style="margin-bottom:6px;">
+                <label>Fishing as:</label>
+            </div>
+            <div id="nui-fv-pet-grid" class="nui-fish-pet-grid">
+                <div class="nui-fish-empty">Loading pets…</div>
+            </div>
+            <div id="nui-fv-stats"></div>
+            <details id="nui-fv-history-details" style="margin-top:var(--nui-space-3);">
+                <summary style="cursor:pointer;font-size:12.5px;color:var(--nui-accent);">Catch history</summary>
+                <div id="nui-fv-history" class="nui-fish-history"></div>
+                <button id="nui-fv-clear-btn" class="nui-btn nui-btn-secondary" style="padding:5px 10px;font-size:12px;margin-top:8px;">Clear log</button>
+            </details>
+        `;
+        appEl.appendChild(panel);
+
+        panel.querySelector('#nui-fv-clear-btn').addEventListener('click', function () {
+            if (!confirm('Clear your entire fishing log? This cannot be undone.')) return;
+            saveLog([]);
+            refreshCompanionStats(appEl);
+        });
+
+        refreshCompanionStats(appEl);
+
+        // Visual pet switcher — a grid of portrait tiles instead of a plain
+        // <select>, matching the picker already used on the Home pet card.
+        const grid = panel.querySelector('#nui-fv-pet-grid');
+        const pets = await fetchPetRoster();
+
+        if (!pets.length) {
+            grid.innerHTML = `<div class="nui-fish-empty">${escapeHtml(activePetName)} (only pet found)</div>`;
+            return;
+        }
+
+        function renderGrid(switchingName) {
+            grid.innerHTML = pets.map(function (p) {
+                const isSwitching = switchingName === p.name;
+                const label = isSwitching ? 'Switching…' : (p.isActive ? (p.name + ' (active)') : p.name);
+                return `
+                    <div class="nui-fish-pet-tile${p.isActive ? ' is-active' : ''}${isSwitching ? ' is-switching' : ''}"
+                         data-pet="${escapeHtml(p.name)}"
+                         title="${p.isActive ? 'Currently fishing as ' + escapeHtml(p.name) : 'Switch to ' + escapeHtml(p.name)}">
+                        <img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">
+                        <span>${escapeHtml(label)}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        renderGrid(null);
+
+        grid.addEventListener('click', async function (e) {
+            const tile = e.target.closest('.nui-fish-pet-tile');
+            if (!tile) return;
+            const target = tile.getAttribute('data-pet');
+            const targetPet = pets.find(function (p) { return p.name === target; });
+            if (!targetPet || targetPet.isActive) return; // already active — nothing to do
+
+            renderGrid(target);
+            const switched = await NeoUI.changeActivePet(target, { reload: false });
+            if (!switched) {
+                renderGrid(null); // revert — nothing actually changed server-side
+                const errEl = document.createElement('div');
+                errEl.className = 'nui-fish-error';
+                errEl.textContent = 'Couldn\u2019t switch pets — try again.';
+                grid.parentNode.insertBefore(errEl, grid.nextSibling);
+                setTimeout(function () { errEl.remove(); }, 4000);
+                return;
+            }
+
+            // Switch went through server-side. Flip the local active flags
+            // ourselves rather than re-fetching the roster a second time —
+            // cheap, and we already know the answer.
+            pets.forEach(function (p) { p.isActive = (p.name === target); });
+            renderGrid(null);
+
+            // Fishing skill and the idle/catch state are per-pet and only
+            // this page's own markup reflects them (quickref doesn't carry
+            // fishing skill) — re-fetch /water/fishing.phtml itself and
+            // re-render the game card in place, exactly like a re-cast does,
+            // instead of a full page reload.
+            try {
+                const res = await fetch('/water/fishing.phtml', { credentials: 'include' });
+                const html = await res.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const freshContainer = doc.getElementById('container__2020') || doc.body;
+                const state = parseState(freshContainer);
+                renderGameCard(appEl, state, target);
+            } catch (err) {
+                console.error('NeoUI Fishing Vortex: failed to refresh after pet switch', err);
+            }
+        });
+    }
+
+    function refreshCompanionStats(appEl) {
+        const statsEl = appEl.querySelector('#nui-fv-stats');
+        const historyEl = appEl.querySelector('#nui-fv-history');
+        if (!statsEl || !historyEl) return;
+
+        const log = loadLog();
+        const perPet = computeStats(log);
+        const petNames = Object.keys(perPet);
+        statsEl.innerHTML = petNames.length
+            ? petNames.map(function (name) {
+                const s = perPet[name];
+                return `<div class="nui-fish-stat-row"><span>${escapeHtml(name)}</span><span>${s.catches} catch${s.catches === 1 ? '' : 'es'}${s.lastSkill != null ? ' · skill ' + s.lastSkill : ''}</span></div>`;
+            }).join('')
+            : '<div class="nui-fish-empty">No catches logged yet — go reel one in!</div>';
+
+        historyEl.innerHTML = log.length
+            ? log.slice().reverse().map(function (e) {
+                return `
+                    <div class="nui-fish-history-row">
+                        ${e.image ? `<img src="${escapeHtml(e.image)}">` : ''}
+                        <div class="meta">
+                            <div class="item">${escapeHtml(e.item)}</div>
+                            <div class="sub">${escapeHtml(e.pet)}${e.skill != null ? ' · skill ' + e.skill : ''} · ${formatTs(e.ts)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('')
+            : '<div class="nui-fish-empty" style="padding:6px 0;">Nothing logged yet.</div>';
+    }
+
+    // ── Boot ─────────────────────────────────────────────────────────────
+    function run() {
+        const shell = buildShell();
+        const initialState = parseState(nativeHold);
+        const loggedEntry = logCatchIfNeeded(initialState, shell.profile.petname);
+        renderGameCard(shell.appEl, initialState, shell.profile.petname);
+        flashLoggedEntry(shell.appEl, loggedEntry);
+        renderCompanion(shell.appEl, shell.profile.petname);
+    }
+
+    try {
+        run();
+    } catch (err) {
+        showFatalError(err);
+    }
+})();
+
+
+
+// ==============================================================================
 // (Module 2 code lives here — see the note in the MODULE INDEX / Module 2
 // header above for why it is physically located at the end of the file.)
 // ==============================================================================
@@ -54039,5 +55317,153 @@ return {
     } catch (e) {
         console.error('NeoUI Sitewide Chrome: conversion failed', e);
         showFatalError(e);
+    }
+})();
+// ==============================================================================
+// MODULE 63: YOUR SHOP — PRICING HELPER
+// ==============================================================================
+// Chrome-only enhancement of the native /market.phtml?type=your stock table
+// (same non-rebuild approach as Module 23b/Closet — the table is a live Vue
+// app owned by the site, we just layer QOL on top of it):
+//   - A tiny icon-only "Check price" button per row that opens the Shop
+//     Wizard (or Super Shop Wizard, for Premium accounts) pre-searched for
+//     that item, so you can see going rates without leaving the page. This
+//     is look-up only — it never writes into the price field. Auto-filling
+//     a price straight from Shop Wizard/SSW results crosses into automated
+//     price-matching, which isn't something this button does. Styled as a
+//     neutral ghost icon (not tied to --nui-surface-2/--nui-border, which
+//     render pale-yellow/orange in the default "Neopia Central" theme) so
+//     it doesn't read as a bright call-to-action sitting in every row.
+//   - Unpriced rows (price still 0) get a slim left-edge accent + a small
+//     dot next to the price field, instead of a heavier full-row tint.
+// The stock table's rows are Vue-rendered and get replaced wholesale on
+// price-splice/removal updates, which would silently wipe any buttons we
+// appended directly — so injection re-runs off a MutationObserver on the
+// table body rather than running once, and every row is tagged so repeat
+// runs don't double up.
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('shop-pricing-helper')) return;
+    if (location.pathname !== '/market.phtml') return;
+    if (new URLSearchParams(location.search).get('type') !== 'your') return;
+
+    const ROW_FLAG = 'nuiPriceHelper';
+    let stylesInjected = false;
+
+    function injectStyles() {
+        if (stylesInjected) return;
+        stylesInjected = true;
+        const style = document.createElement('style');
+        style.textContent = `
+            .nui-price-check-btn {
+                display:inline-flex;
+                align-items:center;
+                justify-content:center;
+                width:20px;
+                height:20px;
+                margin-left:6px;
+                padding:0;
+                border:none;
+                background:transparent;
+                color:var(--nui-text-faint);
+                font-size:12px;
+                line-height:1;
+                cursor:pointer;
+                border-radius:var(--nui-radius-sm, 6px);
+                vertical-align:middle;
+                transition:color var(--nui-dur-fast, .12s) var(--nui-ease, ease),
+                           background var(--nui-dur-fast, .12s) var(--nui-ease, ease);
+            }
+            .nui-price-check-btn:hover {
+                color:var(--nui-accent);
+                background:var(--nui-surface-2);
+            }
+
+            .market-your-table tbody tr.nui-row-unpriced {
+                box-shadow: inset 2px 0 0 var(--nui-warning, #d90000);
+            }
+            .market-your-table tbody tr.nui-row-unpriced .market-your__cost-field::after {
+                content: '';
+                display: inline-block;
+                width: 5px;
+                height: 5px;
+                margin-left: 5px;
+                border-radius: 50%;
+                background: var(--nui-warning, #d90000);
+                vertical-align: middle;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function digitsOf(val) {
+        return String(val == null ? '' : val).replace(/\D/g, '');
+    }
+
+    function enhanceRow(tr) {
+        if (tr.dataset[ROW_FLAG]) return;
+        const priceField = tr.querySelector('.market-your__cost-field');
+        const priceInput = tr.querySelector('input[data-money], input[name^="cost_"]');
+        const nameEl = tr.querySelector('.market-your-item__name');
+        if (!priceField || !priceInput || !nameEl) return;
+        tr.dataset[ROW_FLAG] = '1';
+
+        const itemName = nameEl.textContent.trim();
+        const usesSSW = typeof NeoUI.isPremium === 'function' && NeoUI.isPremium();
+
+        const checkBtn = document.createElement('button');
+        checkBtn.type = 'button';
+        checkBtn.className = 'nui-price-check-btn';
+        checkBtn.title = (usesSSW ? 'Look up in Super Shop Wizard' : 'Look up in Shop Wizard') + ' — reference only, does not fill in a price';
+        checkBtn.textContent = usesSSW ? '⚡' : '🔍';
+        checkBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (usesSSW && typeof NeoUI.openSSW === 'function') NeoUI.openSSW(itemName);
+            else NeoUI.openSW(itemName);
+        });
+        priceField.appendChild(checkBtn);
+
+        markUnpriced(tr, priceInput);
+        priceInput.addEventListener('input', function () { markUnpriced(tr, priceInput); });
+    }
+
+    function markUnpriced(tr, priceInput) {
+        const isUnpriced = digitsOf(priceInput.value) === '' || digitsOf(priceInput.value) === '0';
+        tr.classList.toggle('nui-row-unpriced', isUnpriced);
+    }
+
+    function enhanceAllRows() {
+        document.querySelectorAll('.market-your-table tbody tr.np-table-row').forEach(enhanceRow);
+    }
+
+    function boot() {
+        injectStyles();
+        const table = document.querySelector('.market-your-table');
+        if (!table) { setTimeout(boot, 300); return; } // Vue app not mounted yet
+        enhanceAllRows();
+
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+        let pending = false;
+        const obs = new MutationObserver(function () {
+            if (pending) return;
+            pending = true;
+            // Rows get spliced/replaced synchronously as a batch — coalesce
+            // into one pass per Vue patch rather than one per mutated node.
+            requestAnimationFrame(function () { pending = false; enhanceAllRows(); });
+        });
+        obs.observe(tbody, { childList: true, subtree: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
     }
 })();
