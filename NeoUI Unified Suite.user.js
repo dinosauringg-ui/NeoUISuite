@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeoUI: Unified Suite
 // @namespace    https://github.com/dinosauringg-ui/NeoUISuite
-// @version      2.0.3
+// @version      2.0.4
 // @description  NeoUI Unified Suite: polished theme system, global search, and a daily timer hub for timed Neopets activities, bundled into one mobile-forward userscript.
 // @author       ext1nct
 // @match        *://*.neopets.com/*
