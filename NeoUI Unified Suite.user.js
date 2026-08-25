@@ -99,12 +99,24 @@
  *   59. Neolodge
  *
  * CHANGELOG  (last 5 versions)
- * 
  *
  * v2.0.3
- *   - Games Room (Module 36): Fixed controller rendering issues and added some
- *     support for handling game-specific cheats better 
- *
+ *   - Global (all modules): dark-theme link text was unreadable nearly
+ *     everywhere — home page links, SSW shop/owner links, favorited/
+ *     bookmarked page links, tabs. Root cause was the a[style*="color"]
+ *     carve-out from v1.9.x: it matched ANY inline color, including
+ *     NeoUI's own deliberately theme-aware ones (owner links recolored
+ *     to var(--nui-accent), active-tab highlights), and reverted them
+ *     straight back to Neopets' hardcoded navy — nearly invisible on a
+ *     dark background. Replaced with a :not([style*="var(--nui"])
+ *     exclusion on the forcing rule itself, so anchors that already
+ *     reference a theme token are left alone instead of being clobbered
+ *     and then "fixed" back to native. Also added --nui-link: derived
+ *     algorithmically from each theme's accent (same hue, lightness
+ *     nudged into a band with real contrast against both a white page
+ *     and the theme's own near-black surfaces) instead of forcing the
+ *     raw accent everywhere, since several dark themes' accents were
+ *     tuned to pop against their own background only.
  *
  * v2.0.2
  *   - Negg Cave (Module 44): fixed selection grouping. The 6 widgets in
@@ -204,6 +216,685 @@
  *     forcing) as Haunted Woods, Moltara, etc. Anyone with theme saved as
  *     "faerieclouds" falls back to the default theme (Neopia Central) on
  *     next load, same as any other removed/renamed key.
+ *
+ * v1.9.4
+ *   - Global search (drawer search / Ctrl+K): the query-bound tool shortcuts
+ *     only ever offered "Search Super Shop Wizard for X" / "Search Safety
+ *     Deposit Box for X" — Shop Wizard and Trading Post were missing even
+ *     though buildItemSearchButtons() attaches all four (SSW/SW/TP/SDB) to
+ *     every item name sitewide. Added matching "Search Shop Wizard for X"
+ *     and "Search Trading Post for X" rows (openGlobalShopWizard /
+ *     openGlobalTP) so the drawer search offers the same four tools.
+ *   - Safety Deposit Box (Module 23): new "Wearable First" sort option,
+ *     using the same can_closet flag the existing "👗 Put into Closet" item
+ *     action already reads — wearables sort to the top (alphabetical within
+ *     that group), everything else after.
+ *   - Site nav: "Safety Deposit Box 🔒" and "SDB Bulk Sender ⚡" moved from
+ *     the Customise group to Shops & Economy (between Trading Post and
+ *     Bank) — the SDB is a storage/economy tool, not a customisation one.
+ *   - Home (Module 8): the "⏱ Timers" / "🧩 Layout" hero-banner buttons were
+ *     two bare outline buttons appended as direct siblings of the greeting
+ *     box inside a justify-content:space-between row — with 3 flex items
+ *     total, that spread space *between* the two buttons instead of
+ *     grouping them, so "Layout" drifted off toward the far edge on its
+ *     own instead of sitting next to "Timers". Wrapped both in a single
+ *     flex container (now one flex item vs. the greeting box) and swapped
+ *     the invisible transparent/no-fill look for .nui-nav-pill — a filled,
+ *     bordered pill with hover/active feedback already defined in the
+ *     shared component CSS but never actually used anywhere until now.
+ *   - Theme system: added Shenkuu (🏯, ADVANCED) and Faerieland Clouds
+ *     (☁️, ADVANCED) — see v1.9.5 above for how these two were later
+ *     adjusted.
+ *   - Theme system: the old `faerie` slot (soft pastel purple/pink, soap-
+ *     bubble texture) is renamed/reworked to `kadoatery` — same pink/blue
+ *     pastel family, recast as the Kadoatery's blue-and-pink signage with a
+ *     paw-print texture instead of bubble rings. Faerieland's own airy-cloud
+ *     identity lived briefly at `faerieclouds` before being replaced by
+ *     `eventide` in v1.9.5. Anyone with theme saved as "faerie" falls back
+ *     to the default theme (Neopia Central) on next load, same as any other
+ *     removed/renamed key.
+ *
+ * v1.9.3
+ *   - Shop Wizard popover (openGlobalShopWizard): fixed searches not
+ *     completing when opened from any page other than the Shop Wizard
+ *     itself (Training School, Kadoatery, Battledome, etc.) — the endpoint
+ *     likely validates Referer against /shops/wizard.phtml, but a fetch
+ *     fired from the popover sends whatever page it's actually open on
+ *     instead. Same root cause already fixed once in this file for
+ *     browseshop.phtml purchases (see buildBuyRequest's comment above
+ *     openGlobalSSW's handleShopBuy). Now sets fetch's `referrer` option
+ *     explicitly to /shops/wizard.phtml.
+ *   - Shop Wizard popover + Module 56: relabeled "Qty:" to "Stock:" to
+ *     match the native page's own wording.
+ *   - Shop Wizard popover: if a search still parses zero rows, it now dumps
+ *     the raw response text into the modal itself (scrollable, selectable)
+ *     instead of just saying "no results" — mobile devtools can't easily
+ *     show a fetch() response body, so this lets the actual markup be
+ *     read/copied straight off the phone to debug parsing against.
+ *
+ * v1.9.2
+ *   - Battledome (Module 15): fixed the selected Neopet's large portrait
+ *     (#bdFightPet, 400x400px) peeking from behind Step 2 and Step 3 content
+ *     and overflowing past the right edge of the viewport on Step 2. It's a
+ *     sibling of the step divs, not a child of any single one, so it was
+ *     never hidden on step change and never matched the existing per-step
+ *     position resets — same underlying issue as #fightStepIcons just above
+ *     it in the hide list, fixed the same way (hidden outright; Step 1
+ *     already shows the portrait properly-sized via .petInfoBox).
+ *
+ * v1.9.1
+ *   - Shop Wizard (Module 56): quantity is no longer conditionally hidden
+ *     when a row happens to have a stock count — the "Qty:" label is now
+ *     always rendered (falls back to "—" when the fragment's markup
+ *     doesn't yield a parseable count) and bolded to match the item name.
+ *   - New: openGlobalShopWizard() (Core) / NeoUI.openSW — a popover-modal
+ *     counterpart to Module 56's full-page Shop Wizard, driving the same
+ *     /np-templates/ajax/wizard.php endpoint and additive-by-section merge
+ *     behavior, but in an in-page modal like openGlobalSSW. Unlike SSW's
+ *     popover this needs no Premium membership, since it's the same free
+ *     endpoint the plain Shop Wizard page already uses. Results include
+ *     the same always-shown Qty column as the Module 56 fix above; "Buy →"
+ *     hands off to the existing NeoUI.openShopView in-page shop grid.
+ *   - buildItemSearchButtons()'s shared "SW" button (used by every module
+ *     that shows an item name, including all three Training Schools) now
+ *     opens this new popover instead of a new-tab link to the full page.
+ *   - Kadoatery (Module 39): added a 🪄 button next to the 📦 SDB button on
+ *     each unfed tile, opening the new Shop Wizard popover for that item.
+ *   - The Coincidence (Module 32): added an "SW" button next to "SSW" on
+ *     each quest-item card, same popover.
+ *
+ * v1.9.0
+ *   - Theme system: added "Dr. Sloth" — the first "advanced" theme, which
+ *     overhauls shape and type on top of color instead of being a straight
+ *     recolor. Two new shared tokens, --nui-clip-path and --nui-clip-path-sm,
+ *     default to 'none' in STATIC_TOKENS (zero effect on all 12 existing
+ *     themes) and are wired into .nui-surface, .nui-btn, .nui-icon-btn, and
+ *     .nui-theme-option, plus the Dailies Hub's card/icon-chip/open-button —
+ *     Sloth sets them to an asymmetric top-right corner cut, which is now
+ *     the theme's signature across every one of those components for free.
+ *     Sloth also overrides --nui-font-display (Black Ops One, loaded via
+ *     @import), the --nui-radius-* scale, and the --nui-space-* density
+ *     scale — all per-theme now via the same token-override mechanism
+ *     applyThemeVars() already used for color. Motion tokens (easing/
+ *     duration) intentionally stay shared across all themes. Widened
+ *     COLOR_TOKEN_RE's exemption list (radius/space/font/clip-path) so the
+ *     sanitizer that catches malformed color values doesn't also clobber
+ *     these new non-color overrides. Added to DARK_THEMES and the dark-mode
+ *     native-control color-scheme override alongside the other 7 dark
+ *     themes. Note: this pass covers the shared component classes and the
+ *     Dailies Hub specifically — the many one-off inline-styled cards
+ *     elsewhere in the suite (Neomail, Neoboards, pet lookups, etc.) still
+ *     render with rounded corners under Sloth for now; extending the clip
+ *     signature there is a follow-up pass, not done here.
+ *
+ * v1.8.1
+ *   - Dailies Hub (Module 31 / AllEvents): "Grouped" sort mode now matches
+ *     Jellyneo's own dailies list (jellyneo.net/?go=dailies) instead of a
+ *     homegrown ordering — group order is Freebies, Scratchcards, Some NP
+ *     Required, Quests, Other Places, Wheels (Seasonal trails after, since
+ *     Jellyneo doesn't split it out), and items within each group are now
+ *     sorted A–Z instead of by soonest-ready, so they hold a stable position
+ *     instead of hopping around every tick. The "🟢 Ready Now" pinned
+ *     section from v1.8.0 is now optional: a 🟢 Pin Ready toggle shows up
+ *     next to the sort-mode buttons whenever Grouped is active, on by
+ *     default (preserves the old behavior), off matches Jellyneo exactly
+ *     with no pinned section at all. Saved to neoui_daily_hub_pin_ready_v1.
+ *
+ * v1.8.0
+ *   - Dailies Hub (Module 31 / AllEvents): added a sort-mode toggle (⏱/🗂/✋)
+ *     next to the search box. "Grouped" buckets the catalog by its existing
+ *     sourceGroup (Freebies, Wheels, Quests, etc.) as collapsible sections,
+ *     with any daily that's actually ready right now pulled out into a
+ *     pinned "🟢 Ready Now" section on top regardless of group — this was
+ *     the main ask, since the old single soonest-first grid meant scanning
+ *     the whole thing to see what's actionable. "Custom" adds per-item
+ *     ▲▼ buttons (not HTML5 drag — doesn't work on touch, and this is a
+ *     mobile-forward script) to hand-order the list, persisted separately
+ *     from the existing hide/unhide state. "Soonest" is the original
+ *     behavior, unchanged, and stays the default for anyone who doesn't
+ *     touch the new control.
+ *   - Home (Module 8): added a "🧩 Layout" button next to the existing
+ *     "⏱ Timers" one. Opens a new editor to show/hide and reorder the
+ *     homepage's top-level sections (Pet, Dailies, Quick Links, Quickview)
+ *     independently of what's inside each one, plus a column-layout choice
+ *     (Auto / Single column / Two columns — two-column forces a real 1fr 1fr
+ *     grid via a media query above 640px, falling back to the existing
+ *     auto-fit behavior on narrow screens rather than squeezing two columns
+ *     onto a phone). Saved to neoui_home_layout_v1; unset sections/new
+ *     installs keep today's default order with nothing hidden.
+ *
+ * v1.7.3
+ *   - Battledome (Module 15): the #BdPetDetailPopup shell itself — fixed
+ *     centered overlay, background, border, the full-width pet-name banner
+ *     — was never actually applying, even though every ID-scoped descendant
+ *     rule (stat cards, Battle Record, Armed Equipment title, etc.) was
+ *     visibly working. That split only makes sense if the popup doesn't
+ *     carry the .togglePopup__2020 / .movePopup__2020 class the shell rule
+ *     targets, so it was rendering as a plain in-flow block instead of an
+ *     overlay — no backdrop, a two-column-looking layout, requiring a
+ *     scroll to see the rest of it. Added the same shell treatment scoped
+ *     directly to #BdPetDetailPopup/#BattleEquipPopup/#BattleUnequipPopup's
+ *     IDs as a guaranteed fallback that doesn't depend on which classes the
+ *     element happens to carry, plus a reset on direct children (float:
+ *     none, width: 100%) to break whatever native side-by-side layout was
+ *     leaking through.
+ *     Also: the close handler only ever toggled a `.nui-open` class that has
+ *     no CSS attached to it anywhere in the file — it never had any visual
+ *     effect. The popup is shown by setting inline `display` directly, so
+ *     removing a class did nothing to hide it again; it stayed stuck open
+ *     (display: flex) permanently, and subsequent steps/popups just
+ *     rendered below it instead of replacing it. Close now resets
+ *     `style.display = 'none'` directly, matching how it's opened.
+ *
+ * v1.7.2
+ *   - Battledome (Module 15): two more fixes on top of v1.7.1.
+ *     Pet-detail popup (equip/abilities): the click handler that toggles
+ *     .is-active-pet — which gates every section inside #BdPetDetailPopup,
+ *     including the equip and abilities grids — was bound only to
+ *     #BattleReserveBarracksMobile. Above 980px the native
+ *     #BattleReserveBarracks list is shown instead and its clicks were never
+ *     caught, so the popup stayed on stale/no data at desktop widths. Now
+ *     listens on document and matches .petThumbContainer inside either
+ *     container. Also switched the equip/abilities grid from flex-wrap to
+ *     a real CSS grid so leftover items on the last row stay column-aligned
+ *     instead of centering awkwardly on their own.
+ *     Lobby steps: only Step 3 (Choose a Challenger) had its inner
+ *     absolutely-positioned containers reset to fluid layout. The other
+ *     steps (Choose a Match, Choose an Opponent, Send a Challenge, Find a
+ *     Skirmish) kept native inline position: absolute + hardcoded top/left
+ *     offsets sized for the old fixed-height stage, so their content still
+ *     rendered far down the step with a wall of blank space above it. Added
+ *     a blanket reset for any inline-absolute-positioned descendant of any
+ *     .fightStep, regardless of class name.
+ *
+ * v1.7.1
+ *   - Battledome (Module 15): three fixes.
+ *     Arena centering: applyScale()'s offset math reduced to 0 in both
+ *     branches (the mobile scale-to-fit branch fills the viewport exactly by
+ *     construction, but the desktop/scale=1 branch was hardcoded to offset 0
+ *     instead of centering the fixed 980px arena in the extra viewport
+ *     width) — this is why the fight screen sat flush against the left edge
+ *     on wider screens. Now centers correctly at any width, plus a CSS
+ *     margin: 0 auto fallback on #arenacontainer so it doesn't flash
+ *     flush-left before the first applyScale() run.
+ *     Pre-fight popups: #BdPetDetailPopup, #BattleEquipPopup and
+ *     #BattleUnequipPopup only had their outer shell (bg/border/radius)
+ *     themed. Their .popup-header__2020/.popup-footer__2020 bars and native
+ *     diagonal pattern strips were untouched template chrome, and a sitewide
+ *     rule hardcodes .popup-body__2020 text to #222 for legibility on its
+ *     native white background — none of these three popups overrode that,
+ *     so dark themes got near-black text on a dark surface. Added the same
+ *     header/footer/button reskin used elsewhere in the suite (Grave Danger,
+ *     Closet), themed body text color, and overflow-y/max-height on the body
+ *     so long equip/ability lists scroll inside the modal instead of
+ *     overflowing past it.
+ *     Combat log: #log_footer was only having its background-image stripped
+ *     and was otherwise left on native styling — a bare unthemed strip under
+ *     an otherwise fully-themed log. Now matches #log_totals/#logheader.
+ *     Also added zebra-striping to #log rows for readability.
+ *
+ * v1.7.0
+ *   - Closet (Module 23b): two fixes to the list/table view and buttons.
+ *     Dark mode: list rows now carry explicit background + color on every row
+ *     so Vue-injected inline color values can't bleed through on dark themes.
+ *     The np-numeric-stepper and np-input components had a hardcoded
+ *     color-scheme: light keeping browser-native form controls (stepper
+ *     arrows, inputs) white on dark NeoUI themes. Now emits per-dark-theme
+ *     color-scheme: dark overrides for all seven DARK_THEMES, plus
+ *     background/color token rules on the inner <input> elements so they
+ *     follow --nui-bg / --nui-text regardless of browser UA defaults.
+ *     Also added explicit color to .closet-rarity-text-list (was inheriting;
+ *     now always --nui-accent-2 to match the grid-view rarity badge).
+ *     Buttons: np-button inner buttons now have min-height: 44px (mobile tap
+ *     target), consistent padding (10px 20px), inline-flex centering, and an
+ *     explicit border on the cancel/grey variant so it has visible weight
+ *     against the surface. View-toggle icon buttons inside .closet-action-left
+ *     were unstyled bare-SVG wrappers — now get 36×36px button chrome
+ *     (surface-2 fill, border, radius-sm) with hover/active states that match
+ *     the rest of the action bar.
+ *
+ * v1.6.9
+ *   - Cheat typing: found and removed a self-inflicted bug from 1.6.2 —
+ *     a "mid-hold repeat keydown" added to chase a frame-polling theory
+ *     that was never actually confirmed, and never removed after that
+ *     theory got walked back. It fired a SECOND keydown (and therefore a
+ *     second companion keypress, since every keydown triggers one) for
+ *     the same key partway through the hold, before the keyup. Any
+ *     buffer that appends a character per keypress without filtering
+ *     autorepeat would have every letter silently doubled. This is
+ *     consistent with literally everything observed: a single-character
+ *     test cheat still "worked" because a doubled letter still contains
+ *     itself, while a full multi-letter word came out mangled and never
+ *     matched — indistinguishable from nothing happening, regardless of
+ *     how correct the charCode/focus/dispatch-target fixes in 1.6.1,
+ *     1.6.3, and 1.6.4 were (they were all real fixes; none of them
+ *     were the actual blocker). Back to one clean keydown -> hold ->
+ *     keyup per character, no extra pulse.
+ *
+ * v1.6.7
+ *   - Negg Cave (Module 44): the selected symbol/color highlight in the
+ *     picker widgets was whatever color Neopets' own "selected" class
+ *     applies, tuned for the puzzle's original dark parchment background —
+ *     on a light-mode surface it could blend in or disappear. Rather than
+ *     hardcode a guess at that class name, added a MutationObserver that
+ *     detects any "selected"-looking class change under the picker/grid
+ *     and mirrors it onto a NeoUI class styled with a theme-safe outline +
+ *     glow ring, so the highlight stays visible on any background and
+ *     keeps working even if Neopets renames its own class.
+ *
+ * v1.6.6
+ *   - New module (55): Faerie Crossword. Reskins the daily crossword page
+ *     into the standard NeoUI card — restyled guess input/button, a
+ *     two-column Across/Down clue list with active-clue highlighting, and
+ *     a status badge for the "time left" notice. Purely visual: the grid
+ *     table, the guess form, and every clue link keep their original
+ *     onclick/action wiring untouched (set_clue/set_coords still run as
+ *     before, just against a nicer-looking page).
+ *
+ * v1.6.5
+ *   - Food Club (Module 33): bet-amount fields (single bet, queue/import
+ *     rows, both "Max" buttons, "Max Every Bet") were clamping the bet
+ *     itself to floor(1,000,000 / odds) — i.e. only letting you bet an
+ *     amount that lands *exactly* on the 1M payout cap. The real site
+ *     only caps the eventual payout, not the bet — it lets you bet up to
+ *     your account's max bet regardless of odds. Bet ceilings now use the
+ *     real max-bet value; the 1,000,000 NP payout cap is still shown as
+ *     an informational note where relevant, but no longer shrinks the bet.
+ *   - Food Club Collect tab: the "Collected X NP!" confirmation (both the
+ *     normal Collect button and the trophy-run emergency collect button)
+ *     was re-parsing the confirmation page's body text for the first
+ *     "<number> NP" match, which could latch onto an unrelated, smaller
+ *     NP mention elsewhere on the page instead of the actual payout. Now
+ *     uses the total already scraped/summed from the Collect page itself
+ *     before submitting, which is the trustworthy figure.
+ *
+ * v1.6.4
+ *   - Cheat typing: found real redundant-dispatch bug in dispatchKey. It
+ *     was firing the SAME logical keystroke as separate, independent
+ *     dispatchEvent calls on ruffleClone, document, window, AND canvas.
+ *     With bubbles:true + composed:true on every one of those, the
+ *     ruffleClone and canvas dispatches ALSO bubbled up through document
+ *     and window on their own, stacking on top of being dispatched there
+ *     directly — a single intended keystroke could reach a document- or
+ *     window-level listener something like 6 separate times. A boolean
+ *     "is this key down" check is idempotent and doesn't care, which is
+ *     exactly why movement/action input always looked completely fine
+ *     through every previous fix attempt. A text buffer built character-
+ *     by-character absolutely does care: 6 copies of every letter,
+ *     interleaved with 6 copies of the next letter, can never match an
+ *     exact cheat string — and a garbled buffer that never matches looks
+ *     identical to "nothing happened" from outside, regardless of how
+ *     correct any individual event was, which is consistent with every
+ *     symptom observed across 1.6.0-1.6.3. Now dispatches exactly once
+ *     per context (outer page, or the iframe's own context) and lets
+ *     real event bubbling carry it the rest of the way, same as one
+ *     actual physical keypress does.
+ *
+ * v1.6.3
+ *   - Cheat typing, actual root cause (found by the user, not by another
+ *     theory of mine): dispatchKey was calling forceFocusEl on TWO
+ *     different elements back to back on every single call — ruffleClone,
+ *     then immediately canvas. Since canvas != ruffleClone, that's a real
+ *     blur(canvas)->focus(ruffleClone)->blur(ruffleClone)->focus(canvas)
+ *     churn between every keydown and its own keyup, every character.
+ *     Anything clearing "key is held" state on blur (standard, so games
+ *     don't get stuck-key bugs on alt-tab) would have had that state
+ *     cleared by this script itself, moments after pressing a key,
+ *     regardless of hold duration — which is exactly why 1.6.2's longer
+ *     hold changed nothing. Now picks one stable focus target (canvas
+ *     when present) and only calls focus() when it isn't already the
+ *     active element, instead of alternating between two elements.
+ *
+ * v1.6.2
+ *   - Cheat typing: the charCode fix in 1.6.1 turned out to be a red
+ *     herring — reconsidered from scratch. Confirmed (via a real,
+ *     published Ruffle userscript doing the same dispatchEvent-based
+ *     approach successfully) that Ruffle's own input handling doesn't
+ *     discriminate against synthetic keyboard events in general, which
+ *     rules out a blanket "Ruffle ignores untrusted input" explanation.
+ *     What's left as the one confirmed-different variable between the
+ *     working single-key test and a typed word: hold duration. Old AS2
+ *     games often poll Key.isDown() once per enterFrame rather than
+ *     reacting to the event itself, and a brief synthetic hold can fall
+ *     entirely between two polls on a slow/inconsistent frame rate
+ *     (title screens especially) and be silently missed — which looks
+ *     identical to "nothing happens" from outside. Each keystroke's
+ *     hold is now ~140ms (up from 60ms) with a mid-hold repeat keydown
+ *     pulse as a second chance, and the gap between characters is
+ *     randomized ~110-150ms (up from a flat 70ms) instead of a
+ *     perfectly uniform machine cadence.
+ *
+ * v1.6.1
+ *   - Cheat typing: fixed keyCode/charCode being sent as the same value
+ *     for keypress events (case-invariant vs case-sensitive) — turned
+ *     out not to be the actual cause of cheats failing, kept here for
+ *     the record since it's still a correctness fix, not reverted.
+ *   - Found the actual cause of cheat codes doing nothing while the
+ *     on-screen d-pad/action buttons worked fine through the exact same
+ *     dispatch pipeline: keyCode and charCode are NOT the same number.
+ *     keyCode (what Key.isDown()/Key.getCode() reads) is case-invariant
+ *     — the physical key, always the uppercase ASCII value regardless
+ *     of shift — which is why movement/action keys, which only ever
+ *     check keyCode, looked completely unaffected. charCode (what a
+ *     typed-text cheat buffer reads via Key.getAscii(), sourced from
+ *     the keypress event) is case-SENSITIVE — a plain lowercase 's' is
+ *     115, not 83. Every synthetic keypress this script ever sent set
+ *     charCode equal to keyCode, so every unshifted lowercase letter in
+ *     a cheat phrase (i.e. almost all of them) reported the wrong
+ *     character to anything reading charCode, even though keyCode was
+ *     always correct and every step of the delivery pipeline (iframe
+ *     reachable, host found, canvas found, focus landed) checked out.
+ *     parseCheatSequence now derives charCode from the literal typed
+ *     character instead of reusing keyCode, dispatchKey/makeKeyEvent
+ *     carry it through as its own value on keypress's charCode/which,
+ *     and cheats saved before this fix are re-derived from their label
+ *     at fire time (their stored seq predates the charCode field) so
+ *     existing saved cheats don't need to be deleted and re-added.
+ *
+ * v1.6.0
+ *   - Games Controller: added a drag & drop layout editor (the new ⛶
+ *     icon next to the per-game ⚙). Every active button can be dragged
+ *     to any spot on the controller strip and resized individually,
+ *     independent of the old fixed cross/row/diamond presets. Saves
+ *     either to the current game only or as your default for every
+ *     game; "Use Presets" reverts to the old grid-based layout at any
+ *     time without losing the saved custom positions.
+ *
+ * v1.4.12
+ *   - Found the actual cause of holds cutting out at a consistent ~90ms:
+ *     the game's actual internal resolution was being rewritten smaller
+ *     (via the src URL's width/height params) to fit a phone-width
+ *     column, and then resized a SECOND time once Ruffle's real element
+ *     was located (forced !important CSS). Both are genuine geometry
+ *     changes on the live game element, not just visual ones — and
+ *     browsers reliably cancel an in-progress touch/hold when its
+ *     target's actual size changes mid-gesture. This is a much better
+ *     match for a short, fixed-duration cutoff than anything about how
+ *     input was being forwarded, which is consistent with every
+ *     dispatch approach tried previously failing identically. The game
+ *     now always loads at its own native/original resolution (nothing
+ *     about its real geometry ever changes again after initial load),
+ *     and gets shrunk to fit the phone-width column with a CSS
+ *     transform:scale() instead — a pure visual transform that never
+ *     triggers a real resize.
+ *
+ * v1.4.11
+ *   - Removed the entire synthetic mouse/pointer forwarding system for
+ *     mouse-controlled games (the touch overlay, dispatchMouse, the Hold
+ *     toggle, the mouse diagnostic panel — everything added from 1.4.5
+ *     through 1.4.10). Confirmed root cause of "mouse mode doesn't work":
+ *     this content only ever responds to genuinely real, browser-generated
+ *     input — every synthetic-dispatch approach tried (MouseEvent,
+ *     PointerEvent, canvas-targeted, buttons bitmask, preventDefault
+ *     tuning) dispatched cleanly with zero errors and had zero effect on
+ *     the game. Worse, the unconditional touch-action:none this script
+ *     was setting on the player container turned out to be actively
+ *     breaking genuinely real holds too, which is why even "Hold: OFF"
+ *     never matched the unmodified page. Mouse mode is now purely a
+ *     display choice — it hides the virtual buttons so the game viewport
+ *     is clear, and otherwise the script does not touch input on the
+ *     game at all. Real touch/drag directly on the game now behaves
+ *     exactly as it does without the script.
+ *
+ * v1.4.10
+ *   - Found the actual explanation for mouse mode doing nothing at all:
+ *     the touch-capture overlay added in 1.4.5 (to stop the iframe from
+ *     natively stealing mid-hold touches) was intercepting EVERY tap,
+ *     including the very first one needed to dismiss Ruffle's "click to
+ *     activate"/audio-unlock splash screen — a browser-enforced gesture
+ *     that only a genuinely real, physical click can satisfy; no synthetic
+ *     event, however well-formed, can fake it. That means every test
+ *     since 1.4.5 was against a game that had never actually started.
+ *     The overlay is now pointer-events:none by default (real taps pass
+ *     straight through untouched, exactly as if this script weren't
+ *     there), and full interception is now an explicit opt-in via a new
+ *     "🖐 Hold" toggle next to mouse mode — flip it on only once you're
+ *     already past any activation/play screen and need sustained
+ *     holds or drags to actually register.
+ *
+ * v1.4.8
+ *   - The mouse-mode diagnostic panel from 1.4.7 showed dispatchMouse
+ *     correctly finding the canvas and dispatching without errors, on
+ *     both a real hold and an ordinary short tap — yet nothing happened
+ *     in-game either way. That points away from a hold/timing problem
+ *     entirely and toward the game simply not being listening for
+ *     MouseEvents at all. dispatchMouse now also constructs and
+ *     dispatches a matching PointerEvent (pointerdown/move/up) alongside
+ *     each MouseEvent — Ruffle, like most modern interactive web
+ *     content, quite plausibly listens for Pointer Events rather than
+ *     the legacy Mouse Events we were exclusively sending; a real finger
+ *     generates both natively, which is exactly the kind of gap that
+ *     stays invisible until synthetic input is compared directly against
+ *     real input.
+ *
+ * v1.4.7
+ *   - Added a live diagnostic panel for mouse mode (mirrors the one
+ *     already in place for cheat codes): it logs every raw pointerdown/
+ *     move/up/cancel as it happens, what resolveHeldTarget found inside
+ *     the game iframe (or why it couldn't), and exactly what element
+ *     each synthesized mousedown/mousemove/mouseup actually landed on.
+ *     The last several fixes (buttons bitmask, touch overlay, pointermove
+ *     preventDefault) were all reasoned from outside the iframe, without
+ *     visibility into what's actually happening in the nested
+ *     play_flash.phtml document — this replaces further guessing with
+ *     real data from the next test.
+ *
+ * v1.4.6
+ *   - Found the actual cause of mouse-mode holds cutting out instantly:
+ *     pointerdown was calling preventDefault(), but pointermove never
+ *     was. On mobile, the first un-prevented move — even a fraction of a
+ *     pixel from ordinary finger tremor while "holding still" — reads to
+ *     the browser as a scroll attempt rather than a continued gesture; it
+ *     hands the touch off to native scrolling and fires pointercancel,
+ *     which our own code correctly (but far too early) turned into a
+ *     mouseup. pointermove now calls preventDefault() too, both
+ *     listeners are registered non-passive to guarantee that actually
+ *     takes effect, and touch-action:none now also covers playerWrap
+ *     itself (previously only the iframe overlay had it) for the
+ *     non-iframe/native-player branch.
+ *
+ * v1.4.5
+ *   - Mouse-mode passthrough for iframe-embedded games now uses a
+ *     transparent overlay div (living in NeoUI's own document) on top of
+ *     the game iframe to actually capture the touch, instead of relying
+ *     on listeners attached to the iframe's container. A touch physically
+ *     resting over an iframe's rendered area is delivered natively to
+ *     that iframe's OWN nested document — a separate browsing context —
+ *     regardless of preventDefault()/setPointerCapture() called in the
+ *     parent page, so the game could end up seeing its own much-shorter
+ *     real touch sequence layered on top of whatever we were
+ *     synthesizing. This is the confirmed remaining cause of holds
+ *     reading as an instant tap-and-release even after the `buttons`
+ *     bitmask fix in 1.4.4.
+ *
+ * v1.4.4
+ *   - Mouse-mode passthrough (games controlled by tap/drag rather than
+ *     buttons) now sets the `buttons` bitmask on synthesized mousedown/
+ *     mousemove events, not just `button` — a lot of Flash/Ruffle drag
+ *     and hold-to-charge logic reads `buttons` to know a press is still
+ *     active, and leaving it at 0 made every hold look like an instant
+ *     release regardless of whether mouseup had actually fired yet.
+ *   - Mouse-mode also now resolves the drag target once at pointerdown
+ *     and reuses it for the whole gesture, instead of re-querying
+ *     elementFromPoint() on every move (which could silently retarget
+ *     mid-drag if anything ever reflowed over the canvas).
+ *   - Cheat-chip typing now starts immediately once the player's ready
+ *     rather than after an extra fixed delay, to stay as close as
+ *     possible to the real tap that triggered it.
+ *
+ * v1.4.3
+ *   - Games Controller: added a Button Size selector (S/M/L/XL, global and
+ *     per-game) and a D-Pad Layout selector (Cross/Row/Diamond).
+ *   - Saved cheat codes are now scoped to a single game by default (a new
+ *     "This game only" checkbox when adding one from a game page) instead
+ *     of showing as a chip on every game regardless of relevance — codes
+ *     added from outside a game page still apply everywhere.
+ *   - Cheat-chip firing now waits for the (possibly still-loading, nested)
+ *     Ruffle host to actually exist before activating/typing into it,
+ *     instead of racing a fixed 150ms delay — the previous fixed wait was
+ *     a likely cause of codes silently doing nothing on slower loads.
+ *
+ * v1.4.2
+ *   - Shop Wizard's "Buy" links now open NeoUI's shared shop-view modal
+ *     (the same scraped-grid, in-page experience SSW results already use)
+ *     instead of leaving the page in a new tab. Required exposing that
+ *     modal's shop-view mode as a standalone API — openGlobalSSW gained an
+ *     optional directShopUrl argument that skips the search step and jumps
+ *     straight to a given browseshop.phtml URL — now available to any
+ *     module as window.NeoUI.openShopView(url, label).
+ *   - New Module 56: Shop Wizard (/shops/wizard.phtml, /market.phtml?type=wizard).
+ *     Confirmed against live page source rather than guessed — replays the
+ *     exact AJAX call the native page makes (POST /np-templates/ajax/wizard.php,
+ *     type=process_wizard). Adds "In Shops"/"In Galleries" toggle (the real
+ *     table field, previously missing entirely). Key feature: repeated
+ *     searches for the SAME item merge new results into the existing table
+ *     instead of replacing it — de-duped and re-sorted by price ascending —
+ *     since the native Wizard only ever returns one of ~13 market sections
+ *     per submit and normally makes you re-scan from scratch each time.
+ *     Also sends X-Requested-With: XMLHttpRequest, without which the
+ *     endpoint rejects the request outright ({"error":true,"message":
+ *     "Request denied"}) — jQuery's $.ajax() sets this automatically on the
+ *     native page, but raw fetch() doesn't. Toggle: shop-wizard.
+ *   - Faerie Quests (Module 28): "Give Item"/"Abandon Quest" buttons were
+ *     being rebuilt as brand-new elements that only copied the native id
+ *     string, on the assumption Neopets hooks click handlers via id
+ *     delegation. It doesn't — the native handler binds directly to the
+ *     specific button node, so the freshly-created lookalike had no working
+ *     handler and submissions always came back rejected. Now reuses the
+ *     real native button nodes (same pattern already used for mainIcon)
+ *     instead of replacing them.
+ *   - Tyrannian Concert Hall / Ticket Booth (Module 47): was missing the
+ *     documentElement/body background-paint step every other rebuilt page
+ *     does after wiping the DOM, so the native page's own background showed
+ *     through instead of the theme color. Added.
+ *   - SSW modal results: owner/shop `<a>` links ship with their own inline
+ *     color (Neopets' default link navy) that sat on top of the per-column
+ *     text color and didn't inherit it, making usernames unreadable on dark
+ *     theme. Links are now explicitly recolored along with their cell.
+ *
+ * v1.4.0
+ *   - New Modules 53/54: NeoQuest and NeoQuest II fetch-based SPA shells.
+ *     Both intercept same-origin links/forms and replay them through
+ *     fetch() instead of full page loads. NeoQuest II gets dedicated
+ *     renderers for the compass/world-map travel screen (read directly off
+ *     each <AREA>'s onclick, since dosub() never exists in a DOMParser-
+ *     parsed response) and the Name/Level/HP/XP stat strip; NeoQuest gets
+ *     one for Character Creation (skill points remaining banner). Every
+ *     other screen in both games — Inventory, Skills, Options, battles,
+ *     shops, and anything else not sampled while building this — falls back
+ *     to a generic cardify-and-intercept render, same technique as the
+ *     Sitewide Chrome fallback. Toggle: neoquest.
+ *
+ * v1.3.0
+ *   - New Module 50: Jhudora's Bluff & Illusen's Glade helper. Adds a small
+ *     card to both quest pages showing Current Level / Total Score, plus a
+ *     12-hour cooldown countdown that syncs into the same Daily Timers hub
+ *     Buried Treasure and Dice-A-Roo already use (neoui_daily_timers_v1,
+ *     ids jhudora-s-bluff / illusen-s-glade) — no manual "mark done" click
+ *     needed, it fires automatically when "Yes I have it!!!" is clicked on
+ *     either page. On Jhudora's Bluff only, also flags Level 25 with a tip
+ *     that the next (Level 26) quest is the one people fail on purpose to
+ *     unlock the Jhudora avatar. Doesn't touch either page's existing
+ *     markup or AJAX flow — purely additive. Toggle: faerie-bluffs.
+ *
+ * v1.2.7
+ *   - Quickview widget cache (nui_qv_stocks_cache / nui_qv_fc_cache) now
+ *     also gets written from the real pages, not just the Home page's own
+ *     background fetch. Visiting the Stock Market (Module 18) refreshes
+ *     the Stock Portfolio cache right after its normal portfolio scrape;
+ *     visiting Food Club's "My Bets" tab (Module 33, including landing
+ *     directly on ?type=current_bets) refreshes the Food Club Bets cache.
+ *     So actually visiting those pages keeps Home's Quickview numbers
+ *     current, on top of the periodic background refresh from v1.2.6.
+ *
+ * v1.2.6
+ *   - Home (Module 8): fixed slow-loading Quickview widgets. Stock
+ *     Portfolio and Food Club Bets used to sit on "Loading…" until their
+ *     background fetch of the (fairly large) portfolio/current_bets pages
+ *     finished. Now they cache the last successful result in localStorage
+ *     (nui_qv_stocks_cache / nui_qv_fc_cache) and render that instantly on
+ *     page load — labeled "As of last visit" — while a background fetch
+ *     quietly refreshes it. NP Spending Today was already instant since it
+ *     reads local data only, so it's unaffected.
+ *
+ * v1.2.5
+ *   - Home (Module 8): added an optional "Quickview" stats card with three
+ *     independently toggleable widgets — NP Spending Today (read straight
+ *     from the NP Tracker's local log), Stock Portfolio (market value +
+ *     % change, background-fetched from the portfolio page), and Food Club
+ *     Bets (open bet count, NP wagered, and potential winnings for the
+ *     current round, background-fetched from current_bets). All three
+ *     default on but can be turned off individually — or altogether, which
+ *     hides the card entirely — via the new Edit button on the card,
+ *     backed by window.nuiOpenWidgetSettings and the neoui_home_widgets
+ *     localStorage key.
+ *
+ * v1.2.4
+ *   - Merged the old standalone Neopian Times Submission Form module into
+ *     Neopian Times (Module 11). Both lived under /ntimes/ and shared most
+ *     of their chrome/init logic; the reader now dispatches to a runSubmit()
+ *     path for the nt_submit tree instead of running as a second IIFE.
+ *   - The two modules' separate toggles ('ntimes' and 'ntimes-submit') are
+ *     now a single 'ntimes' toggle in Home settings, so the reader and the
+ *     submission form can no longer be enabled/disabled independently.
+ *   - Renumbered Mystery Picture from Module 50 to Module 49 to fill the
+ *     gap left by the merge.
+ *
+ * v1.2.3
+ *   - Global search (drawer search / Ctrl+K) now always shows "Search Super
+ *     Shop Wizard for X" and "Search Safety Deposit Box for X" rows for
+ *     whatever you typed, above the general Neopets.com search fallback —
+ *     previously SSW/SDB only appeared if you typed those tool names
+ *     themselves, not an item name.
+ *   - Double-tapping the NP/NC readout in the topbar now opens the Super
+ *     Shop Wizard. Single tap still opens Inventory and long-press still
+ *     opens the NP Tracker; single tap now waits ~280ms to see if a second
+ *     tap follows before firing.
+ *
+ * v1.2.2
+ *   - Module toggle list in Home settings now groups its 38 entries into
+ *     the same 7 sections used in the MODULE INDEX above (Core & Chrome,
+ *     Communication & Social, Home & Reference, Training & Battle, Economy
+ *     & Banking, Quests, Games & Daily Activities) instead of one long flat
+ *     list. Each group is its own collapsible with an on/total count badge.
+ *
+ * v1.2.1
+ *   - Fixed the drawer nav (hamburger) becoming unresponsive on Home and
+ *     other pages after their first render: the v1.2.0 reorganization moved
+ *     Module 2 (Sitewide Chrome)'s code up near the top of the file, which
+ *     let it run before nearly every other module instead of after all of
+ *     them. Module 2's code has been moved back to physically sit at the
+ *     end of the file (its display number/section in the index above is
+ *     unchanged); CLAIMED_LATER_PATTERNS comments were also corrected, and
+ *     two spots in the Home module that rebuild the page without resetting
+ *     drawer state were fixed to match the existing pattern used elsewhere.
+ *
+ * v1.2.0
+ *   - Release cleanup pass. No functional changes to any active module.
+ *   - Reorganized all modules into 7 named sections (Core & Chrome,
+ *     Communication & Social, Home & Reference, Training & Battle,
+ *     Economy & Banking, Quests, Games & Daily Activities) and
+ *     renumbered them 1-48 sequentially within each section, replacing
+ *     the old ad-hoc numbering that had drifted into duplicates (three
+ *     different modules were all "Module 35"; "Module 39" and "Module 40"
+ *     each covered two unrelated modules).
+ *   - Removed two dead modules that had already been fully retired and
+ *     reduced to empty stubs: the old headless Faerie Quests enhancement
+ *     (superseded by the Faerie Quests full SPA) and the old Fruit
+ *     Machine wrapper (superseded by the native page). Their toggle keys
+ *     remain in TOGGLEABLE_MODULES so no user preferences are orphaned.
+ *   - Fixed a corruption bug: a duplicate, mis-terminated copy of the
+ *     Grave Danger module had been pasted mid-function into the
+ *     Inventory module's modal-boot fallback path. It was syntactically
+ *     valid (so it never threw), but meant Inventory's retry path could
+ *     spuriously run Grave Danger's DOM rebuild logic. Removed; the
+ *     correct, complete copy of Grave Danger is unaffected.
+ *   - Neomail previously ran as an unbannered IIFE tacked onto the end
+ *     of Core Framework's code. It now has its own module banner and
+ *     number so it can be read, audited, and toggled independently.
+ *
+ * Previous versions' changelog trimmed for brevity — see version control
+ * history for the full log prior to v1.2.0.
  * ============================================================================
  */
 
@@ -1824,31 +2515,52 @@
            layout fallback pages alike. Scoped to body[data-neoui-theme] so
            it only fires when NeoUI has applied a theme; falls back to nothing
            on unthemed pages (login screen, NC Mall, etc.).
-        ────────────────────────────────────────────────────────────────────── */
-        body[data-neoui-theme] a:link,
-        body[data-neoui-theme] a:visited,
-        [data-neoui-theme] a:link,
-        [data-neoui-theme] a:visited {
-            color: var(--nui-accent) !important;
+
+           :where(:not([style*="var(--nui"])) excludes any anchor NeoUI (or,
+           via the SSW/pet-lookup/etc. fixes, its own JS) has already given
+           an inline color that references one of our own theme tokens —
+           those are already theme-aware on purpose (an active-tab
+           highlight, a deliberately-recolored owner/shop link) and must be
+           left exactly alone. This used to be handled by a separate
+           carve-out further down that matched ANY inline color and
+           reverted it to the browser native — which caught those same
+           deliberately-recolored links right along with it and reverted
+           them straight back to Neopets' hardcoded navy, nearly invisible
+           on a dark theme. Only anchors with no inline color, or a
+           genuinely hardcoded one (native Neopets markup), fall through to
+           get forced here.
+           The :not() is wrapped in :where() specifically so it adds ZERO
+           specificity — a bare :not([style*=...]) here would make this
+           selector MORE specific than the a.nui-btn-primary/secondary/
+           danger/warning rules below, which only ever tied with this rule
+           and won by coming later in the stylesheet. With the extra
+           specificity, THIS rule would win instead whenever a button anchor
+           gets its color purely from a .nui-btn-* class with no matching
+           inline style — forcing link-colored text onto a button, often
+           landing right on top of that button's own accent background. */
+        body[data-neoui-theme] a:link:where(:not([style*="var(--nui"])),
+        body[data-neoui-theme] a:visited:where(:not([style*="var(--nui"])),
+        [data-neoui-theme] a:link:where(:not([style*="var(--nui"])),
+        [data-neoui-theme] a:visited:where(:not([style*="var(--nui"])) {
+            color: var(--nui-link) !important;
         }
-        body[data-neoui-theme] a:hover,
-        body[data-neoui-theme] a:active,
-        [data-neoui-theme] a:hover,
-        [data-neoui-theme] a:active {
-            color: var(--nui-accent) !important;
+        body[data-neoui-theme] a:hover:where(:not([style*="var(--nui"])),
+        body[data-neoui-theme] a:active:where(:not([style*="var(--nui"])),
+        [data-neoui-theme] a:hover:where(:not([style*="var(--nui"])),
+        [data-neoui-theme] a:active:where(:not([style*="var(--nui"])) {
+            color: var(--nui-link) !important;
             opacity: 0.8;
         }
-        /* Buttons and NeoUI-styled elements that happen to be <a> tags should
-           keep their own colors. The global a:link rule above uses !important
-           to beat Neopets' own link styles, which means button variant rules
-           need !important too — otherwise the accent color bleeds through onto
-           primary/danger/warning buttons making text invisible against the bg.
-           The [style] carve-out covers createElement('a') buttons that set
-           color inline (e.g. returnBtn.style.cssText = '...color:...'). */
+        /* Buttons that happen to be <a> tags should keep their own colors.
+           The global a:link rule above uses !important to beat Neopets' own
+           link styles, which means button variant rules need !important too
+           — otherwise the accent color bleeds through onto primary/danger/
+           warning buttons making text invisible against the bg. Anchors
+           styled as buttons via inline styles (not a .nui-btn class) already
+           reference their own var(--nui-...) ink color and are covered by
+           the :not() exclusion above — no separate carve-out needed here. */
         body[data-neoui-theme] a.nui-btn,
-        [data-neoui-theme] a.nui-btn,
-        body[data-neoui-theme] a[style*="color"],
-        [data-neoui-theme] a[style*="color"] {
+        [data-neoui-theme] a.nui-btn {
             opacity: 1 !important;
             color: revert !important;
         }
@@ -1860,6 +2572,7 @@
         [data-neoui-theme] a.nui-btn-danger { color: var(--nui-danger) !important; }
         body[data-neoui-theme] a.nui-btn-warning,
         [data-neoui-theme] a.nui-btn-warning { color: var(--nui-warning) !important; }
+
 
         /* ── Native profile dropdown (#navprofiledropdown__2020) ──────────────
            The native site renders this as a fixed-position white card with
@@ -2157,6 +2870,93 @@
         ].join(',\n                ');
     }
 
+    // ── Link-color derivation ────────────────────────────────────────────
+    // The global link-color override below forces every raw <a> tag on the
+    // page to a single color, including on the many classic Neopets pages
+    // NeoUI hasn't rebuilt into a full SPA (shops, character pages, etc.) —
+    // those keep Neopets' own white/cream background no matter which theme
+    // is active. A dark theme's --nui-accent is usually a bright, saturated
+    // color chosen to pop against that theme's own near-black surfaces,
+    // which makes it wash out to near-invisible against a white page. Some
+    // accents have the opposite problem: dark enough to read fine on white,
+    // but too dark against the theme's own background. Rather than hand-
+    // tuning a fix for every current (and future/custom) theme, --nui-link
+    // is derived algorithmically from --nui-accent every time a theme is
+    // applied: same hue, lightness nudged into a band with real contrast
+    // against both a white page and a near-black surface.
+    function hexToRgb(hex) {
+        const h = hex.replace('#', '');
+        return {
+            r: parseInt(h.substring(0, 2), 16),
+            g: parseInt(h.substring(2, 4), 16),
+            b: parseInt(h.substring(4, 6), 16),
+        };
+    }
+    function rgbToHex(r, g, b) {
+        const c = function (v) { return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'); };
+        return '#' + c(r) + c(g) + c(b);
+    }
+    function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s;
+        const l = (max + min) / 2;
+        if (max === min) { h = s = 0; }
+        else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                default: h = (r - g) / d + 4;
+            }
+            h /= 6;
+        }
+        return { h: h, s: s, l: l };
+    }
+    function hslToRgb(h, s, l) {
+        let r, g, b;
+        if (s === 0) { r = g = b = l; }
+        else {
+            const hue2rgb = function (p, q, t) {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1 / 6) return p + (q - p) * 6 * t;
+                if (t < 1 / 2) return q;
+                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                return p;
+            };
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            r = hue2rgb(p, q, h + 1 / 3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1 / 3);
+        }
+        return { r: r * 255, g: g * 255, b: b * 255 };
+    }
+    function relativeLuminance(r, g, b) {
+        const chan = function (c) {
+            c /= 255;
+            return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b);
+    }
+    function deriveLinkColor(accentHex) {
+        let rgb;
+        try { rgb = hexToRgb(accentHex); } catch (e) { return accentHex; }
+        if (!accentHex || isNaN(rgb.r) || isNaN(rgb.g) || isNaN(rgb.b)) return accentHex;
+        const lum = relativeLuminance(rgb.r, rgb.g, rgb.b);
+        // Roughly (1.05 / (lum+0.05)) >= 4.5 AND (lum+0.05)/0.05 >= ~3 land
+        // in this band — legible against white AND not swallowed by a
+        // near-black surface. Already there — leave the accent untouched
+        // so themes that already work keep their exact color.
+        if (lum > 0.115 && lum < 0.30) return accentHex;
+        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        const targetL = hsl.l > 0.5 ? Math.max(0.28, hsl.l - 0.28) : Math.min(0.42, hsl.l + 0.14);
+        const out = hslToRgb(hsl.h, Math.max(hsl.s, 0.55), targetL);
+        return rgbToHex(out.r, out.g, out.b);
+    }
+
    function applyThemeVars(name) {
         const theme = THEMES[name] || THEMES[DEFAULT_THEME];
         const root = document.documentElement;
@@ -2164,6 +2964,10 @@
         Object.keys(theme.tokens).forEach(function (key) {
             root.style.setProperty(key, theme.tokens[key]);
         });
+        // A theme can hand-specify --nui-link if the derived color ever
+        // needs overriding; otherwise derive it from --nui-accent so every
+        // theme (built-in or custom) gets a legible one automatically.
+        root.style.setProperty('--nui-link', theme.tokens['--nui-link'] || deriveLinkColor(theme.tokens['--nui-accent'] || '#3B82F6'));
 
         const DYNAMIC_STYLE_ID = 'neoui-style-dynamic-theme';
         let dynStyle = document.getElementById(DYNAMIC_STYLE_ID);
@@ -6585,6 +7389,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         function updatePreview() {
             const tk = computeWorkingTokens(baseKey, working, workingTexture);
             Object.keys(tk).forEach(k => previewEl.style.setProperty(k, tk[k]));
+            previewEl.style.setProperty('--nui-link', tk['--nui-link'] || deriveLinkColor(tk['--nui-accent'] || '#3B82F6'));
             previewHeaderEl.style.backgroundImage = buildHeaderBgImage(tk);
         }
         updatePreview();
