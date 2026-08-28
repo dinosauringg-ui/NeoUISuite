@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeoUI: Unified Suite
 // @namespace    https://github.com/dinosauringg-ui/NeoUISuite
-// @version      2.0.4
+// @version      2.0.5
 // @description  NeoUI Unified Suite: polished theme system, global search, and a daily timer hub for timed Neopets activities, bundled into one mobile-forward userscript.
 // @author       ext1nct
 // @match        *://*.neopets.com/*
@@ -14,6 +14,8 @@
 // @grant        none
 // @run-at       document-end
 // @license      MIT
+// @updateURL    https://raw.githubusercontent.com/dinosauringg-ui/NeoUISuite/main/NeoUI%20Unified%20Suite.user.js
+// @downloadURL  https://raw.githubusercontent.com/dinosauringg-ui/NeoUISuite/main/NeoUI%20Unified%20Suite.user.js
 // ==/UserScript==
 
 /*
@@ -99,6 +101,20 @@
  *   59. Neolodge
  *
  * CHANGELOG  (last 5 versions)
+ *
+ * v2.0.4
+ *   - New: Quick Stock modal (full SPA rebuild). Reimplements quickstock.
+ *     phtml's own get_items.php / process_quickstock.php Vue component in
+ *     vanilla JS, opened as a modal instead of a full navigation — from the
+ *     Inventory toolbar's 📦 QS button (previously just a new-tab link),
+ *     the drawer's Shops & Economy section, and the global search palette.
+ *     Bootstrap (_ref_ck, ajaxUrl, submitUrl) is read from the same
+ *     window.__quickstockConfig blob the real page's own Vue app boots
+ *     from, one fetch of /quickstock.phtml — same pattern as the SDB Bulk
+ *     Sender's bootstrap. canPerformAction() is a direct port of
+ *     quickstock.phtml's own rule set (noTrade/noDonate/wearable/
+ *     neohome2/isCash) to keep the modal's N/A logic from drifting out of
+ *     sync with what the real submit endpoint will actually accept.
  *
  * v2.0.3
  *   - Global (all modules): dark-theme link text was unreadable nearly
@@ -2691,6 +2707,7 @@
                 { label: 'Trading Post', href: '/island/tradingpost.phtml' },
                 { label: 'Safety Deposit Box', href: null, action: 'open-sdb' },
                 { label: 'SDB Bulk Sender', href: null, action: 'open-sdb-bulk' },
+                { label: 'Quick Stock', href: null, action: 'open-quickstock' },
                 { label: 'Bank', href: '/bank.phtml' },
             ],
         },
@@ -3708,6 +3725,7 @@
         { label: 'Super Shop Wizard', icon: '⚡', action: 'open-ssw', category: 'Premium' },
         { label: 'Safety Deposit Box', icon: '🔒', action: 'open-sdb', category: 'Inventory' },
         { label: 'SDB Bulk Sender', icon: '⚡', action: 'open-sdb-bulk', category: 'Inventory' },
+        { label: 'Quick Stock', icon: '📦', action: 'open-quickstock', category: 'Inventory' },
         { label: 'Wishing Well', icon: '💧', href: '/wishing.phtml', category: 'Dailies' },
         { label: 'Item Transfer Log', icon: '📦', href: '/items/transfer_list.phtml', category: 'Inventory' },
         { label: 'Quickref', icon: '🗺️', href: '/quickref.phtml', category: 'Reference' },
@@ -3795,7 +3813,7 @@
         { id: 'closet-restyle', label: 'Closet',                     desc: 'Reskins the native Closet Vue app to NeoUI tokens (chrome-only, no rebuild)', group: 'Economy & Banking' },
         { id: 'stamp-album',    label: 'Stamp Album',                desc: 'Overview + per-album grid SPA',                  group: 'Economy & Banking' },
         { id: 'shop-wizard',    label: 'Shop Wizard',                desc: 'Full page rebuild — additive multi-search results, sorted by price', group: 'Economy & Banking' },
-        { id: 'shop-pricing-helper', label: 'Your Shop — Pricing Helper', desc: 'Per-item SW/SSW price lookup button (reference only) + unpriced highlighting on the Your Shop stock page', group: 'Economy & Banking' },
+        { id: 'shop-pricing-helper', label: 'Your Shop — Card Rebuild',   desc: 'Card-based restyle of the Your Shop stock page (SDB-style), with per-item SW/SSW price lookup (reference only) + unpriced highlighting', group: 'Economy & Banking' },
 
         { id: 'faerie-quests',  label: 'Faerie Quests',              desc: 'Quest watcher + full page SPA',                  group: 'Quests' },
         { id: 'faerie-bluffs',  label: "Jhudora's Bluff & Illusen's Glade", desc: "Level/score summary, 12h cooldown synced to Home timers, Level 26 avatar tip", group: 'Quests' },
@@ -5130,6 +5148,7 @@
                     else if (item.action === 'open-ssw') { backdrop.remove(); openGlobalSSW(input.value.trim()); }
                     else if (item.action === 'open-sdb') { backdrop.remove(); openGlobalSDB(input.value.trim()); }
                     else if (item.action === 'open-sdb-bulk') { backdrop.remove(); openSDBBulkSender(); }
+                    else if (item.action === 'open-quickstock') { backdrop.remove(); openGlobalQuickStock(); }
                     else if (item.action === 'open-settings') { openDrawer(); setTimeout(function () { var settingBtn = document.querySelector('[data-action="open-settings"]'); if (settingBtn) settingBtn.click(); }, 80); }
                     else if (item.href) { window.location.assign(item.href); }
                     else backdrop.remove();
@@ -6794,6 +6813,445 @@
                 runBatch(batchArea, boot, jobs);
             });
         }
+    }
+
+    // ---- QuickStock Modal (full SPA rebuild) ----
+    // quickstock.phtml is already a small JSON-driven Vue app (get_items.php /
+    // process_quickstock.php), so rebuilding it here is mostly re-implementing
+    // that same component in vanilla JS against the identical endpoints —
+    // no scraping fragile server-rendered HTML.
+    //
+    // Bootstrap (ajaxUrl, submitUrl, emptyPet art, _ref_ck) is read from the
+    // same window.__quickstockConfig blob quickstock.phtml's own Vue app
+    // boots itself from — one fetch of /quickstock.phtml, one regex, one
+    // JSON.parse. Same reasoning as the SDB bulk sender's bootstrap above:
+    // more reliable than scraping a token out of arbitrary page markup,
+    // since it's the exact object Neopets' own page uses.
+    var _qsBootCache = null;
+    function qsFetchBootstrap(force) {
+        if (_qsBootCache && !force) return Promise.resolve(_qsBootCache);
+        return fetch('/quickstock.phtml', { credentials: 'same-origin' })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                var m = html.match(/window\.__quickstockConfig\s*=\s*(\{[\s\S]*?\});/);
+                if (!m) throw new Error('bootstrap not found');
+                // NOT valid JSON — Neopets writes this as a plain JS object
+                // literal (unquoted keys, single-quoted strings: ajaxUrl:
+                // '/np-templates/...'), which JSON.parse rejects outright.
+                // Evaluate it as JS instead. Safe here since it's same-
+                // origin content we just fetched from Neopets' own page,
+                // not arbitrary/user-controlled input.
+                var cfg = (new Function('return (' + m[1] + ')'))();
+                _qsBootCache = cfg;
+                return cfg;
+            });
+    }
+
+    // Mirrors canPerformAction() from quickstock.phtml's own inline script —
+    // kept in exact lockstep with it so a rule change there doesn't silently
+    // desync the modal's own N/A logic from what the real submit endpoint
+    // will actually accept.
+    function qsCanPerformAction(item, action) {
+        if (item.noUse) return false;
+        if (item.isCash) {
+            if (action === 'stock' || action === 'donate' || action === 'discard') return false;
+            if (action === 'storage_shed') return false;
+            if (action === 'closet' && !item.wearable) return false;
+            if (action === 'chamber' && !item.altStyle) return false;
+            return true;
+        }
+        if (action === 'stock' && item.noTrade) return false;
+        if (action === 'donate' && (item.noTrade || item.noDonate)) return false;
+        if (action === 'closet' && !item.wearable) return false;
+        if (action === 'storage_shed' && !item.neohome2) return false;
+        if (action === 'chamber') return false;
+        return true;
+    }
+
+    var QS_ACTIONS = [
+        { key: 'stock',        label: 'Stock' },
+        { key: 'deposit',      label: 'Deposit' },
+        { key: 'donate',       label: 'Donate' },
+        { key: 'discard',      label: 'Discard' },
+        { key: 'gallery',      label: 'Gallery' },
+        { key: 'closet',       label: 'Closet' },
+        { key: 'storage_shed', label: 'Shed' },
+        { key: 'chamber',      label: 'Chamber' }
+    ];
+    var QS_ACTION_ICON = {
+        stock: '📥', deposit: '🏦', donate: '🎁', discard: '🗑️',
+        gallery: '🖼️', closet: '👕', storage_shed: '🏠', chamber: '🎨'
+    };
+
+    function qsEsc(s) {
+        var d = document.createElement('div');
+        d.textContent = String(s == null ? '' : s);
+        return d.innerHTML;
+    }
+
+    function openGlobalQuickStock() {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'nui-drawer-backdrop nui-reset is-open';
+        backdrop.style.cssText = 'position:fixed;inset:0;z-index:100000;background:var(--nui-overlay);display:flex;align-items:center;justify-content:center;padding:var(--nui-space-4);';
+
+        const modal = document.createElement('div');
+        modal.className = 'nui-surface';
+        modal.style.cssText = 'width:100%;max-width:900px;height:min(90vh,780px);border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);box-shadow:0 10px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;position:relative;transform:scale(0.95);opacity:0;transition:all var(--nui-dur-fast) var(--nui-ease-snap);';
+
+        function closeModal() {
+            modal.style.transform = 'scale(0.95)'; modal.style.opacity = '0';
+            backdrop.style.opacity = '0';
+            setTimeout(function () { backdrop.remove(); }, 200);
+        }
+        backdrop.addEventListener('click', function (e) { if (e.target === backdrop) closeModal(); });
+        document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', esc); } });
+
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;gap:var(--nui-space-3);padding:var(--nui-space-3) var(--nui-space-4);border-bottom:1px solid var(--nui-border);flex-shrink:0;';
+        header.innerHTML =
+            '<span style="font-family:var(--nui-font-display);font-size:16px;font-weight:800;color:var(--nui-accent);flex:1;">📦 Quick Stock</span>' +
+            '<a href="/quickstock.phtml" target="_blank" rel="noopener" style="font-size:11px;color:var(--nui-text-muted);text-decoration:none;padding:4px 8px;border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);white-space:nowrap;" title="Open in new tab">↗ New tab</a>' +
+            '<button id="nui-qs-modal-close" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--nui-text-muted);line-height:1;padding:0;">×</button>';
+        header.querySelector('#nui-qs-modal-close').addEventListener('click', closeModal);
+
+        const body = document.createElement('div');
+        body.style.cssText = 'flex:1;overflow-y:auto;position:relative;background:var(--nui-bg);padding:12px;box-sizing:border-box;';
+        body.innerHTML = '<div style="padding:60px 20px;text-align:center;color:var(--nui-text-muted);">Loading…</div>';
+
+        modal.appendChild(header);
+        modal.appendChild(body);
+        backdrop.appendChild(modal);
+        document.body.appendChild(backdrop);
+
+        requestAnimationFrame(function () {
+            modal.style.transform = 'scale(1)'; modal.style.opacity = '1';
+        });
+
+        qsFetchBootstrap()
+            .then(function (cfg) { qsBoot(body, cfg); })
+            .catch(function () {
+                body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--nui-danger);">Couldn\'t load Quick Stock. <a href="/quickstock.phtml" target="_blank" rel="noopener" style="color:var(--nui-accent);">Open it directly instead →</a></div>';
+            });
+    }
+
+    function qsBoot(root, cfg) {
+        var state = {
+            items: [], totalItems: 0, totalPages: 1, hasCashItems: false,
+            page: 1, perPage: 50, filter: 'np', sortAlpha: false, isStacked: true,
+            selections: {}, isSubmitting: false, isLoading: true, isFirstLoad: true
+        };
+        var fetchSeq = 0;
+
+        if (!document.getElementById('nui-qs-style')) {
+            var qsStyle = document.createElement('style');
+            qsStyle.id = 'nui-qs-style';
+            qsStyle.textContent = [
+                // Buttons: one shared look for filter/sort/pagination/submit controls
+                // instead of the previous one-off inline styles, so hover/focus/
+                // disabled states are consistent everywhere instead of nowhere.
+                '.nui-qs-btn{font:inherit;font-size:11px;font-weight:700;padding:5px 12px;border-radius:var(--nui-radius-pill);cursor:pointer;border:1px solid var(--nui-border);background:var(--nui-surface-2);color:var(--nui-text-muted);transition:filter .12s ease,transform .12s ease;white-space:nowrap;}',
+                '.nui-qs-btn:hover:not(:disabled){filter:brightness(1.12);}',
+                '.nui-qs-btn:active:not(:disabled){transform:scale(0.96);}',
+                '.nui-qs-btn:focus-visible{outline:2px solid var(--nui-accent);outline-offset:1px;}',
+                '.nui-qs-btn:disabled{opacity:.5;cursor:not-allowed;}',
+                '.nui-qs-btn.is-active{border-color:var(--nui-accent);background:var(--nui-accent);color:var(--nui-accent-ink,#fff);}',
+                '.nui-qs-btn.is-primary{border:none;background:var(--nui-accent);color:var(--nui-accent-ink,#fff);padding:8px 22px;font-size:13px;}',
+                '.nui-qs-btn.is-ghost{background:var(--nui-surface-2);}',
+                // Segmented (NP/NC) control
+                '.nui-qs-segment{display:flex;border:1px solid var(--nui-border);border-radius:var(--nui-radius-pill);overflow:hidden;}',
+                '.nui-qs-segment .nui-qs-btn{border:none;border-radius:0;}',
+                // Column header + compact item rows
+                '.nui-qs-colhead{display:flex;align-items:center;gap:10px;padding:2px 10px 6px;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--nui-text-muted);}',
+                '.nui-qs-row{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:var(--nui-radius-sm);border:1px solid transparent;transition:background .12s ease,border-color .12s ease;}',
+                '.nui-qs-row:nth-child(even){background:var(--nui-surface-2);}',
+                '.nui-qs-row:hover{background:var(--nui-accent-soft, rgba(59,130,246,.08));}',
+                '.nui-qs-row.has-action{border-color:var(--nui-accent);}',
+                '.nui-qs-row-icon{width:30px;height:30px;flex-shrink:0;border-radius:var(--nui-radius-sm);background:var(--nui-surface);border:1px solid var(--nui-border);display:flex;align-items:center;justify-content:center;font-size:15px;overflow:hidden;}',
+                '.nui-qs-row-icon img{width:100%;height:100%;object-fit:contain;}',
+                '.nui-qs-row-name{flex:1;min-width:0;font-size:12.5px;font-weight:700;color:var(--nui-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+                '.nui-qs-count{font-size:10.5px;font-weight:700;color:var(--nui-text-muted);margin-left:4px;}',
+                '.nui-qs-select{flex-shrink:0;width:150px;font:inherit;font-size:11.5px;font-weight:700;padding:5px 8px;border-radius:var(--nui-radius-sm);border:1px solid var(--nui-border);background:var(--nui-surface);color:var(--nui-text);cursor:pointer;transition:border-color .12s ease;}',
+                '.nui-qs-select:hover{border-color:var(--nui-accent);}',
+                '.nui-qs-select:focus-visible{outline:2px solid var(--nui-accent);outline-offset:1px;}',
+                '.nui-qs-row.has-action .nui-qs-select{border-color:var(--nui-accent);color:var(--nui-accent);}',
+                '.nui-qs-bulkbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);}',
+                '#nui-qs-list::-webkit-scrollbar{width:8px;}',
+                '#nui-qs-list::-webkit-scrollbar-thumb{background:var(--nui-border);border-radius:4px;}'
+            ].join('\n');
+            document.head.appendChild(qsStyle);
+        }
+
+        root.innerHTML =
+            '<div id="nui-qs-warning" style="display:none;margin-bottom:8px;padding:8px 12px;background:var(--nui-danger-soft, rgba(220,38,38,.1));border:1px solid var(--nui-danger);border-radius:var(--nui-radius-sm);font-size:12px;color:var(--nui-danger);"></div>' +
+            '<div id="nui-qs-notice" style="display:none;margin-bottom:8px;padding:8px 12px;background:var(--nui-accent-soft, rgba(59,130,246,.1));border:1px solid var(--nui-accent);border-radius:var(--nui-radius-sm);font-size:12px;color:var(--nui-accent);"></div>' +
+            '<div id="nui-qs-filterbar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;"></div>' +
+            '<div id="nui-qs-bulkbar" style="margin-bottom:8px;"></div>' +
+            '<div id="nui-qs-colhead" class="nui-qs-colhead" style="display:none;"><span style="flex:1;">Item</span><span style="width:150px;">Action</span></div>' +
+            '<div id="nui-qs-list" style="display:flex;flex-direction:column;max-height:min(50vh,420px);overflow-y:auto;"></div>' +
+            '<div id="nui-qs-pagination" style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;font-size:12px;color:var(--nui-text-muted);"></div>' +
+            '<div id="nui-qs-submitrow" style="display:flex;align-items:center;gap:10px;justify-content:center;margin-top:10px;position:sticky;bottom:0;background:var(--nui-bg);padding-top:8px;"></div>';
+
+        var colheadEl = root.querySelector('#nui-qs-colhead');
+        var warningEl = root.querySelector('#nui-qs-warning');
+        var noticeEl = root.querySelector('#nui-qs-notice');
+        var filterbarEl = root.querySelector('#nui-qs-filterbar');
+        var bulkbarEl = root.querySelector('#nui-qs-bulkbar');
+        var listEl = root.querySelector('#nui-qs-list');
+        var paginationEl = root.querySelector('#nui-qs-pagination');
+        var submitrowEl = root.querySelector('#nui-qs-submitrow');
+
+        function selKey(item) {
+            if (state.isStacked) return (item.isCash ? 'oii_nc_' : 'oii_np_') + item.oii;
+            return item.isCash ? ('cash_' + item.cashObjId) : ('np_' + item.objId);
+        }
+
+        function showNotice(msg, isError) {
+            noticeEl.textContent = msg;
+            noticeEl.style.display = 'block';
+            noticeEl.style.color = isError ? 'var(--nui-danger)' : 'var(--nui-accent)';
+            noticeEl.style.borderColor = isError ? 'var(--nui-danger)' : 'var(--nui-accent)';
+            setTimeout(function () { noticeEl.style.display = 'none'; }, 4000);
+        }
+
+        function fetchItems() {
+            var mySeq = ++fetchSeq;
+            state.isLoading = true;
+            renderAll();
+
+            var params = new URLSearchParams({
+                page: state.page,
+                per_page: state.perPage,
+                filter: state.filter,
+                sort: state.sortAlpha ? 'az' : 'recent',
+                stack: state.isStacked ? 1 : 0
+            });
+
+            fetch(cfg.ajaxUrl + '?' + params, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (mySeq !== fetchSeq) return;
+                    if (data.success) {
+                        state.items = data.items;
+                        state.totalItems = data.total;
+                        state.totalPages = data.total_pages;
+                        state.hasCashItems = data.has_cash_items;
+                        if (state.page > data.total_pages) state.page = Math.max(1, data.total_pages);
+                    }
+                })
+                .catch(function () { if (mySeq === fetchSeq) showNotice('Could not load items.', true); })
+                .finally(function () {
+                    if (mySeq !== fetchSeq) return;
+                    state.isLoading = false;
+                    state.isFirstLoad = false;
+                    renderAll();
+                });
+        }
+
+        function checkAll(action) {
+            state.items.forEach(function (item) {
+                if (qsCanPerformAction(item, action)) state.selections[selKey(item)] = action;
+            });
+            renderList();
+        }
+
+        function renderFilterbar() {
+            var html = '';
+            if (state.hasCashItems) {
+                html += '<div class="nui-qs-segment">' +
+                    '<button type="button" class="nui-qs-btn' + (state.filter === 'np' ? ' is-active' : '') + '" data-qs-filter="np">🪙 NP</button>' +
+                    '<button type="button" class="nui-qs-btn' + (state.filter === 'nc' ? ' is-active' : '') + '" data-qs-filter="nc">💎 NC</button>' +
+                '</div>';
+            }
+            html += '<button type="button" id="nui-qs-sort-toggle" class="nui-qs-btn">' + (state.sortAlpha ? '🔤 A–Z' : '🕐 Recent') + '</button>';
+            html += '<button type="button" id="nui-qs-stack-toggle" class="nui-qs-btn">' + (state.isStacked ? '📚 Stacked' : '🔢 Unstacked') + '</button>';
+            html += '<div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--nui-text-muted);">Show:' +
+                '<select id="nui-qs-perpage" class="nui-qs-select" style="width:auto;">' +
+                    [20, 50, 100].map(function (n) { return '<option value="' + n + '"' + (state.perPage === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') +
+                '</select></div>';
+            filterbarEl.innerHTML = html;
+
+            filterbarEl.querySelectorAll('[data-qs-filter]').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    if (state.filter === b.getAttribute('data-qs-filter')) return;
+                    state.filter = b.getAttribute('data-qs-filter');
+                    state.page = 1;
+                    fetchItems();
+                });
+            });
+            var sortBtn = filterbarEl.querySelector('#nui-qs-sort-toggle');
+            if (sortBtn) sortBtn.addEventListener('click', function () { state.sortAlpha = !state.sortAlpha; state.page = 1; fetchItems(); });
+            var stackBtn = filterbarEl.querySelector('#nui-qs-stack-toggle');
+            if (stackBtn) stackBtn.addEventListener('click', function () { state.isStacked = !state.isStacked; state.selections = {}; state.page = 1; fetchItems(); });
+            var perPageSel = filterbarEl.querySelector('#nui-qs-perpage');
+            if (perPageSel) perPageSel.addEventListener('change', function (e) { state.perPage = parseInt(e.target.value, 10); state.page = 1; fetchItems(); });
+        }
+
+        // One dropdown + Apply button instead of up to 8 separate "apply to all"
+        // pill buttons — same capability, far less visual clutter.
+        function renderBulkbar() {
+            if (state.items.length === 0) { bulkbarEl.innerHTML = ''; return; }
+            var eligibleActions = QS_ACTIONS.filter(function (a) {
+                return state.items.some(function (i) { return qsCanPerformAction(i, a.key); });
+            });
+            var html = '<span style="font-size:11px;font-weight:700;color:var(--nui-text-muted);">Apply to all:</span>' +
+                '<select id="nui-qs-bulk-select" class="nui-qs-select" style="width:150px;">' +
+                    '<option value="">Choose action…</option>' +
+                    eligibleActions.map(function (a) { return '<option value="' + a.key + '">' + QS_ACTION_ICON[a.key] + ' ' + a.label + '</option>'; }).join('') +
+                '</select>' +
+                '<button type="button" id="nui-qs-bulk-apply" class="nui-qs-btn is-active">Apply</button>' +
+                '<button type="button" id="nui-qs-bulk-clear" class="nui-qs-btn" style="margin-left:auto;">Clear selections</button>';
+            bulkbarEl.className = 'nui-qs-bulkbar';
+            bulkbarEl.innerHTML = html;
+            bulkbarEl.querySelector('#nui-qs-bulk-apply').addEventListener('click', function () {
+                var sel = bulkbarEl.querySelector('#nui-qs-bulk-select');
+                if (sel.value) checkAll(sel.value);
+            });
+            bulkbarEl.querySelector('#nui-qs-bulk-clear').addEventListener('click', function () {
+                state.selections = {};
+                renderList();
+                renderBulkbar();
+            });
+        }
+
+        function itemRow(item) {
+            var key = selKey(item);
+            var selected = state.selections[key] || '';
+            var eligible = QS_ACTIONS.filter(function (a) { return qsCanPerformAction(item, a.key); });
+            var badge = (item.count && item.count > 1) ? '<span class="nui-qs-count">×' + item.count + '</span>' : '';
+            var iconHtml = item.img
+                ? '<img src="' + qsEsc(item.img) + '" alt="" onerror="this.parentElement.textContent=\'📦\';" />'
+                : '📦';
+
+            var options = '<option value="">— No action —</option>' +
+                eligible.map(function (a) {
+                    return '<option value="' + a.key + '"' + (selected === a.key ? ' selected' : '') + '>' + QS_ACTION_ICON[a.key] + ' ' + a.label + '</option>';
+                }).join('');
+
+            return '<div class="nui-qs-row' + (selected ? ' has-action' : '') + '" data-qs-card="' + qsEsc(key) + '">' +
+                '<div class="nui-qs-row-icon">' + iconHtml + '</div>' +
+                '<div class="nui-qs-row-name" title="' + qsEsc(item.name) + '">' + qsEsc(item.name) + badge + '</div>' +
+                '<select class="nui-qs-select" data-qs-key="' + qsEsc(key) + '">' + options + '</select>' +
+            '</div>';
+        }
+
+        function renderList() {
+            if (state.totalItems >= 70) {
+                warningEl.textContent = 'Note: you can only move 70 items at a time using Quick Stock.';
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
+
+            if (!state.isLoading && state.totalItems === 0 && !state.isFirstLoad) {
+                colheadEl.style.display = 'none';
+                listEl.innerHTML = '<div style="text-align:center;padding:40px 16px;color:var(--nui-text-muted);font-size:13px;">Your inventory is empty! Head to <a href="/objects.phtml" style="color:var(--nui-accent);">Neopia Central</a> to pick up some items.</div>';
+                bulkbarEl.innerHTML = ''; paginationEl.innerHTML = ''; submitrowEl.innerHTML = '';
+                return;
+            }
+            if (state.isFirstLoad) {
+                colheadEl.style.display = 'none';
+                listEl.innerHTML = '<div style="text-align:center;padding:40px 16px;color:var(--nui-text-muted);">Loading items…</div>';
+                bulkbarEl.innerHTML = ''; paginationEl.innerHTML = ''; submitrowEl.innerHTML = '';
+                return;
+            }
+
+            colheadEl.style.display = 'flex';
+            listEl.style.opacity = state.isLoading ? '0.5' : '1';
+            listEl.innerHTML = state.items.map(itemRow).join('');
+
+            listEl.querySelectorAll('[data-qs-key]').forEach(function (sel) {
+                sel.addEventListener('change', function () {
+                    var key = sel.getAttribute('data-qs-key');
+                    if (sel.value) state.selections[key] = sel.value;
+                    else delete state.selections[key];
+                    sel.closest('.nui-qs-row').classList.toggle('has-action', !!sel.value);
+                    renderBulkbar();
+                    renderSubmitRow();
+                });
+            });
+
+            renderBulkbar();
+            renderPagination();
+            renderSubmitRow();
+        }
+
+        function renderPagination() {
+            if (state.totalPages <= 1) { paginationEl.innerHTML = ''; return; }
+            paginationEl.innerHTML =
+                '<button type="button" id="nui-qs-prev" class="nui-qs-btn" ' + (state.page <= 1 ? 'disabled' : '') + '>‹ Prev</button>' +
+                '<span>Page ' + state.page + ' of ' + state.totalPages + '</span>' +
+                '<button type="button" id="nui-qs-next" class="nui-qs-btn" ' + (state.page >= state.totalPages ? 'disabled' : '') + '>Next ›</button>';
+            var prevBtn = paginationEl.querySelector('#nui-qs-prev');
+            var nextBtn = paginationEl.querySelector('#nui-qs-next');
+            if (prevBtn) prevBtn.addEventListener('click', function () { if (state.page > 1) { state.page--; fetchItems(); } });
+            if (nextBtn) nextBtn.addEventListener('click', function () { if (state.page < state.totalPages) { state.page++; fetchItems(); } });
+        }
+
+        function renderSubmitRow() {
+            if (state.items.length === 0) { submitrowEl.innerHTML = ''; return; }
+            var count = Object.keys(state.selections).length;
+            submitrowEl.innerHTML =
+                '<button type="button" id="nui-qs-submit" class="nui-qs-btn is-primary" ' + (state.isSubmitting ? 'disabled' : '') + '>' + (state.isSubmitting ? 'Submitting…' : 'Submit') + '</button>' +
+                '<button type="button" id="nui-qs-clear" class="nui-qs-btn is-ghost" ' + (state.isSubmitting ? 'disabled' : '') + '>Clear Form</button>' +
+                (count > 0 ? '<span style="font-size:11px;color:var(--nui-text-muted);">' + count + ' item' + (count === 1 ? '' : 's') + ' selected</span>' : '');
+            submitrowEl.querySelector('#nui-qs-submit').addEventListener('click', submitForm);
+            submitrowEl.querySelector('#nui-qs-clear').addEventListener('click', function () { state.selections = {}; renderList(); renderBulkbar(); });
+        }
+
+        function submitForm() {
+            var keys = Object.keys(state.selections);
+            if (keys.length === 0) { showNotice('Select an action for at least one item first.', true); return; }
+
+            var discardOrDonate = keys.filter(function (k) { return state.selections[k] === 'discard' || state.selections[k] === 'donate'; }).length;
+            if (discardOrDonate > 0) {
+                if (!confirm('You are about to discard and/or donate ' + discardOrDonate + ' item(s). This cannot be undone. Continue?')) return;
+            }
+
+            state.isSubmitting = true;
+            renderSubmitRow();
+
+            var payload = { items: [], cashItems: [], _ref_ck: cfg.refCk };
+            keys.forEach(function (key) {
+                var action = state.selections[key];
+                if (!action) return;
+                var m;
+                if ((m = key.match(/^oii_np_(\d+)$/))) payload.items.push({ oii: parseInt(m[1], 10), action: action });
+                else if ((m = key.match(/^oii_nc_(\d+)$/))) payload.cashItems.push({ oii: parseInt(m[1], 10), action: action });
+                else if ((m = key.match(/^np_(\d+)$/))) payload.items.push({ objId: parseInt(m[1], 10), action: action });
+                else if ((m = key.match(/^cash_(\d+)$/))) payload.cashItems.push({ cashObjId: parseInt(m[1], 10), action: action });
+            });
+
+            fetch(cfg.submitUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    state.isSubmitting = false;
+                    if (data.success) {
+                        state.selections = {};
+                        showNotice(data.message || 'Items processed successfully.', false);
+                        fetchItems();
+                    } else {
+                        showNotice(data.message || 'An error occurred. Please try again.', true);
+                        renderSubmitRow();
+                    }
+                })
+                .catch(function () {
+                    state.isSubmitting = false;
+                    showNotice('A network error occurred. Please try again.', true);
+                    renderSubmitRow();
+                });
+        }
+
+        function renderAll() {
+            renderFilterbar();
+            renderList();
+        }
+
+        fetchItems();
     }
 
     // ---- Settings panel sections (extensible) ----
@@ -9138,6 +9596,9 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 if (item.action === 'open-sdb-bulk') {
                     return '<div class="nui-drawer-item is-action" data-nui-action="open-sdb-bulk">' + item.label + '</div>';
                 }
+                if (item.action === 'open-quickstock') {
+                    return '<div class="nui-drawer-item is-action" data-nui-action="open-quickstock">' + item.label + '</div>';
+                }
                 return '<a class="nui-drawer-item" href="' + (item.href || '#') + '">' + item.label + '</a>';
             }).join('');
             return (
@@ -9359,6 +9820,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                         else if (item.action === 'open-ssw') { openGlobalSSW(searchInput.value.trim()); }
                         else if (item.action === 'open-sdb') { openGlobalSDB(searchInput.value.trim()); }
                         else if (item.action === 'open-sdb-bulk') { openSDBBulkSender(); }
+                        else if (item.action === 'open-quickstock') { openGlobalQuickStock(); }
                         else if (item.action === 'open-settings') { renderSettings(); drawer.setAttribute('data-active-view', 'settings'); return; }
                         else if (item.href) { window.location.assign(item.href); }
                         closeDrawer();
@@ -9987,6 +10449,11 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             el.addEventListener('click', () => { closeDrawer(); openSDBBulkSender(); });
         });
 
+        // Quick Stock action items inside nav sections
+        backdrop.querySelectorAll('[data-nui-action="open-quickstock"]').forEach(el => {
+            el.addEventListener('click', () => { closeDrawer(); openGlobalQuickStock(); });
+        });
+
         // Favorites remove buttons — re-render the fav list in place on click
         function wireFavRemove() {
             backdrop.querySelectorAll('.nui-fav-remove').forEach(function (btn) {
@@ -10361,6 +10828,136 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         injectFramedChromeOverrides();
     }
 
+    // ---- Shared popup (info / confirm / loading spinner) ----
+    // One themed modal implementation, lazily built on first use and reused
+    // for the rest of the page's life. Previously every module that wanted a
+    // confirm/loading dialog (RE Log, SDB, the Your Shop rebuild) hand-rolled
+    // its own near-identical overlay; this is that logic pulled out once so
+    // any module — including Sitewide Chrome — can call NeoUI.popup.show(...)
+    // / .confirm(...) / .showLoading() without reinventing it.
+    let popupAPI = null;
+    function buildPopupAPI() {
+        if (!document.getElementById('nui-popup-styles')) {
+            const style = document.createElement('style');
+            style.id = 'nui-popup-styles';
+            style.textContent = `
+                .nui-popup-overlay {
+                    position:fixed; inset:0; z-index:200010; background:rgba(8,12,24,0.6);
+                    backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;
+                }
+                .nui-popup-overlay.is-open { display:flex; }
+                .nui-popup {
+                    width:min(92vw,380px); background:var(--nui-surface); border:1px solid var(--nui-border);
+                    border-radius:var(--nui-radius-lg); box-shadow:0 24px 70px rgba(0,0,0,.35); overflow:hidden;
+                }
+                .nui-popup-header {
+                    padding:14px 18px; background:var(--nui-surface-2); border-bottom:1px solid var(--nui-border);
+                    font-size:15px; font-weight:800; color:var(--nui-text);
+                }
+                .nui-popup-body { padding:16px 18px; font-size:13px; color:var(--nui-text); line-height:1.5; }
+                .nui-popup-footer { display:flex; gap:8px; justify-content:flex-end; padding:12px 18px; border-top:1px solid var(--nui-border); }
+                .nui-popup-footer button { padding:7px 16px; border-radius:var(--nui-radius-pill); font-size:12.5px; font-weight:700; cursor:pointer; border:none; }
+                .nui-popup-btn-ok { background:var(--nui-surface-2); border:1px solid var(--nui-border) !important; color:var(--nui-text); }
+                .nui-popup-btn-confirm { background:var(--nui-accent); color:var(--nui-accent-ink,#fff); }
+                .nui-popup-loading-overlay {
+                    position:fixed; inset:0; z-index:200005; background:rgba(8,12,24,0.35); backdrop-filter:blur(3px);
+                    display:none; align-items:center; justify-content:center;
+                }
+                .nui-popup-loading-overlay.is-open { display:flex; }
+                .nui-popup-spinner {
+                    width:38px; height:38px; border-radius:50%; border:4px solid var(--nui-surface-2);
+                    border-top-color:var(--nui-accent); animation:nui-popup-spin 0.8s linear infinite;
+                }
+                @keyframes nui-popup-spin { to { transform:rotate(360deg); } }
+            `;
+            document.head.appendChild(style);
+        }
+
+        const overlay = document.createElement('div');
+        overlay.className = 'nui-popup-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'nui-popup';
+        const head = document.createElement('div');
+        head.className = 'nui-popup-header';
+        const body = document.createElement('div');
+        body.className = 'nui-popup-body';
+        const footer = document.createElement('div');
+        footer.className = 'nui-popup-footer';
+        const okBtn = document.createElement('button');
+        okBtn.className = 'nui-popup-btn-ok';
+        okBtn.type = 'button';
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'nui-popup-btn-confirm';
+        confirmBtn.type = 'button';
+        confirmBtn.style.display = 'none';
+        footer.appendChild(okBtn);
+        footer.appendChild(confirmBtn);
+        modal.appendChild(head);
+        modal.appendChild(body);
+        modal.appendChild(footer);
+        overlay.appendChild(modal);
+
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'nui-popup-loading-overlay';
+        loadingOverlay.innerHTML = '<div class="nui-popup-spinner"></div>';
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(loadingOverlay);
+
+        let onClose = null;
+        let onConfirm = null;
+
+        function open(title, msg) {
+            head.textContent = title;
+            body.textContent = msg;
+            overlay.classList.add('is-open');
+        }
+        function hide() {
+            overlay.classList.remove('is-open');
+            onConfirm = null;
+            if (onClose) { const cb = onClose; onClose = null; cb(); }
+        }
+        function show(title, msg, cb) {
+            onConfirm = null;
+            confirmBtn.style.display = 'none';
+            okBtn.textContent = 'OK';
+            onClose = (typeof cb === 'function') ? cb : null;
+            open(title, msg);
+        }
+        function confirm(title, msg, cb, label, cancelLabel) {
+            onClose = null;
+            onConfirm = (typeof cb === 'function') ? cb : null;
+            okBtn.textContent = cancelLabel || 'Cancel';
+            confirmBtn.textContent = label || 'Confirm';
+            confirmBtn.style.display = '';
+            open(title, msg);
+        }
+        okBtn.addEventListener('click', hide);
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) hide(); });
+        confirmBtn.addEventListener('click', function () {
+            const cb = onConfirm;
+            onConfirm = null;
+            onClose = null;
+            overlay.classList.remove('is-open');
+            if (cb) cb();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && overlay.classList.contains('is-open')) hide();
+        });
+
+        return {
+            show: show,
+            confirm: confirm,
+            hide: hide,
+            showLoading: function () { loadingOverlay.classList.add('is-open'); },
+            hideLoading: function () { loadingOverlay.classList.remove('is-open'); },
+        };
+    }
+    function getPopup() {
+        if (!popupAPI) popupAPI = buildPopupAPI();
+        return popupAPI;
+    }
+
     // ---- Shared item-search button row (SSW / SW / TP / SDB) ----
     // One implementation, used by every module that displays an item name —
     // the three Training-school modules previously each hand-rolled their own
@@ -10494,7 +11091,15 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         openTP: openGlobalTP,
         openSDB: openGlobalSDB,
         openSDBBulk: openSDBBulkSender,
+        openQuickStock: openGlobalQuickStock,
         ensureCoreStyles: ensureCoreStyles,
+        popup: {
+            show: function (title, msg, cb) { return getPopup().show(title, msg, cb); },
+            confirm: function (title, msg, cb, label, cancelLabel) { return getPopup().confirm(title, msg, cb, label, cancelLabel); },
+            hide: function () { return getPopup().hide(); },
+            showLoading: function () { return getPopup().showLoading(); },
+            hideLoading: function () { return getPopup().hideLoading(); },
+        },
         buildItemSearchButtons: buildItemSearchButtons,
         attachItemSearchButtons: attachItemSearchButtons,
         isPremium: isPremiumUser,
@@ -31283,13 +31888,11 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             sdbBtn.classList.add('nui-primary-action');
             toolbarEl.appendChild(sdbBtn);
 
-            var qsBtn = document.createElement('a');
-            qsBtn.href = '/quickstock.phtml';
-            qsBtn.target = '_blank';
-            qsBtn.rel = 'noopener';
-            qsBtn.className = 'nui-inv-btn-sm nui-primary-action';
-            qsBtn.style.textDecoration = 'none';
-            qsBtn.innerHTML = '📦 QS';
+            var qsBtn = toggleBtn('📦 QS', false, function () {
+                if (window.NeoUI && window.NeoUI.openQuickStock) window.NeoUI.openQuickStock();
+            });
+            qsBtn.classList.add('nui-primary-action');
+            qsBtn.title = 'Quick Stock';
             toolbarEl.appendChild(qsBtn);
 
             var spacer = document.createElement('div');
@@ -34299,6 +34902,17 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
     document.body.className = 'nui-reset nui-spa-active';
     document.documentElement.style.background = 'var(--nui-bg)';
     document.body.style.background = 'var(--nui-bg)';
+    // Belt-and-braces: a leftover inline margin or legacy body attribute from the
+    // native page template (marginwidth/leftmargin/topmargin/align) would offset
+    // our centered #nui-questlog-page shell to one side even though its own
+    // margin:0 auto is correct in isolation.
+    document.documentElement.style.margin = '0';
+    document.documentElement.style.padding = '0';
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    ['align', 'marginwidth', 'marginheight', 'leftmargin', 'topmargin'].forEach(function (attr) {
+        document.body.removeAttribute(attr);
+    });
     NeoUI.resetDrawer();
     NeoUI.setProfileInfo(profile);
     if (!inModal) NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
@@ -34310,11 +34924,11 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
     var qlShellPadding = inModal ? 'var(--nui-space-4,16px)' : 'calc(var(--nui-topbar-h,52px) + var(--nui-space-4,16px))';
     style.textContent = [
         // ── Page shell ───────────────────────────────────────────────────────
-        '#nui-questlog-page{max-width:720px;margin:0 auto;padding:' + qlShellPadding + ' var(--nui-space-4,16px) 48px;box-sizing:border-box;}',
+        '#nui-questlog-page{width:100%;max-width:720px;margin:0 auto;padding:' + qlShellPadding + ' var(--nui-space-4,16px) 48px;box-sizing:border-box;}',
 
         // Header — tighter, no wasted margin
         '.questlog-header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--nui-surface);border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg,14px);margin-bottom:12px;}',
-        '.questlog-header h1{margin:0;font-size:18px;font-weight:800;color:var(--nui-text);display:flex;align-items:center;gap:8px;flex:1;}',
+        '.questlog-header h1{margin:0;font-size:18px;font-weight:800;color:var(--nui-text);display:flex;align-items:center;justify-content:center;gap:8px;flex:1;}',
         '.questlog-header .nui-ql-faq{flex-shrink:0;font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:var(--nui-radius-pill,999px);border:1px solid var(--nui-border);background:var(--nui-surface-2);color:var(--nui-accent);text-decoration:none;white-space:nowrap;}',
 
         // Info blurb — hide it; it's filler
@@ -34327,7 +34941,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         '@keyframes nui-ql-spin{to{transform:rotate(360deg);}}',
 
         // Tabs
-        '.questlog-tabs{width:100%;margin:0 0 10px;display:flex;flex-wrap:wrap;gap:6px;}',
+        '.questlog-tabs{width:100%;margin:0 0 10px;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;}',
         '.questlog-tabs .questlog-tab{position:relative;padding:7px 14px;font-size:12.5px;font-weight:700;border-radius:var(--nui-radius-pill,999px);background:var(--nui-surface-2);color:var(--nui-text-muted);border:1px solid var(--nui-border);cursor:pointer;}',
         '.questlog-tabs .questlog-tab::before{display:none!important;}',
         '.questlog-tabs .questlog-tab.tab-active{background:var(--nui-accent);color:var(--nui-accent-ink,#fff);border-color:var(--nui-accent);}',
@@ -34336,7 +34950,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
         // Body card
         '.questlog-body{width:100%;min-height:80px;padding:14px;margin:0;background:var(--nui-surface);border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg,14px);display:flex;flex-direction:column;gap:12px;box-sizing:border-box;}',
-        '.questlog-top{width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:space-between;}',
+        '.questlog-top{width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;}',
 
         // Group segmented control
         '.questlog-groups{position:relative;height:30px;color:var(--nui-text-muted);background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;overflow:hidden;box-sizing:border-box;}',
@@ -34354,21 +34968,29 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         '.questlog-bonus-rewards .ql-bonus-label .ql-bonus-labels{position:relative;width:100%;display:flex;justify-content:space-around;align-items:center;gap:1.5em;z-index:1;color:var(--nui-text);}',
         '.questlog-bonus-rewards .ql-bonus.ql-hidden{display:none;}',
         '.questlog-bonus-rewards .ql-bonus .ql-desc{padding:6px 2px 0;font-size:11.5px;color:var(--nui-text-muted);}',
-        '.questlog-bonus-rewards .ql-bonus-progress{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;padding-top:8px;}',
-        '.questlog-bonus-rewards .ql-bonus-progress .ql-marker{width:24px;height:24px;flex-shrink:0;border-radius:50%;background:var(--nui-surface);border:1px solid var(--nui-border);margin-top:16px;}',
+        '.questlog-bonus-rewards .ql-bonus-progress{display:flex;align-items:flex-start;justify-content:center;gap:10px;flex-wrap:wrap;padding-top:8px;}',
+        '.questlog-bonus-rewards .ql-bonus-progress .ql-marker{width:28px;height:28px;flex-shrink:0;border-radius:50%;background:var(--nui-surface);border:1px solid var(--nui-border);margin-top:20px;}',
         '.questlog-bonus-rewards .ql-bonus-progress .ql-marker.ql-complete{background:var(--nui-success,#3fb27f) url("https://images.neopets.com/questlog/images/icons/CompletedQuest.png") center/70% no-repeat;}',
         '.questlog-bonus-rewards .ql-bonus-progress .ql-bonus-reward{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--nui-text);}',
         '.questlog-bonus-rewards .ql-bonus-progress .ql-bonus-reward .ql-reroll{font-size:10px;font-weight:700;padding:3px 8px;border-radius:var(--nui-radius-pill,999px);border:1px solid var(--nui-border);background:var(--nui-surface);color:var(--nui-accent);cursor:pointer;white-space:nowrap;}',
         '.questlog-bonus-rewards .ql-bonus-progress .ql-bonus-reward .ql-reroll:hover{border-color:var(--nui-accent);}',
         '.questlog-bonus-rewards .ql-bonus .ql-progress{flex:1 1 120px;min-width:80px;}',
-        '.questlog-bonus-rewards .ql-bonus-reward .ql-bonus-img{position:relative;width:52px;height:52px;border-radius:var(--nui-radius-md,10px);overflow:hidden;background:var(--nui-surface);border:1px solid var(--nui-border);filter:grayscale(0.5);}',
-        '.questlog-bonus-rewards .ql-bonus-reward .ql-bonus-img img{max-width:52px;max-height:52px;}',
+        '.questlog-bonus-rewards .ql-bonus-reward .ql-bonus-img{position:relative;width:68px;height:68px;border-radius:var(--nui-radius-md,10px);overflow:hidden;background:var(--nui-surface);border:1px solid var(--nui-border);filter:grayscale(0.5);}',
+        '.questlog-bonus-rewards .ql-bonus-reward .ql-bonus-img img{max-width:68px;max-height:68px;}',
         '.questlog-bonus-rewards .ql-bonus-reward.ql-claim-bonus .ql-bonus-img,.questlog-bonus-rewards .ql-bonus-reward.ql-bonus-claimed .ql-bonus-img{filter:none;}',
         '.questlog-bonus-rewards .ql-bonus-reward.ql-claim-bonus .ql-bonus-img{background:var(--nui-accent-soft);box-shadow:0 0 0 2px var(--nui-accent);cursor:pointer;}',
-        '.questlog-bonus-rewards .ql-bonus-reward.ql-claim-bonus .ql-bonus-claim{position:absolute;inset:auto 0 -2px 0;padding:2px 0;background:var(--nui-accent);color:var(--nui-accent-ink,#fff);text-align:center;font-size:9px;font-weight:800;border-radius:0 0 var(--nui-radius-md,10px) var(--nui-radius-md,10px);cursor:pointer;}',
-        '.questlog-bonus-rewards .ql-bonus-reward.ql-bonus-claimed .ql-bonus-check{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;}',
+        // .ql-bonus-claim is not a decorative label sitting on top of the image —
+        // its onclick="claimBonusReward(this)" is attached directly to this
+        // element, so it IS the button. (Confirmed from the real page markup:
+        // hiding it with display:none, as an earlier pass here did to work around
+        // the weekly streak reward not shipping the same element, also removed
+        // the only click target for the daily grand prize — a real regression.)
+        // Restyle it in place instead of touching its visibility.
+        '.questlog-bonus-rewards .ql-bonus-reward.ql-claim-bonus .ql-bonus-claim{position:absolute;inset:auto 0 0 0;z-index:2;padding:3px 0;background:var(--nui-accent);color:var(--nui-accent-ink,#fff);text-align:center;font-size:10px;font-weight:800;letter-spacing:.02em;border-radius:0 0 var(--nui-radius-md,10px) var(--nui-radius-md,10px);cursor:pointer;}',
+        '.questlog-bonus-rewards .ql-bonus-reward.ql-claim-bonus .ql-bonus-claim:hover{filter:brightness(1.1);}',
+        '.questlog-bonus-rewards .ql-bonus-reward.ql-bonus-claimed .ql-bonus-check{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;}',
         '.questlog-bonus-rewards .ql-bonus-reward.ql-bonus-claimed .ql-bonus-check::before{content:"✓";color:var(--nui-success,#3fb27f);text-shadow:0 0 4px rgba(0,0,0,.4);}',
-        '.questlog-bonus-rewards .ql-bonus-reward .ql-bonus-name{font-size:10px;text-align:center;max-width:72px;color:var(--nui-text-muted);line-height:1.3;}',
+        '.questlog-bonus-rewards .ql-bonus-reward .ql-bonus-name{font-size:11.5px;text-align:center;max-width:90px;color:var(--nui-text-muted);line-height:1.3;}',
         '.questlog-bonus-rewards .ql-dots{display:none;}',
 
         // Timer
@@ -34408,7 +35030,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         '.questlog-quest .ql-reward .ql-reward-np{width:32px;height:32px;flex-shrink:0;background:radial-gradient(circle,var(--nui-accent-soft),transparent 70%) center/100% no-repeat;}',
         '.questlog-quest .ql-reward .ql-reward-np::before{content:"💰";font-size:18px;display:block;text-align:center;line-height:32px;}',
         '.questlog-quest .ql-reward .ql-reward-newbie{width:32px;height:32px;flex-shrink:0;}',
-        '.questlog-quest .ql-reward-label{font-size:11px;font-weight:700;color:var(--nui-text-muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+        '.questlog-quest .ql-reward-label{font-size:11px;font-weight:700;color:var(--nui-text-muted);flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
 
         // Details panel
         '.questlog-quest .ql-quest-details{padding:10px 12px;flex:1 1 auto;box-sizing:border-box;min-width:0;}',
@@ -34437,7 +35059,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         '.questlog-quest .ql-popup-link span{color:var(--nui-accent);font-size:11.5px;text-decoration:underline;}',
 
         // Buttons + quicklinks — unified pill row
-        '.questlog-quest .ql-quest-buttons{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}',
+        '.questlog-quest .ql-quest-buttons{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center;}',
         '.questlog-quest .ql-quest-skipped{width:fit-content;margin:8px auto;color:var(--nui-text-muted);font-size:13px;}',
 
         // Quicklinks match the native button pill style
@@ -34464,10 +35086,48 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         '.ql-popup .ql-newbie-items .ql-newbie-item .ql-item-label{font-size:11.5px;font-weight:700;color:var(--nui-text);}',
         '.ql-popup .ql-reward-np{width:64px;height:64px;margin:auto;}',
         '.ql-popup .ql-reward-np::before{content:"💰";font-size:34px;display:block;text-align:center;line-height:64px;}',
-        '.ql-popup .ql-reroll-cost{margin:10px auto;text-align:center;}',
-        '.ql-popup .ql-reroll-cost img{max-width:64px;max-height:64px;}',
-        '.ql-popup .ql-reroll-cost .ql-reroll-np{font-size:13px;font-weight:800;color:var(--nui-text);}',
+        // Bespoke redesign for the streak reroll confirmation — ID-scoped
+        // rather than touching the shared .ql-popup/.togglePopup__2020 shell
+        // used sitewide, following the same pattern already used for
+        // #BdPetDetailPopup/#BattleEquipPopup elsewhere in this file.
+        // Flat solid colors only, matching every other button/card in this
+        // module (e.g. .nui-qs-btn) — no gradients, no glows, no drop-shadows,
+        // no semi-transparent fallback colors (a "faded" gradient toward a
+        // translucent --nui-accent-soft just exposes whatever's behind it,
+        // which reads as a stray white patch on light themes).
+        '#QuestLogStreakReroll .popup-header__2020{background:var(--nui-accent)!important;}',
+        '#QuestLogStreakReroll .popup-header__2020 h3{color:var(--nui-accent-ink,#fff)!important;font-size:15.5px!important;font-weight:800!important;}',
+        '#QuestLogStreakReroll .popup-body__2020{padding:18px 20px 6px!important;}',
+        '#QuestLogStreakReroll .nui-ql-reroll-lead{margin:0 0 14px!important;font-size:13.5px!important;font-weight:700;text-align:center;color:var(--nui-text);}',
+        '#QuestLogStreakReroll .nui-ql-reroll-cost{display:flex;align-items:center;gap:14px;margin:0 0 14px;padding:12px 16px;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-md,10px);}',
+        '#QuestLogStreakReroll .nui-ql-reroll-cost img{width:40px;height:40px;flex-shrink:0;}',
+        '#QuestLogStreakReroll .nui-ql-reroll-cost-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--nui-text-muted);}',
+        '#QuestLogStreakReroll .nui-ql-reroll-cost-amt{font-size:18px;font-weight:800;color:var(--nui-accent);line-height:1.2;}',
+        '#QuestLogStreakReroll .nui-ql-reroll-warning{margin:0 0 14px;padding:9px 12px;background:var(--nui-danger-soft, var(--nui-surface-2));border:1px solid var(--nui-danger, #d42326);border-radius:var(--nui-radius-sm,8px);color:var(--nui-danger,#d42326);font-size:11.5px;font-weight:700;line-height:1.4;text-align:center;}',
+        '#QuestLogStreakReroll .nui-ql-reroll-faq{display:block;width:fit-content;margin:0 auto 8px;padding:4px 10px;border-radius:var(--nui-radius-pill,999px);background:var(--nui-surface-2);border:1px solid var(--nui-border);font-size:11px;font-weight:700;color:var(--nui-text-muted);text-decoration:none;transition:filter .12s ease;}',
+        '#QuestLogStreakReroll .nui-ql-reroll-faq:hover{filter:brightness(1.15);}',
+        '#QuestLogStreakReroll .popup-footer__2020{padding:14px 20px 18px!important;}',
         '.ql-popup .ql-error-msg{color:var(--nui-danger,#d42326);font-weight:700;font-size:12.5px;}',
+        // The 2020 popup buttons/close icon ship as chunky native pixel-art
+        // sprites that clash hard against this page's flat modern look. Every
+        // Quest Log popup shares the .ql-popup wrapper, so restyle them all
+        // in one pass — same treatment already used for e.g. the Neolodge.
+        '.ql-popup .popup-exit.button-default__2020{width:28px;height:28px;min-width:0;padding:0;border-radius:50%;background:var(--nui-surface-2)!important;border:1px solid var(--nui-border)!important;display:flex;align-items:center;justify-content:center;box-shadow:none!important;}',
+        '.ql-popup .popup-exit.button-default__2020:hover{background:var(--nui-danger-soft, rgba(220,38,38,.12))!important;}',
+        '.ql-popup .popup-exit .popup-exit-icon{position:relative!important;width:11px;height:11px;background:none!important;}',
+        '.ql-popup .popup-exit .popup-exit-icon::before,.ql-popup .popup-exit .popup-exit-icon::after{content:"";position:absolute;top:50%;left:50%;width:13px;height:2px;margin:-1px 0 0 -6.5px;background:var(--nui-text-muted);border-radius:1px;}',
+        '.ql-popup .popup-exit .popup-exit-icon::before{transform:rotate(45deg);}',
+        '.ql-popup .popup-exit .popup-exit-icon::after{transform:rotate(-45deg);}',
+        '.ql-popup .button-default__2020{font-family:var(--nui-font-body,inherit)!important;font-size:13px!important;font-weight:800!important;padding:9px 18px!important;border-radius:var(--nui-radius-pill,999px)!important;border:none!important;box-shadow:none!important;background-image:none!important;cursor:pointer!important;transition:filter .12s ease,transform .12s ease!important;}',
+        '.ql-popup .button-default__2020:active{transform:scale(0.96)!important;}',
+        '.ql-popup .button-default__2020:disabled{opacity:.5!important;cursor:not-allowed!important;transform:none!important;}',
+        '.ql-popup .button-yellow__2020{background:var(--nui-accent)!important;color:var(--nui-accent-ink,#fff)!important;}',
+        '.ql-popup .button-yellow__2020:hover:not(:disabled){filter:brightness(1.08);}',
+        '.ql-popup .button-green__2020{background:var(--nui-accent)!important;color:var(--nui-accent-ink,#fff)!important;}',
+        '.ql-popup .button-green__2020:hover:not(:disabled){filter:brightness(1.08);}',
+        '.ql-popup .button-red__2020{background:var(--nui-surface-2)!important;color:var(--nui-text)!important;border:1px solid var(--nui-border)!important;}',
+        '.ql-popup .button-red__2020:hover:not(:disabled){filter:brightness(1.08);}',
+        '.ql-popup .popup-header-pattern__2020,.ql-popup .popup-footer-pattern__2020{display:none!important;}',
         '.ql-popup-carousel{position:relative;width:100%;margin:auto;box-sizing:border-box;}',
         '.ql-carousel-slide{width:95%;margin:auto;}',
         '.ql-carousel-dot{cursor:pointer;height:8px;width:8px;margin:0 3px;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:50%;display:inline-block;}',
@@ -34543,27 +35203,25 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             '</div>' +
         '</div>' +
 
-        '<div class="togglePopup__2020 movePopup__2020 ql-popup" id="QuestLogStreakReroll" style="display:none;">' +
+        '<div class="togglePopup__2020 movePopup__2020 ql-popup nui-ql-reroll-popup" id="QuestLogStreakReroll" style="display:none;">' +
             '<div class="popup-header__2020">' +
                 '<button tabindex="0" class="popup-exit button-default__2020 button-red__2020" onclick="togglePopup__2020()"><div class="popup-exit-icon"></div></button>' +
-                '<h3>Swap Your Streak Bonus Reward!</h3>' +
+                '<h3>\uD83C\uDFB2 Swap Your Streak Prize</h3>' +
                 '<div class="popup-header-pattern__2020"></div>' +
             '</div>' +
             '<div class="popup-body__2020">' +
-                '<p>Were you hoping for a different bonus prize? You can swap it out with a different prize for a moderate fee!<br><br>Be advised, though, the cost to re-roll your prize will double each time you do, up to 1 Million NP! You\u2019ll have to complete your week-long streak to reset the cost!</p>' +
-                '<p>Have more questions? Check out the <a href="https://classic.support.neopets.com/hc/en-us/sections/20688509761421-Quest-Log" target="_blank" rel="noopener"><b>FAQ</b></a>!</p>' +
-                               '<div class="ql-reroll-cost">' +
-                    '<div class="ql-reroll-current">Current Cost:</div>' +
+                '<p class="nui-ql-reroll-lead">Not feeling this week\u2019s prize? Pay a fee to roll a new one.</p>' +
+                '<div class="nui-ql-reroll-cost">' +
                     '<img src="https://images.neopets.com/quests/images/neopoints-stack.png" alt="Neopoint Stack">' +
-                    '<div class="ql-reroll-np"><span id="QuestLogRerollCost">' + initialRerollCost + '</span> NP</div>' +
+                    '<div><div class="nui-ql-reroll-cost-label">Current Cost</div><div class="nui-ql-reroll-cost-amt"><span id="QuestLogRerollCost">' + initialRerollCost + '</span> NP</div></div>' +
                 '</div>' +
-
-                '<p>Are you sure you want to re-roll your Streak Bonus Reward?</p>' +
+                '<div class="nui-ql-reroll-warning">\u26A0\uFE0F Cost doubles every time you re-roll \u2014 up to 1,000,000 NP \u2014 and only resets after a full 7-day streak.</div>' +
+                '<a class="nui-ql-reroll-faq" href="https://classic.support.neopets.com/hc/en-us/sections/20688509761421-Quest-Log" target="_blank" rel="noopener">Questions? Read the FAQ \u2197</a>' +
                 '<p id="QLRerollErrorMsg" class="ql-error-msg"></p>' +
             '</div>' +
             '<div class="popup-footer__2020 popup-grid2__2020">' +
                 '<button tabindex="0" class="button-default__2020 button-red__2020" onclick="togglePopup__2020(this)">Nevermind!</button>' +
-                '<button tabindex="0" id="QuestLogConfirmReroll" class="button-default__2020 button-green__2020" onclick="rerollStreakReward(this)" onkeyup="clickElement(event)">Pay NP and Reroll!</button>' +
+                '<button tabindex="0" id="QuestLogConfirmReroll" class="button-default__2020 button-green__2020" onclick="rerollStreakReward(this)" onkeyup="clickElement(event)">\uD83C\uDFB2 Reroll Prize</button>' +
                 '<div class="popup-footer-pattern__2020"></div>' +
             '</div>' +
         '</div>' +
@@ -34858,6 +35516,24 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         });
     }
 
+    // hub.js's own post-claim success handler updates page elements by id that
+    // no longer exist once we've rebuilt the DOM around it (e.g. a legacy NP
+    // counter our topbar doesn't expose under the same id). When that update
+    // throws inside the AJAX success callback, two things break silently:
+    // the quest list never gets its own refresh call (so a claimed NP reward
+    // sits there looking unclaimed until a manual page reload), and the
+    // shared `isProcessing` lock hub.js uses to guard against overlapping
+    // requests never gets reset back to false — which makes every later
+    // retrieveQuests() call, including a plain tab click, a silent no-op.
+    // We don't know which internal call is failing, so rather than guess,
+    // just force both back to a good state ourselves after every claim.
+    function forceListRefresh() {
+        window.isProcessing = false;
+        if (typeof window.retrieveQuests === 'function') {
+            window.retrieveQuests(sessionStorage.getItem('tabActive'));
+        }
+    }
+
     function patchHubFunctions() {
         // hub.js may define claimReward et al. inside its own window 'load'
         // handler, so they might not exist yet. Poll until they all appear.
@@ -34882,6 +35558,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                             ? '\uD83C\uDF89 Reward claimed: ' + it.textContent.trim() + '!'
                             : '\uD83C\uDF89 Quest reward claimed!');
                 });
+                setTimeout(forceListRefresh, 1000);
                 return result;
             };
             window.claimReward.__nuiPatched = true;
@@ -34903,6 +35580,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                             ? '\uD83C\uDF1F Daily bonus: ' + it.textContent.trim() + '!'
                             : '\uD83C\uDF1F Daily bonus claimed!');
                 });
+                setTimeout(forceListRefresh, 1000);
                 return result;
             };
             window.claimBonusReward.__nuiPatched = true;
@@ -34926,6 +35604,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                             ? icon + ' Streak prize: ' + it.textContent.trim() + '!'
                             : icon + ' Streak bonus claimed!');
                 });
+                setTimeout(forceListRefresh, 1000);
                 return result;
             };
             window[fnName].__nuiPatched = true;
@@ -34944,36 +35623,63 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 if (e !== confirmBtn) return result;
 
                 var popup = document.getElementById('QuestLogStreakReroll');
-                var content = document.getElementById('QuestLogContent');
 
-                // Capture the old prize node to detect when the AJAX call finishes
-                var oldPrizeNode = document.getElementById('QuestLogStreakName');
+                // Snapshot what's currently shown. Whatever native code does on
+                // success — replace the prize node outright, or just mutate its
+                // text in place — one of these two values will end up different
+                // afterward, regardless of which. (The previous implementation
+                // used a MutationObserver that only watched for the prize *node*
+                // being removed from the DOM, with characterData enabled only on
+                // the popup itself — not on #QuestLogContent where the prize name
+                // and cost actually live. An in-place text update out there was
+                // invisible to it, so the "success" branch could never fire and
+                // this appeared to just do nothing every time.)
+                var nameEl0 = document.getElementById('QuestLogStreakName');
+                var originalName = nameEl0 ? nameEl0.textContent.trim() : null;
+                var costEl0 = document.getElementById('QuestLogRerollCost');
+                var originalCost = costEl0 ? costEl0.textContent.trim() : null;
 
                 var errEl = document.getElementById('QLRerollErrorMsg');
                 if (errEl) errEl.textContent = '';
 
-                var rerollObs = new MutationObserver(function (mutations, obs) {
+                var elapsed = 0;
+                var pollMs = 300;
+                var pollTimer = setInterval(function () {
+                    elapsed += pollMs;
+
                     var newErrEl = document.getElementById('QLRerollErrorMsg');
                     var newErr = newErrEl ? newErrEl.textContent.trim() : '';
                     if (newErr) {
-                        obs.disconnect();
+                        clearInterval(pollTimer);
                         showToast('\u26A0\uFE0F ' + newErr, true);
                         return;
                     }
 
-                    // Success: The old prize node was wiped by the native retrieveQuests function
-                    if (oldPrizeNode && !document.body.contains(oldPrizeNode)) {
-                        obs.disconnect();
+                    var nameEl = document.getElementById('QuestLogStreakName');
+                    var curName = nameEl ? nameEl.textContent.trim() : null;
+                    var costEl = document.getElementById('QuestLogRerollCost');
+                    var curCost = costEl ? costEl.textContent.trim() : null;
 
-                        // Drop the hammer
-                        window.location.reload();
+                    var nameChanged = originalName !== null && curName !== null && curName !== originalName;
+                    var costChanged = originalCost !== null && curCost !== null && curCost !== originalCost;
+
+                    if (nameChanged || costChanged) {
+                        clearInterval(pollTimer);
+                        if (popup && typeof window.togglePopup__2020 === 'function') window.togglePopup__2020(popup);
+                        showToast('\uD83C\uDFB2 Streak prize re-rolled!');
+                        // retrieveQuests() likely already ran as part of the native
+                        // reroll flow, but force a second pass regardless: the same
+                        // stuck-isProcessing-lock risk that breaks tab switching
+                        // after a claim (see forceListRefresh above) can just as
+                        // easily follow a reroll.
+                        setTimeout(forceListRefresh, 400);
+                        return;
                     }
-                });
 
-                if (popup) rerollObs.observe(popup, { childList: true, subtree: true, characterData: true });
-                if (content) rerollObs.observe(content, { childList: true, subtree: true });
-
-                setTimeout(function () { rerollObs.disconnect(); }, 8000);
+                    if (elapsed >= 8000) {
+                        clearInterval(pollTimer);
+                    }
+                }, pollMs);
 
                 return result;
             };
@@ -53670,6 +54376,7 @@ return {
 // last 30 in localStorage, and exposes a modal log accessible from the drawer.
 //
 // What we capture per event:
+//   - id: unique per-entry id (lets the modal delete a single entry)
 //   - text: the .re-content innerHTML (event description, may include <b> tags)
 //   - imageUrl: background-image URL from the .image150 element's companion
 //               <style> block (the sprite that shows the event character/icon)
@@ -53678,11 +54385,29 @@ return {
 //   - page: pathname of the page where the event fired
 //   - ts: Unix ms timestamp
 //
-// Detection strategy: MutationObserver on document.documentElement watching
-// for .randomEvent nodes being added (covers both static page load and AJAX-
-// injected events). We read the sibling <style> that Neopets always injects
-// alongside the event div (pattern: #randomEventDiv_* { background-color: })
-// to extract colors and the image URL.
+// Detection strategy: a single MutationObserver on document.documentElement,
+// watching both childList and attribute changes, subtree-wide. On every
+// batch of mutations we resolve each mutation back to its nearest .randomEvent
+// ancestor (mutation.target.closest('.randomEvent'), plus any .randomEvent
+// found among/under addedNodes) and re-run captureEvent on that set. This
+// deliberately does NOT assume a random event arrives fully-formed in one
+// atomic insert — three real-world patterns needed covering:
+//   1. The whole .randomEvent block (already containing .re-content) is
+//      inserted in one shot — the classic AJAX/static case.
+//   2. An empty/placeholder .randomEvent container is already in the DOM and
+//      .re-content (or bare text) is dropped into it moments later by the
+//      page's own script. Previously this was invisible: the handler only
+//      ever looked *downward* from a newly-added node for .randomEvent
+//      descendants, so content landing *inside* an already-present container
+//      was never seen. Resolving via closest() on the mutation target fixes
+//      this regardless of whether the added content is an element or a bare
+//      text node.
+//   3. A .randomEvent container is already in the DOM (hidden) and gets
+//      revealed via a style/class attribute flip rather than a node
+//      insertion — now covered by observing attributes on the container.
+// The existing text+10s dedupe in captureEvent absorbs any double-fires this
+// broader net produces (e.g. an attribute change followed by a content
+// insertion for the same event).
 //
 // Storage: neoui_re_log_v1 — JSON array, newest-first, capped at 30 entries.
 // Module ID: 're-logger'
@@ -53704,6 +54429,16 @@ return {
     }
     function saveLog(entries) {
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); } catch (e) {}
+    }
+    function makeId() {
+        return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    }
+    // Removes a single entry by id. Returns the updated log so callers don't
+    // need a second loadLog() round-trip.
+    function removeEntry(id) {
+        const log = loadLog().filter(function (e) { return e.id !== id; });
+        saveLog(log);
+        return log;
     }
 
     // ── Parse the companion <style> block for a given event div ID ────────
@@ -53740,6 +54475,7 @@ return {
             const styleData = node.id ? parseEventStyle(node.id) : {};
 
             const entry = {
+                id: makeId(),
                 text: content.innerHTML.trim(),
                 imageUrl: styleData.imageUrl || null,
                 bgColor: styleData.bgColor || null,
@@ -53750,7 +54486,10 @@ return {
 
             const log = loadLog();
             // Dedupe: skip if identical text fired within the last 10 seconds
-            // (Neopets sometimes injects the same event div twice on page load)
+            // (Neopets sometimes injects the same event div twice on page load,
+            // and the broader detection below can also see the same event
+            // fire more than once — e.g. a visibility toggle followed by the
+            // content insertion it revealed).
             if (log.length > 0 && log[0].text === entry.text && entry.ts - log[0].ts < 10000) return;
 
             log.unshift(entry);
@@ -53760,19 +54499,49 @@ return {
     }
 
     // ── Sitewide observer ─────────────────────────────────────────────────
+    // Resolves any node (an added node, or a mutation's target) to its
+    // nearest .randomEvent container, whether that node IS the container or
+    // is nested somewhere inside one that already existed in the DOM.
+    function nearestRandomEvent(el) {
+        if (!el || el.nodeType !== 1 || !el.closest) return null;
+        return el.closest('.randomEvent');
+    }
+
     const obs = new MutationObserver(function (mutations) {
+        const toCheck = new Set();
         mutations.forEach(function (mutation) {
+            // Covers content (element OR bare text) dropped into a
+            // .randomEvent container that was already sitting in the DOM.
+            const targetRE = nearestRandomEvent(mutation.target);
+            if (targetRE) toCheck.add(targetRE);
+
+            // Covers the classic case: a whole new .randomEvent block
+            // (already populated) inserted in one shot, anywhere in the
+            // inserted subtree.
             mutation.addedNodes.forEach(function (node) {
                 if (node.nodeType !== 1) return;
-                if (node.classList && node.classList.contains('randomEvent')) {
-                    captureEvent(node);
+                if (node.classList && node.classList.contains('randomEvent')) toCheck.add(node);
+                if (node.querySelectorAll) {
+                    node.querySelectorAll('.randomEvent').forEach(function (re) { toCheck.add(re); });
                 }
-                // Also catch if the event was injected inside a wrapper
-                node.querySelectorAll && node.querySelectorAll('.randomEvent').forEach(captureEvent);
             });
+
+            // Covers a pre-existing, already-populated container that was
+            // hidden and gets revealed via a style/class flip rather than
+            // any node insertion.
+            if (mutation.type === 'attributes') {
+                const re = nearestRandomEvent(mutation.target);
+                if (re) toCheck.add(re);
+            }
         });
+        toCheck.forEach(captureEvent);
     });
-    obs.observe(document.documentElement, { childList: true, subtree: true });
+    obs.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+    });
 
     // Also capture any events already in the DOM on load (static page REs)
     document.querySelectorAll('.randomEvent').forEach(captureEvent);
@@ -53820,11 +54589,61 @@ return {
     }
 
     // ── Modal ─────────────────────────────────────────────────────────────
+    // Compact single-line-ish entry card with its own delete button, so one
+    // event can be dismissed without wiping the whole log.
+    function buildEntryCard(entry, onRemoved) {
+        const card = document.createElement('div');
+        card.dataset.reId = entry.id;
+        card.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:8px 28px 8px 8px;border-radius:var(--nui-radius-md);border:1px solid var(--nui-border);margin-bottom:6px;background:var(--nui-surface-2);position:relative;';
+
+        // Event image — use the extracted sprite URL; fall back to emoji
+        const imgWrap = document.createElement('div');
+        imgWrap.style.cssText = 'flex-shrink:0;width:40px;height:40px;border-radius:var(--nui-radius-sm);overflow:hidden;display:flex;align-items:center;justify-content:center;' +
+            (entry.bgColor ? 'background:' + entry.bgColor + ';' : 'background:var(--nui-border);');
+        if (entry.imageUrl) {
+            imgWrap.style.backgroundImage = 'url(' + entry.imageUrl + ')';
+            imgWrap.style.backgroundSize = 'cover';
+            imgWrap.style.backgroundPosition = 'center';
+        } else {
+            imgWrap.style.fontSize = '20px';
+            imgWrap.textContent = '⚡';
+        }
+
+        // Text side — clamped to 2 lines to keep the list scannable
+        const textSide = document.createElement('div');
+        textSide.style.cssText = 'flex:1;min-width:0;';
+        textSide.innerHTML =
+            '<div style="font-size:12px;color:var(--nui-text);line-height:1.4;margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + entry.text + '</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                '<span style="font-size:10px;color:var(--nui-text-muted);">📍 ' + pageLabel(entry.page) + '</span>' +
+                '<span style="font-size:10px;color:var(--nui-text-muted);">🕐 ' + formatTs(entry.ts) + '</span>' +
+            '</div>';
+
+        // Per-entry delete
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.title = 'Remove this event';
+        delBtn.textContent = '\u00D7';
+        delBtn.style.cssText = 'position:absolute;top:4px;right:4px;width:18px;height:18px;border:none;background:none;color:var(--nui-text-muted);font-size:14px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:background var(--nui-dur-fast,.12s) var(--nui-ease,ease),color var(--nui-dur-fast,.12s) var(--nui-ease,ease);';
+        delBtn.addEventListener('mouseenter', function () { delBtn.style.background = 'var(--nui-border)'; delBtn.style.color = 'var(--nui-text)'; });
+        delBtn.addEventListener('mouseleave', function () { delBtn.style.background = 'none'; delBtn.style.color = 'var(--nui-text-muted)'; });
+        delBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const updated = removeEntry(entry.id);
+            card.remove();
+            onRemoved(updated);
+        });
+
+        card.appendChild(imgWrap);
+        card.appendChild(textSide);
+        card.appendChild(delBtn);
+        return card;
+    }
+
     function openRELog() {
         const existing = document.getElementById('nui-re-log-modal');
         if (existing) { existing.remove(); return; }
-
-        const log = loadLog();
 
         const overlay = document.createElement('div');
         overlay.id = 'nui-re-log-modal';
@@ -53834,81 +54653,83 @@ return {
         modal.className = 'nui-surface';
         modal.style.cssText = 'width:min(96vw,560px);max-height:min(90vh,780px);border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);box-shadow:0 28px 90px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden;background:var(--nui-surface);';
 
-        // Header
         const header = document.createElement('div');
         header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--nui-border);flex-shrink:0;background:var(--nui-surface-2);';
-        header.innerHTML =
-            '<div>' +
-                '<div style="font-size:17px;font-weight:800;color:var(--nui-text);">⚡ Random Events</div>' +
-                '<div style="font-size:12px;color:var(--nui-text-muted);margin-top:2px;">Last ' + MAX_ENTRIES + ' events across all pages</div>' +
-            '</div>' +
-            '<div style="display:flex;align-items:center;gap:8px;">' +
-                (log.length > 0 ? '<button id="nui-re-clear" type="button" style="background:none;border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);color:var(--nui-text-muted);font-size:12px;padding:4px 10px;cursor:pointer;">Clear all</button>' : '') +
-                '<button id="nui-re-close" type="button" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--nui-text-muted);line-height:1;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">\u00D7</button>' +
-            '</div>';
 
-        // Body
+        const headerText = document.createElement('div');
+        headerText.innerHTML =
+            '<div style="font-size:17px;font-weight:800;color:var(--nui-text);">⚡ Random Events</div>' +
+            '<div id="nui-re-subtitle" style="font-size:12px;color:var(--nui-text-muted);margin-top:2px;">Last ' + MAX_ENTRIES + ' events across all pages</div>';
+
+        const headerActions = document.createElement('div');
+        headerActions.style.cssText = 'display:flex;align-items:center;gap:8px;';
+
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.id = 'nui-re-clear';
+        clearBtn.textContent = 'Clear all';
+        clearBtn.style.cssText = 'background:none;border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);color:var(--nui-text-muted);font-size:12px;padding:4px 10px;cursor:pointer;';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.id = 'nui-re-close';
+        closeBtn.innerHTML = '\u00D7';
+        closeBtn.style.cssText = 'background:none;border:none;font-size:24px;cursor:pointer;color:var(--nui-text-muted);line-height:1;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;';
+
+        headerActions.appendChild(clearBtn);
+        headerActions.appendChild(closeBtn);
+        header.appendChild(headerText);
+        header.appendChild(headerActions);
+
         const body = document.createElement('div');
         body.style.cssText = 'overflow-y:auto;flex:1;padding:12px 16px;';
 
-        if (log.length === 0) {
+        function renderEmpty() {
             body.innerHTML =
                 '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:12px;">' +
                     '<div style="font-size:48px;opacity:0.3;">⚡</div>' +
                     '<div style="font-size:15px;font-weight:700;color:var(--nui-text-muted);">No events logged yet</div>' +
                     '<div style="font-size:13px;color:var(--nui-text-muted);text-align:center;max-width:260px;line-height:1.5;">Random events will appear here as you browse Neopets.</div>' +
                 '</div>';
-        } else {
-            const cards = log.map(function (entry, idx) {
-                const card = document.createElement('div');
-                card.style.cssText = 'display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:var(--nui-radius-md);border:1px solid var(--nui-border);margin-bottom:8px;background:var(--nui-surface-2);';
-
-                // Event image — use the extracted sprite URL; fall back to emoji
-                const imgWrap = document.createElement('div');
-                imgWrap.style.cssText = 'flex-shrink:0;width:56px;height:56px;border-radius:var(--nui-radius-sm);overflow:hidden;display:flex;align-items:center;justify-content:center;' +
-                    (entry.bgColor ? 'background:' + entry.bgColor + ';' : 'background:var(--nui-border);');
-                if (entry.imageUrl) {
-                    imgWrap.style.backgroundImage = 'url(' + entry.imageUrl + ')';
-                    imgWrap.style.backgroundSize = 'cover';
-                    imgWrap.style.backgroundPosition = 'center';
-                } else {
-                    imgWrap.style.fontSize = '28px';
-                    imgWrap.textContent = '⚡';
-                }
-
-                // Text side
-                const textSide = document.createElement('div');
-                textSide.style.cssText = 'flex:1;min-width:0;';
-                textSide.innerHTML =
-                    '<div style="font-size:13px;color:var(--nui-text);line-height:1.5;margin-bottom:6px;">' + entry.text + '</div>' +
-                    '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-                        '<span style="font-size:11px;color:var(--nui-text-muted);">📍 ' + pageLabel(entry.page) + '</span>' +
-                        '<span style="font-size:11px;color:var(--nui-text-muted);">🕐 ' + formatTs(entry.ts) + '</span>' +
-                    '</div>';
-
-                card.appendChild(imgWrap);
-                card.appendChild(textSide);
-                return card;
-            });
-            cards.forEach(function (c) { body.appendChild(c); });
         }
+
+        function renderList(log) {
+            body.innerHTML = '';
+            if (log.length === 0) { renderEmpty(); return; }
+            log.forEach(function (entry) {
+                body.appendChild(buildEntryCard(entry, onLogChanged));
+            });
+        }
+
+        // Shared refresh after any mutation (single delete or clear-all):
+        // updates the count subtitle, hides "Clear all" once empty, and
+        // swaps in the empty state if the log is now empty.
+        function onLogChanged(log) {
+            const subtitle = header.querySelector('#nui-re-subtitle');
+            if (subtitle) {
+                subtitle.textContent = log.length > 0
+                    ? 'Last ' + MAX_ENTRIES + ' events across all pages'
+                    : 'No events logged yet';
+            }
+            clearBtn.style.display = log.length > 0 ? '' : 'none';
+            if (log.length === 0) renderEmpty();
+        }
+
+        const initialLog = loadLog();
+        renderList(initialLog);
+        clearBtn.style.display = initialLog.length > 0 ? '' : 'none';
 
         modal.appendChild(header);
         modal.appendChild(body);
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
 
-        // Wire close
         overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
-        modal.querySelector('#nui-re-close').addEventListener('click', function () { overlay.remove(); });
-        const clearBtn = modal.querySelector('#nui-re-clear');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', function () {
-                saveLog([]);
-                overlay.remove();
-                openRELog(); // Re-open showing empty state
-            });
-        }
+        closeBtn.addEventListener('click', function () { overlay.remove(); });
+        clearBtn.addEventListener('click', function () {
+            saveLog([]);
+            onLogChanged([]);
+        });
     }
 
     // Expose so the drawer wiring can call it
@@ -55442,6 +56263,112 @@ return {
             width: 100%;
             overflow-x: hidden;
         }
+
+        /* Generic reskin for native buttons/links/inputs on unclaimed pages —
+           gives them the NeoUI accent/rounded look without needing to know
+           anything about the specific page's markup. Scoped to the content
+           areas only, so nothing outside a converted page is touched.
+           Excludes both our own nui- classed elements AND nph- classed ones
+           (Neopets Helper's topbar/badge integration, which also renders
+           inside page content in places like item rarity/price badges) —
+           see the aggressive recoloring pass below for why nph- needs the
+           same exclusion. */
+        #nui-sitewide-content-wrap input[type="submit"],
+        #nui-sitewide-content-wrap input[type="button"],
+        #nui-sitewide-content-wrap button:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]),
+        #container__2020 input[type="submit"],
+        #container__2020 input[type="button"],
+        #container__2020 button:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]) {
+            background: var(--nui-accent) !important;
+            color: var(--nui-accent-ink,#fff) !important;
+            border: none !important;
+            border-radius: var(--nui-radius-pill) !important;
+            padding: 7px 16px !important;
+            font-weight: 700 !important;
+            cursor: pointer !important;
+        }
+        #nui-sitewide-content-wrap a:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]),
+        #container__2020 a:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]) {
+            color: var(--nui-accent) !important;
+        }
+        #nui-sitewide-content-wrap input[type="text"],
+        #nui-sitewide-content-wrap input[type="password"],
+        #nui-sitewide-content-wrap textarea,
+        #nui-sitewide-content-wrap select,
+        #container__2020 input[type="text"],
+        #container__2020 input[type="password"],
+        #container__2020 textarea,
+        #container__2020 select {
+            background: var(--nui-surface-2) !important;
+            color: var(--nui-text) !important;
+            border: 1px solid var(--nui-border) !important;
+            border-radius: var(--nui-radius-sm) !important;
+        }
+
+        /* Fallback page-header bar — injected for 2020-template pages that
+           don't already build their own qs-page-header-style title. */
+        .nui-fallback-header {
+            display:flex; align-items:center; gap:10px; padding:14px var(--nui-space-4) 4px;
+        }
+        .nui-fallback-header__back {
+            flex-shrink:0; width:34px; height:34px; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            background:var(--nui-surface-2); border:1px solid var(--nui-border);
+            color:var(--nui-text); text-decoration:none; font-size:16px;
+        }
+        .nui-fallback-header__title {
+            font-size:19px; font-weight:800; color:var(--nui-text); font-family:var(--nui-font-display);
+        }
+
+        /* ── Aggressive recoloring pass ──────────────────────────────────
+           Classic Neopets markup hardcodes its own colors everywhere —
+           bgcolor attributes, inline style="background:#fff", <font
+           color="...">, table cells with baked-in white/gray backgrounds —
+           none of which the selective typography rule above touches. This
+           strips it broadly across both fallback trees (Case A's raw
+           #container__2020 and Case B/C's reflowed #nui-sitewide-content-
+           wrap) so containers actually read as theme-colored rather than
+           just having their text recolored while everything still sits on
+           its original white/gray backgrounds.
+           CSS !important beats inline style="" AND the (very low-
+           specificity) UA-stylesheet mapping for legacy bgcolor/color/font
+           attributes, so this one pass handles both without any JS-side
+           attribute stripping.
+           :not([class*="nui-"]) excludes every element this file itself
+           creates (topbar, drawer, cards, fallback header, etc.) so this
+           never fights our own componentry. It ALSO has to exclude
+           :not([class*="nph-"]) — Neopets Helper's item rarity/price/status
+           badges render inline right into page content (not just its own
+           topbar dock) with semantically meaningful inline colors (green
+           price badge, per-rarity badge color, sale-speed status dot), and
+           without this exclusion the first version of this pass wiped all
+           of those out along with the legacy Neopets colors it was
+           actually meant to target. */
+        #container__2020 *:not([class*="nui-"]):not([class*="nph-"]),
+        #nui-sitewide-content-wrap *:not([class*="nui-"]):not([class*="nph-"]) {
+            background-color: transparent !important;
+            border-color: var(--nui-border) !important;
+        }
+        #container__2020 table:not([class*="nui-"]):not([class*="nph-"]),
+        #container__2020 tr:not([class*="nui-"]):not([class*="nph-"]),
+        #container__2020 td:not([class*="nui-"]):not([class*="nph-"]),
+        #container__2020 th:not([class*="nui-"]):not([class*="nph-"]),
+        #nui-sitewide-content-wrap table:not([class*="nui-"]):not([class*="nph-"]),
+        #nui-sitewide-content-wrap tr:not([class*="nui-"]):not([class*="nph-"]),
+        #nui-sitewide-content-wrap td:not([class*="nui-"]):not([class*="nph-"]),
+        #nui-sitewide-content-wrap th:not([class*="nui-"]):not([class*="nph-"]) {
+            background-color: transparent !important;
+            color: inherit !important;
+            border-color: var(--nui-border) !important;
+        }
+        #container__2020 font:not([class*="nph-"]), #container__2020 b:not([class*="nph-"]), #container__2020 i:not([class*="nph-"]),
+        #container__2020 strong:not([class*="nph-"]), #container__2020 em:not([class*="nph-"]), #container__2020 u:not([class*="nph-"]),
+        #container__2020 li:not([class*="nph-"]), #container__2020 blockquote:not([class*="nph-"]), #container__2020 small:not([class*="nph-"]),
+        #nui-sitewide-content-wrap font:not([class*="nph-"]), #nui-sitewide-content-wrap b:not([class*="nph-"]), #nui-sitewide-content-wrap i:not([class*="nph-"]),
+        #nui-sitewide-content-wrap strong:not([class*="nph-"]), #nui-sitewide-content-wrap em:not([class*="nph-"]), #nui-sitewide-content-wrap u:not([class*="nph-"]),
+        #nui-sitewide-content-wrap li:not([class*="nph-"]), #nui-sitewide-content-wrap blockquote:not([class*="nph-"]), #nui-sitewide-content-wrap small:not([class*="nph-"]) {
+            color: inherit !important;
+        }
     `;
 
 
@@ -55452,6 +56379,129 @@ return {
             box.textContent = 'Sitewide Chrome conversion crashed:\n' + (err && err.stack ? err.stack : String(err));
             document.body.insertBefore(box, document.body.firstChild);
         } catch (e2) {}
+    }
+
+    // ── NeoUI card wrapping pass ─────────────────────────────────────────
+    // Converts classic Neopets markup patterns into NeoUI surface cards so
+    // an unclaimed page gets the same visual treatment as module-owned
+    // pages, instead of raw legacy HTML sitting under our topbar. Shared
+    // between Case B (classic two-column) and Case C (unrecognised layout)
+    // — previously Case C got none of this and was left as the most
+    // undecorated of the three fallback paths for no real reason; the
+    // pass itself doesn't assume anything Case-B-specific.
+    //
+    // Pass 1: contentModule tables (the standard Neopets sidebar/content
+    // widget pattern — a table with a .contentModuleHeader th and a
+    // .contentModuleContent td). Each becomes a <details> card.
+    //
+    // Pass 2: Any remaining top-level content that isn't already inside
+    // a card gets wrapped in a catch-all card so it sits on a surface
+    // instead of floating on the raw page background.
+    function runCardWrappingPass(contentWrap) {
+        function makeCard(titleText, bodyEl) {
+            const card = document.createElement('div');
+            card.className = 'nui-surface';
+            card.style.cssText = 'border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);box-shadow:0 2px 8px var(--nui-shadow);overflow:hidden;width:100%;box-sizing:border-box;margin-bottom:var(--nui-space-4);';
+            const details = document.createElement('details');
+            details.className = 'nui-card-details';
+            details.open = true;
+            if (titleText) {
+                const summary = document.createElement('summary');
+                summary.className = 'nui-card-summary';
+                summary.style.cssText = 'padding:10px 16px;border-bottom:1px solid var(--nui-border);font-family:var(--nui-font-display);font-size:15px;font-weight:800;color:var(--nui-text);background:var(--nui-surface-2);text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;';
+                summary.textContent = titleText;
+                summary.innerHTML += '<style>summary::-webkit-details-marker{display:none;}</style>';
+                details.appendChild(summary);
+            }
+            const body = document.createElement('div');
+            body.className = 'nui-card-body';
+            body.style.cssText = 'padding:var(--nui-space-4);box-sizing:border-box;color:var(--nui-text);font-size:14px;line-height:1.6;';
+            if (bodyEl) {
+                body.appendChild(bodyEl);
+            }
+            details.appendChild(body);
+            card.appendChild(details);
+            return { card, body };
+        }
+        function styleInnerTables(inner) {
+            inner.querySelectorAll('table').forEach(function (t) {
+                t.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;max-width:100%;';
+                t.querySelectorAll('tr').forEach(function (tr, i) {
+                    tr.style.background = i % 2 === 0 ? 'var(--nui-surface-2)' : 'var(--nui-surface)';
+                    tr.querySelectorAll('td, th').forEach(function (cell) {
+                        cell.style.padding = '5px 8px';
+                        cell.style.borderBottom = '1px solid var(--nui-border)';
+                        cell.style.color = cell.tagName === 'TH' ? 'var(--nui-text-muted)' : 'var(--nui-text)';
+                    });
+                });
+            });
+        }
+
+        // Pass 1: contentModule tables → cards
+        contentWrap.querySelectorAll('table.contentModule, .contentModule').forEach(function (mod) {
+            const headerEl = mod.querySelector('th.contentModuleHeader, th.contentModuleHeaderAlt, .contentModuleHeader, .contentModuleHeaderAlt');
+            const contentEl = mod.querySelector('td.contentModuleContent, .contentModuleContent');
+            const title = headerEl ? headerEl.textContent.trim() : '';
+            const inner = document.createElement('div');
+            inner.style.cssText = 'overflow-x:auto;max-width:100%;';
+            if (contentEl) {
+                // Move contentEl's children in, stripping the legacy td wrapper
+                Array.from(contentEl.childNodes).forEach(function (n) { inner.appendChild(n.cloneNode(true)); });
+            } else {
+                inner.innerHTML = mod.innerHTML;
+            }
+            // Normalise any remaining inline colors so theme vars apply
+            inner.querySelectorAll('*').forEach(function (e) {
+                e.removeAttribute('bgcolor'); e.removeAttribute('color');
+                e.removeAttribute('background'); e.removeAttribute('text');
+            });
+            const { card } = makeCard(title, inner);
+            styleInnerTables(inner);
+            mod.parentNode && mod.parentNode.replaceChild(card, mod);
+        });
+
+        // Pass 2: wrap remaining loose top-level nodes in a catch-all card
+        // Collect everything that isn't already a .nui-surface card and
+        // has actual visible content.
+        const loose = Array.from(contentWrap.childNodes).filter(function (n) {
+            if (n.nodeType === 3) return n.textContent.trim().length > 0; // non-empty text nodes
+            if (n.nodeType !== 1) return false;
+            if (n.classList && n.classList.contains('nui-surface')) return false;
+            // Skip invisible/chrome nodes
+            const tag = n.tagName && n.tagName.toLowerCase();
+            if (tag === 'style' || tag === 'script' || tag === 'link') return false;
+            return true;
+        });
+
+        if (loose.length > 0) {
+            // Try to find a title from the first h1/h2/h3 in the loose content
+            let pageTitle = '';
+            loose.forEach(function (n) {
+                if (!pageTitle && n.nodeType === 1) {
+                    const h = n.matches && n.matches('h1,h2,h3') ? n : n.querySelector && n.querySelector('h1,h2,h3');
+                    if (h) { pageTitle = h.textContent.trim(); h.remove(); }
+                }
+            });
+            if (!pageTitle) {
+                // Fall back to document title minus " | Neopets"
+                pageTitle = document.title.replace(/\s*[|\-–]\s*Neopets.*$/i, '').trim();
+            }
+
+            const fragment = document.createDocumentFragment();
+            loose.forEach(function (n) { fragment.appendChild(n); });
+
+            const inner = document.createElement('div');
+            inner.appendChild(fragment);
+            // Normalise color attrs
+            inner.querySelectorAll('*').forEach(function (e) {
+                e.removeAttribute('bgcolor'); e.removeAttribute('color');
+                e.removeAttribute('background'); e.removeAttribute('text');
+            });
+            styleInnerTables(inner);
+
+            const { card } = makeCard(pageTitle, inner);
+            contentWrap.appendChild(card);
+        }
     }
 
     try {
@@ -55521,6 +56571,36 @@ return {
             container2020.style.width = '100%';
             container2020.style.overflowX = 'hidden';
 
+            // Fallback page-header: some unclaimed 2020-template pages
+            // already surface their own clear title (a bare <h1>, e.g. via
+            // .qs-page-header-style markup) — leave those as-is, just
+            // recolor. Pages with no heading at all get one built from
+            // document.title, the same "read what's there, use it, replace
+            // the visual gap" pattern the Your Shop rebuild used for its
+            // header, so an entirely-unclaimed page doesn't sit under the
+            // topbar looking like undecorated raw HTML.
+            const existingH1 = container2020.querySelector('h1');
+            if (existingH1) {
+                existingH1.style.color = 'var(--nui-text)';
+                existingH1.style.fontFamily = 'var(--nui-font-display)';
+            } else {
+                const pageTitle = document.title.replace(/\s*[|\-–]\s*Neopets.*$/i, '').trim() || 'Neopets';
+                const fallbackHeader = document.createElement('div');
+                fallbackHeader.className = 'nui-fallback-header';
+                const backLink = document.createElement('a');
+                backLink.className = 'nui-fallback-header__back';
+                backLink.href = '#';
+                backLink.title = 'Back';
+                backLink.textContent = '←';
+                backLink.addEventListener('click', function (e) { e.preventDefault(); history.back(); });
+                const titleEl = document.createElement('div');
+                titleEl.className = 'nui-fallback-header__title';
+                titleEl.textContent = pageTitle;
+                fallbackHeader.appendChild(backLink);
+                fallbackHeader.appendChild(titleEl);
+                container2020.insertAdjacentElement('beforebegin', fallbackHeader);
+            }
+
         } else if (classicContentTd) {
             // Case B: classic two-column layout.
             const contentWrap = document.createElement('div');
@@ -55530,131 +56610,7 @@ return {
             });
             classicContentTd.style.cssText = 'display:block;padding:0;margin:0;border:none;background:transparent;width:auto;';
             document.body.appendChild(contentWrap);
-
-            // ── NeoUI card wrapping pass ─────────────────────────────────────
-            // Run after the content is in the DOM. Converts classic Neopets
-            // markup patterns into NeoUI surface cards so unclaimed pages
-            // get the same visual treatment as module-owned pages.
-            //
-            // Pass 1: contentModule tables (the standard Neopets sidebar/content
-            // widget pattern — a table with a .contentModuleHeader th and a
-            // .contentModuleContent td). Each becomes a <details> card.
-            //
-            // Pass 2: Any remaining top-level content that isn't already inside
-            // a card gets wrapped in a catch-all card so it sits on a surface
-            // instead of floating on the raw page background.
-            requestAnimationFrame(function () {
-                function makeCard(titleText, bodyEl) {
-                    const card = document.createElement('div');
-                    card.className = 'nui-surface';
-                    card.style.cssText = 'border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);box-shadow:0 2px 8px var(--nui-shadow);overflow:hidden;width:100%;box-sizing:border-box;margin-bottom:var(--nui-space-4);';
-                    const details = document.createElement('details');
-                    details.open = true;
-                    if (titleText) {
-                        const summary = document.createElement('summary');
-                        summary.style.cssText = 'padding:10px 16px;border-bottom:1px solid var(--nui-border);font-family:var(--nui-font-display);font-size:15px;font-weight:800;color:var(--nui-text);background:var(--nui-surface-2);text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;';
-                        summary.textContent = titleText;
-                        summary.innerHTML += '<style>summary::-webkit-details-marker{display:none;}</style>';
-                        details.appendChild(summary);
-                    }
-                    const body = document.createElement('div');
-                    body.style.cssText = 'padding:var(--nui-space-4);box-sizing:border-box;color:var(--nui-text);font-size:14px;line-height:1.6;';
-                    if (bodyEl) {
-                        body.appendChild(bodyEl);
-                    }
-                    details.appendChild(body);
-                    card.appendChild(details);
-                    return { card, body };
-                }
-
-                // Pass 1: contentModule tables → cards
-                contentWrap.querySelectorAll('table.contentModule, .contentModule').forEach(function (mod) {
-                    const headerEl = mod.querySelector('th.contentModuleHeader, th.contentModuleHeaderAlt, .contentModuleHeader, .contentModuleHeaderAlt');
-                    const contentEl = mod.querySelector('td.contentModuleContent, .contentModuleContent');
-                    const title = headerEl ? headerEl.textContent.trim() : '';
-                    const inner = document.createElement('div');
-                    inner.style.cssText = 'overflow-x:auto;max-width:100%;';
-                    if (contentEl) {
-                        // Move contentEl's children in, stripping the legacy td wrapper
-                        Array.from(contentEl.childNodes).forEach(function (n) { inner.appendChild(n.cloneNode(true)); });
-                    } else {
-                        inner.innerHTML = mod.innerHTML;
-                    }
-                    // Normalise any remaining inline colors so theme vars apply
-                    inner.querySelectorAll('*').forEach(function (e) {
-                        e.removeAttribute('bgcolor'); e.removeAttribute('color');
-                        e.removeAttribute('background'); e.removeAttribute('text');
-                    });
-                    const { card, body } = makeCard(title, inner);
-                    // Style any nested tables inside
-                    inner.querySelectorAll('table').forEach(function (t) {
-                        t.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;max-width:100%;';
-                        t.querySelectorAll('tr').forEach(function (tr, i) {
-                            tr.style.background = i % 2 === 0 ? 'var(--nui-surface-2)' : 'var(--nui-surface)';
-                            tr.querySelectorAll('td, th').forEach(function (cell) {
-                                cell.style.padding = '5px 8px';
-                                cell.style.borderBottom = '1px solid var(--nui-border)';
-                                cell.style.color = cell.tagName === 'TH' ? 'var(--nui-text-muted)' : 'var(--nui-text)';
-                            });
-                        });
-                    });
-                    mod.parentNode && mod.parentNode.replaceChild(card, mod);
-                });
-
-                // Pass 2: wrap remaining loose top-level nodes in a catch-all card
-                // Collect everything that isn't already a .nui-surface card and
-                // has actual visible content.
-                const loose = Array.from(contentWrap.childNodes).filter(function (n) {
-                    if (n.nodeType === 3) return n.textContent.trim().length > 0; // non-empty text nodes
-                    if (n.nodeType !== 1) return false;
-                    if (n.classList && n.classList.contains('nui-surface')) return false;
-                    // Skip invisible/chrome nodes
-                    const tag = n.tagName && n.tagName.toLowerCase();
-                    if (tag === 'style' || tag === 'script' || tag === 'link') return false;
-                    return true;
-                });
-
-                if (loose.length > 0) {
-                    // Try to find a title from the first h1/h2/h3 in the loose content
-                    let pageTitle = '';
-                    loose.forEach(function (n) {
-                        if (!pageTitle && n.nodeType === 1) {
-                            const h = n.matches && n.matches('h1,h2,h3') ? n : n.querySelector && n.querySelector('h1,h2,h3');
-                            if (h) { pageTitle = h.textContent.trim(); h.remove(); }
-                        }
-                    });
-                    if (!pageTitle) {
-                        // Fall back to document title minus " | Neopets"
-                        pageTitle = document.title.replace(/\s*[|\-–]\s*Neopets.*$/i, '').trim();
-                    }
-
-                    const fragment = document.createDocumentFragment();
-                    loose.forEach(function (n) { fragment.appendChild(n); });
-
-                    const inner = document.createElement('div');
-                    inner.appendChild(fragment);
-                    // Normalise color attrs
-                    inner.querySelectorAll('*').forEach(function (e) {
-                        e.removeAttribute('bgcolor'); e.removeAttribute('color');
-                        e.removeAttribute('background'); e.removeAttribute('text');
-                    });
-                    // Style any tables
-                    inner.querySelectorAll('table').forEach(function (t) {
-                        t.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;max-width:100%;';
-                        t.querySelectorAll('tr').forEach(function (tr, i) {
-                            tr.style.background = i % 2 === 0 ? 'var(--nui-surface-2)' : 'var(--nui-surface)';
-                            tr.querySelectorAll('td, th').forEach(function (cell) {
-                                cell.style.padding = '5px 8px';
-                                cell.style.borderBottom = '1px solid var(--nui-border)';
-                                cell.style.color = cell.tagName === 'TH' ? 'var(--nui-text-muted)' : 'var(--nui-text)';
-                            });
-                        });
-                    });
-
-                    const { card } = makeCard(pageTitle, inner);
-                    contentWrap.appendChild(card);
-                }
-            }); // end requestAnimationFrame
+            requestAnimationFrame(function () { runCardWrappingPass(contentWrap); });
 
         } else {
             // Case C: unrecognised layout — collect all non-NeoUI body children.
@@ -55677,6 +56633,10 @@ return {
                 })
                 .forEach(function (n) { contentWrap.appendChild(n); });
             document.body.appendChild(contentWrap);
+            // Case C used to leave this raw — no title, no cards, just the
+            // generic table/img max-width clamps from EXTRA_RULES. Give it
+            // the same treatment Case B gets instead of a second-class fallback.
+            requestAnimationFrame(function () { runCardWrappingPass(contentWrap); });
         }
     } catch (e) {
         console.error('NeoUI Sitewide Chrome: conversion failed', e);
@@ -55684,27 +56644,34 @@ return {
     }
 })();
 // ==============================================================================
-// MODULE 63: YOUR SHOP — PRICING HELPER
+// MODULE 63: YOUR SHOP — FULL PAGE REBUILD
 // ==============================================================================
-// Chrome-only enhancement of the native /market.phtml?type=your stock table
-// (same non-rebuild approach as Module 23b/Closet — the table is a live Vue
-// app owned by the site, we just layer QOL on top of it):
-//   - A tiny icon-only "Check price" button per row that opens the Shop
-//     Wizard (or Super Shop Wizard, for Premium accounts) pre-searched for
-//     that item, so you can see going rates without leaving the page. This
-//     is look-up only — it never writes into the price field. Auto-filling
-//     a price straight from Shop Wizard/SSW results crosses into automated
-//     price-matching, which isn't something this button does. Styled as a
-//     neutral ghost icon (not tied to --nui-surface-2/--nui-border, which
-//     render pale-yellow/orange in the default "Neopia Central" theme) so
-//     it doesn't read as a bright call-to-action sitting in every row.
-//   - Unpriced rows (price still 0) get a slim left-edge accent + a small
-//     dot next to the price field, instead of a heavier full-row tint.
-// The stock table's rows are Vue-rendered and get replaced wholesale on
-// price-splice/removal updates, which would silently wipe any buttons we
-// appended directly — so injection re-runs off a MutationObserver on the
-// table body rather than running once, and every row is tagged so repeat
-// runs don't double up.
+// Full teardown-and-rebuild of the native /market.phtml?type=your page, not
+// just the stock table. Every native element from the page header down
+// through the bottom pagination is read once for its data (text, hrefs,
+// image URLs, current form values) and then REMOVED from the DOM — header,
+// banner, instructions, subnav, the shop-info/keeper block, the search+sort
+// toolbar, the stats bar, both pagination rows, the stock table, and the
+// submit/PIN row. Nothing native is left mounted, hidden, or reskinned in
+// place; everything the user sees on this page from here on is an element
+// this module created.
+//
+// What's necessarily still real navigation (because that's what search,
+// sort, and pagination actually are on this site): the search form and sort
+// `<select>` are freshly-built elements doing a plain GET to market.phtml,
+// and pagination is freshly-built `<a>` tags pointing at the same URLs the
+// native page used — but the DOM nodes themselves, and all their surrounding
+// markup/styling, are ours.
+//
+// State for the stock list itself (price edits, remove quantities, Remove
+// All, submission) works exactly as the previous pass: read
+// `window.__marketYourConfig` once as the initial data payload, own all
+// edits locally, and submit with our own fetch() to process_market.php.
+// The success/error/confirm/loading modal is this module's own — it no
+// longer touches `window.mktPopup` at all.
+//
+// Toggle ID: 'shop-pricing-helper' (unchanged, so existing on/off prefs carry over)
+// Group:     'Economy & Banking'
 // ==============================================================================
 
 (function () {
@@ -55716,7 +56683,6 @@ return {
     if (location.pathname !== '/market.phtml') return;
     if (new URLSearchParams(location.search).get('type') !== 'your') return;
 
-    const ROW_FLAG = 'nuiPriceHelper';
     let stylesInjected = false;
 
     function injectStyles() {
@@ -55724,105 +56690,701 @@ return {
         stylesInjected = true;
         const style = document.createElement('style');
         style.textContent = `
-            .nui-price-check-btn {
-                display:inline-flex;
-                align-items:center;
-                justify-content:center;
-                width:20px;
-                height:20px;
-                margin-left:6px;
-                padding:0;
-                border:none;
-                background:transparent;
-                color:var(--nui-text-faint);
-                font-size:12px;
-                line-height:1;
-                cursor:pointer;
-                border-radius:var(--nui-radius-sm, 6px);
-                vertical-align:middle;
-                transition:color var(--nui-dur-fast, .12s) var(--nui-ease, ease),
-                           background var(--nui-dur-fast, .12s) var(--nui-ease, ease);
+            #nui-shop-page { display:flex; flex-direction:column; gap:12px; }
+
+            .nui-shop-header { display:flex; align-items:center; gap:10px; }
+            .nui-shop-back {
+                flex-shrink:0; width:34px; height:34px; border-radius:50%;
+                display:flex; align-items:center; justify-content:center;
+                background:var(--nui-surface-2); border:1px solid var(--nui-border);
+                color:var(--nui-text); text-decoration:none; font-size:16px;
             }
-            .nui-price-check-btn:hover {
-                color:var(--nui-accent);
-                background:var(--nui-surface-2);
+            .nui-shop-title { font-size:20px; font-weight:800; color:var(--nui-text); font-family:var(--nui-font-display); }
+
+            .nui-shop-banner { border-radius:var(--nui-radius-md); overflow:hidden; }
+            .nui-shop-banner img { width:100%; display:block; }
+
+            .nui-shop-instructions {
+                background:var(--nui-surface-2); border:1px solid var(--nui-border);
+                border-radius:var(--nui-radius-md); color:var(--nui-text-muted);
+                font-size:12.5px; line-height:1.5; padding:10px 14px;
+            }
+            .nui-shop-instructions a { color:var(--nui-accent); }
+
+            .nui-shop-subnav { display:flex; flex-wrap:wrap; gap:6px; }
+            .nui-shop-subnav a {
+                font-size:12px; padding:6px 11px; border-radius:var(--nui-radius-pill);
+                border:1px solid var(--nui-border); background:var(--nui-surface-2);
+                color:var(--nui-text-muted); text-decoration:none; white-space:nowrap;
+            }
+            .nui-shop-subnav a.is-active { background:var(--nui-accent-soft); border-color:var(--nui-accent); color:var(--nui-accent); font-weight:700; }
+
+            .nui-shop-info-card {
+                display:flex; gap:12px; align-items:center; background:var(--nui-surface);
+                border:1px solid var(--nui-border); border-radius:var(--nui-radius-md); padding:12px 14px;
+            }
+            .nui-shop-info-card img { width:56px; height:56px; object-fit:contain; flex-shrink:0; border-radius:var(--nui-radius-sm); background:var(--nui-surface-2); }
+            .nui-shop-info-title { font-size:13.5px; font-weight:800; color:var(--nui-text); }
+            .nui-shop-info-note { font-size:11.5px; color:var(--nui-text-muted); line-height:1.4; margin-top:3px; }
+            .nui-shop-info-note a { color:var(--nui-accent); }
+
+            .nui-shop-toolbar { display:flex; flex-wrap:wrap; gap:8px; background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:var(--nui-radius-md); padding:10px 12px; }
+            .nui-shop-search { display:flex; gap:6px; flex:1; min-width:180px; }
+            .nui-shop-search input {
+                flex:1; padding:8px 10px; border:1px solid var(--nui-border); border-radius:var(--nui-radius-sm);
+                background:var(--nui-surface); color:var(--nui-text); font-size:13px;
+            }
+            .nui-shop-search input:focus { outline:none; border-color:var(--nui-accent); }
+            .nui-shop-search button {
+                border:1px solid var(--nui-border); background:var(--nui-surface); color:var(--nui-text-muted);
+                border-radius:var(--nui-radius-sm); cursor:pointer; padding:0 12px; font-size:13px;
+            }
+            .nui-shop-sort {
+                padding:8px 10px; border:1px solid var(--nui-border); border-radius:var(--nui-radius-sm);
+                background:var(--nui-surface); color:var(--nui-text); font-size:12.5px; cursor:pointer;
             }
 
-            .market-your-table tbody tr.nui-row-unpriced {
-                box-shadow: inset 2px 0 0 var(--nui-warning, #d90000);
+            .nui-shop-statsbar {
+                display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--nui-text-muted);
+                background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:var(--nui-radius-md);
+                padding:8px 12px;
             }
-            .market-your-table tbody tr.nui-row-unpriced .market-your__cost-field::after {
-                content: '';
-                display: inline-block;
-                width: 5px;
-                height: 5px;
-                margin-left: 5px;
-                border-radius: 50%;
-                background: var(--nui-warning, #d90000);
-                vertical-align: middle;
+            .nui-shop-statsbar b { color:var(--nui-text); }
+            .nui-shop-statsbar .nui-shop-unpriced-stat b { color:var(--nui-warning,#d90000); }
+
+            .nui-shop-metarow { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11.5px; color:var(--nui-text-muted); }
+            .nui-shop-pager { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+            .nui-shop-pager a, .nui-shop-pager span {
+                min-width:28px; text-align:center; padding:4px 9px; border:1px solid var(--nui-border);
+                border-radius:var(--nui-radius-sm); background:var(--nui-surface); color:var(--nui-text);
+                font-size:12px; text-decoration:none; cursor:pointer;
             }
+            .nui-shop-pager a.active, .nui-shop-pager span.active { background:var(--nui-accent); border-color:var(--nui-accent); color:var(--nui-accent-ink,#fff); }
+            .nui-shop-pager span.is-disabled { opacity:.4; cursor:default; }
+
+            .nui-shop-list { display:flex; flex-direction:column; gap:8px; }
+            .nui-shop-card { display:flex; gap:12px; padding:12px; background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:var(--nui-radius-md); position:relative; box-shadow:0 2px 8px var(--nui-shadow,rgba(0,0,0,.04)); }
+            .nui-shop-card.nui-shop-unpriced { box-shadow: inset 3px 0 0 var(--nui-warning,#d90000), 0 2px 8px var(--nui-shadow,rgba(0,0,0,.04)); }
+            .nui-shop-card__img { flex-shrink:0; width:56px; height:56px; border-radius:var(--nui-radius-sm); background:var(--nui-surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+            .nui-shop-card__img img { width:100%; height:100%; object-fit:contain; }
+            .nui-shop-card__body { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+            .nui-shop-card__top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+            .nui-shop-card__name { font-size:13.5px; font-weight:800; color:var(--nui-text); line-height:1.25; }
+            .nui-shop-card__stock { flex-shrink:0; font-size:10.5px; font-weight:700; color:var(--nui-text-muted); background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:var(--nui-radius-pill); padding:2px 8px; white-space:nowrap; }
+            .nui-shop-card__type { font-size:10.5px; color:var(--nui-accent); font-weight:700; width:fit-content; }
+            .nui-shop-card__desc { font-size:11.5px; color:var(--nui-text-muted); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+            .nui-shop-card__footer { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:4px; }
+            .nui-shop-price-field { display:flex; align-items:center; gap:4px; }
+            .nui-shop-price-field input { width:100px; padding:6px 8px; border:1px solid var(--nui-border); border-radius:var(--nui-radius-sm); background:var(--nui-surface-2); color:var(--nui-text); font-size:12.5px; font-weight:700; text-align:right; }
+            .nui-shop-price-field input:focus { outline:none; border-color:var(--nui-accent); }
+            .nui-shop-unpriced-dot { width:6px; height:6px; border-radius:50%; background:var(--nui-warning,#d90000); flex-shrink:0; }
+            .nui-shop-check-btn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border:none; background:transparent; color:var(--nui-text-faint); font-size:13px; cursor:pointer; border-radius:var(--nui-radius-sm); transition:color .12s ease, background .12s ease; }
+            .nui-shop-check-btn:hover { color:var(--nui-accent); background:var(--nui-surface-2); }
+            .nui-shop-stepper { display:flex; align-items:center; gap:0; border:1px solid var(--nui-border); border-radius:var(--nui-radius-sm); overflow:hidden; background:var(--nui-surface-2); }
+            .nui-shop-stepper button { width:26px; height:26px; border:none; background:transparent; color:var(--nui-text); font-size:14px; font-weight:700; cursor:pointer; line-height:1; }
+            .nui-shop-stepper button:disabled { opacity:.35; cursor:default; }
+            .nui-shop-stepper input { width:32px; border:none; background:transparent; color:var(--nui-text); font-size:12.5px; font-weight:700; text-align:center; padding:0; }
+            .nui-shop-stepper input:focus { outline:none; }
+
+            .nui-shop-footerbar { display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:var(--nui-surface-2); border:1px solid var(--nui-border); border-radius:var(--nui-radius-md); padding:12px 14px; }
+            .nui-shop-update-btn { padding:9px 22px; border-radius:var(--nui-radius-pill); border:none; background:var(--nui-accent); color:var(--nui-accent-ink,#fff); font-weight:800; font-size:13px; cursor:pointer; }
+            .nui-shop-update-btn:disabled { opacity:.4; cursor:default; }
+            .nui-shop-removeall { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--nui-text); cursor:pointer; }
+            .nui-shop-pin-wrap { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--nui-text); margin-left:auto; }
+            .nui-shop-pin-wrap input { width:70px; padding:5px 8px; border:1px solid var(--nui-border); border-radius:var(--nui-radius-sm); background:var(--nui-surface); color:var(--nui-text); letter-spacing:2px; }
+            .nui-shop-rm-note { font-size:11.5px; color:var(--nui-warning,#d90000); font-weight:700; }
+
+            .nui-shop-popup-overlay {
+                position:fixed; inset:0; z-index:200010; background:rgba(8,12,24,0.6);
+                backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;
+            }
+            .nui-shop-popup-overlay.is-open { display:flex; }
+            .nui-shop-popup {
+                width:min(92vw,380px); background:var(--nui-surface); border:1px solid var(--nui-border);
+                border-radius:var(--nui-radius-lg); box-shadow:0 24px 70px rgba(0,0,0,.35); overflow:hidden;
+            }
+            .nui-shop-popup-header {
+                padding:14px 18px; background:var(--nui-surface-2); border-bottom:1px solid var(--nui-border);
+                font-size:15px; font-weight:800; color:var(--nui-text);
+            }
+            .nui-shop-popup-body { padding:16px 18px; font-size:13px; color:var(--nui-text); line-height:1.5; }
+            .nui-shop-popup-footer { display:flex; gap:8px; justify-content:flex-end; padding:12px 18px; border-top:1px solid var(--nui-border); }
+            .nui-shop-popup-footer button {
+                padding:7px 16px; border-radius:var(--nui-radius-pill); font-size:12.5px; font-weight:700; cursor:pointer; border:none;
+            }
+            .nui-shop-popup-btn-ok { background:var(--nui-surface-2); border:1px solid var(--nui-border) !important; color:var(--nui-text); }
+            .nui-shop-popup-btn-confirm { background:var(--nui-accent); color:var(--nui-accent-ink,#fff); }
+            .nui-shop-loading-overlay {
+                position:fixed; inset:0; z-index:200005; background:rgba(8,12,24,0.35); backdrop-filter:blur(3px);
+                display:none; align-items:center; justify-content:center;
+            }
+            .nui-shop-loading-overlay.is-open { display:flex; }
+            .nui-shop-spinner {
+                width:38px; height:38px; border-radius:50%; border:4px solid var(--nui-surface-2);
+                border-top-color:var(--nui-accent); animation:nui-shop-spin 0.8s linear infinite;
+            }
+            @keyframes nui-shop-spin { to { transform:rotate(360deg); } }
         `;
         document.head.appendChild(style);
     }
 
-    function digitsOf(val) {
-        return String(val == null ? '' : val).replace(/\D/g, '');
-    }
+    // Builds a small NeoUI-styled modal (info / confirm / loading spinner) —
+    // this module's own, not the page's shared window.mktPopup.
+    function buildPopup() {
+        const overlay = document.createElement('div');
+        overlay.className = 'nui-shop-popup-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'nui-shop-popup';
+        const head = document.createElement('div');
+        head.className = 'nui-shop-popup-header';
+        const body = document.createElement('div');
+        body.className = 'nui-shop-popup-body';
+        const footer = document.createElement('div');
+        footer.className = 'nui-shop-popup-footer';
+        const okBtn = document.createElement('button');
+        okBtn.className = 'nui-shop-popup-btn-ok';
+        okBtn.type = 'button';
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'nui-shop-popup-btn-confirm';
+        confirmBtn.type = 'button';
+        confirmBtn.style.display = 'none';
+        footer.appendChild(okBtn);
+        footer.appendChild(confirmBtn);
+        modal.appendChild(head);
+        modal.appendChild(body);
+        modal.appendChild(footer);
+        overlay.appendChild(modal);
 
-    function enhanceRow(tr) {
-        if (tr.dataset[ROW_FLAG]) return;
-        const priceField = tr.querySelector('.market-your__cost-field');
-        const priceInput = tr.querySelector('input[data-money], input[name^="cost_"]');
-        const nameEl = tr.querySelector('.market-your-item__name');
-        if (!priceField || !priceInput || !nameEl) return;
-        tr.dataset[ROW_FLAG] = '1';
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'nui-shop-loading-overlay';
+        loadingOverlay.innerHTML = '<div class="nui-shop-spinner"></div>';
 
-        const itemName = nameEl.textContent.trim();
-        const usesSSW = typeof NeoUI.isPremium === 'function' && NeoUI.isPremium();
+        document.body.appendChild(overlay);
+        document.body.appendChild(loadingOverlay);
 
-        const checkBtn = document.createElement('button');
-        checkBtn.type = 'button';
-        checkBtn.className = 'nui-price-check-btn';
-        checkBtn.title = (usesSSW ? 'Look up in Super Shop Wizard' : 'Look up in Shop Wizard') + ' — reference only, does not fill in a price';
-        checkBtn.textContent = usesSSW ? '⚡' : '🔍';
-        checkBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (usesSSW && typeof NeoUI.openSSW === 'function') NeoUI.openSSW(itemName);
-            else NeoUI.openSW(itemName);
+        let onClose = null;
+        let onConfirm = null;
+
+        function open(title, msg) {
+            head.textContent = title;
+            body.textContent = msg;
+            overlay.classList.add('is-open');
+        }
+        function hide() {
+            overlay.classList.remove('is-open');
+            onConfirm = null;
+            if (onClose) { const cb = onClose; onClose = null; cb(); }
+        }
+        function show(title, msg, cb) {
+            onConfirm = null;
+            confirmBtn.style.display = 'none';
+            okBtn.textContent = 'OK';
+            onClose = (typeof cb === 'function') ? cb : null;
+            open(title, msg);
+        }
+        function confirm(title, msg, cb, label, cancelLabel) {
+            onClose = null;
+            onConfirm = (typeof cb === 'function') ? cb : null;
+            okBtn.textContent = cancelLabel || 'Cancel';
+            confirmBtn.textContent = label || 'Confirm';
+            confirmBtn.style.display = '';
+            open(title, msg);
+        }
+        okBtn.addEventListener('click', hide);
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) hide(); });
+        confirmBtn.addEventListener('click', function () {
+            const cb = onConfirm;
+            onConfirm = null;
+            onClose = null;
+            overlay.classList.remove('is-open');
+            if (cb) cb();
         });
-        priceField.appendChild(checkBtn);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && overlay.classList.contains('is-open')) hide();
+        });
 
-        markUnpriced(tr, priceInput);
-        priceInput.addEventListener('input', function () { markUnpriced(tr, priceInput); });
+        return {
+            show: show,
+            confirm: confirm,
+            hide: hide,
+            showLoading: function () { loadingOverlay.classList.add('is-open'); },
+            hideLoading: function () { loadingOverlay.classList.remove('is-open'); },
+        };
     }
 
-    function markUnpriced(tr, priceInput) {
-        const isUnpriced = digitsOf(priceInput.value) === '' || digitsOf(priceInput.value) === '0';
-        tr.classList.toggle('nui-row-unpriced', isUnpriced);
+    function digitsOf(val) { return String(val == null ? '' : val).replace(/\D/g, ''); }
+    function groupThousands(val) {
+        const digits = digitsOf(val);
+        return digits ? parseInt(digits, 10).toLocaleString('en-US') : '';
     }
 
-    function enhanceAllRows() {
-        document.querySelectorAll('.market-your-table tbody tr.np-table-row').forEach(enhanceRow);
+    // Reads a pagination row (top or bottom .market-your-metarow) into plain
+    // data — text + hrefs only — before that DOM is torn out.
+    function readPagerData(metarow) {
+        if (!metarow) return null;
+        const metaEl = metarow.querySelector('.shop-feed-meta');
+        const buttons = Array.from(metarow.querySelectorAll('.mkt-pagination-btn')).map(function (el) {
+            return {
+                tag: el.tagName.toLowerCase(),
+                text: el.textContent.trim(),
+                href: el.getAttribute('href') || null,
+                active: el.classList.contains('active'),
+                disabled: el.classList.contains('is-disabled'),
+            };
+        });
+        return { meta: metaEl ? metaEl.textContent.trim() : '', buttons: buttons };
+    }
+
+    function buildPagerRow(data) {
+        const row = document.createElement('div');
+        row.className = 'nui-shop-metarow';
+        if (!data) return row;
+        const meta = document.createElement('span');
+        meta.textContent = data.meta;
+        const pager = document.createElement('div');
+        pager.className = 'nui-shop-pager';
+        data.buttons.forEach(function (b) {
+            let el;
+            if (b.disabled || !b.href) {
+                el = document.createElement('span');
+                if (b.disabled) el.classList.add('is-disabled');
+            } else {
+                el = document.createElement('a');
+                el.href = b.href;
+            }
+            el.textContent = b.text;
+            if (b.active) el.classList.add('active');
+            pager.appendChild(el);
+        });
+        row.appendChild(meta);
+        row.appendChild(pager);
+        return row;
     }
 
     function boot() {
         injectStyles();
-        const table = document.querySelector('.market-your-table');
-        if (!table) { setTimeout(boot, 300); return; } // Vue app not mounted yet
-        enhanceAllRows();
 
-        const tbody = table.querySelector('tbody');
-        if (!tbody) return;
-        let pending = false;
-        const obs = new MutationObserver(function () {
-            if (pending) return;
-            pending = true;
-            // Rows get spliced/replaced synchronously as a batch — coalesce
-            // into one pass per Vue patch rather than one per mutated node.
-            requestAnimationFrame(function () { pending = false; enhanceAllRows(); });
+        const cfg = window.__marketYourConfig;
+        const appRoot = document.getElementById('market-your-app');
+        const oldForm = document.getElementById('market-your-form');
+        const mktPage = document.getElementById('mkt-page-top');
+        const header = document.querySelector('.qs-page-header');
+        const banner = document.querySelector('.mkt-banner');
+        const instructions = document.getElementById('mkt-instructions');
+        const subnav = document.querySelector('.mkt-subnav');
+        const toolbar = document.querySelector('.market-your-toolbar');
+        const headerbar = document.querySelector('.market-your-headerbar');
+        if (!cfg || !appRoot || !oldForm || !mktPage || !toolbar) { setTimeout(boot, 300); return; } // not rendered yet
+
+        // ── Read every piece of data we need out of native DOM before removing it ──
+        const backLink = header && header.querySelector('a');
+        const backHref = backLink ? backLink.getAttribute('href') : '/objects.phtml';
+        const titleText = header ? (header.querySelector('h1') || {}).textContent : 'The Marketplace';
+        const bannerSrc = banner ? banner.src : '';
+        const bannerAlt = banner ? banner.alt : '';
+        const instructionsHTML = instructions ? instructions.innerHTML : '';
+        const subnavLinks = subnav ? Array.from(subnav.querySelectorAll('a')).map(function (a) {
+            return { href: a.getAttribute('href'), text: a.textContent.trim(), active: a.classList.contains('is-active') };
+        }) : [];
+
+        const keeperImg = mktPage.querySelector('center img[name="keeperimage"]');
+        const keeperSrc = keeperImg ? keeperImg.src : '';
+        const keeperCenter = mktPage.querySelector('center');
+        const welcomeText = keeperCenter ? keeperCenter.textContent.replace(/\s+/g, ' ').trim() : '';
+        // The two informational paragraphs sit as loose text/markup before the
+        // toolbar — grab their text content rather than fighting the exact
+        // (slightly malformed) native markup.
+        const infoParas = Array.from(mktPage.querySelectorAll('p')).map(function (p) {
+            return p.innerHTML;
+        }).filter(function (html) { return html && html.indexOf('script') === -1; });
+
+        const searchInput = toolbar.querySelector('.market-your-search__input');
+        const searchForm = toolbar.querySelector('.market-your-search');
+        const searchHiddenType = searchForm ? searchForm.querySelector('[name="type"]') : null;
+        const searchHiddenOrder = searchForm ? searchForm.querySelector('[name="order_by"]') : null;
+        const searchVal = searchInput ? searchInput.value : '';
+        const orderByVal = searchHiddenOrder ? searchHiddenOrder.value : 'id';
+
+        const sortSelect = toolbar.querySelector('.market-your-select');
+        const sortOptions = sortSelect ? Array.from(sortSelect.querySelectorAll('option')).map(function (o) {
+            return { value: o.value, label: o.textContent, selected: o.selected };
+        }) : [];
+
+        const topMetaRow = toolbar.querySelector('.market-your-metarow');
+        const topPagerData = readPagerData(topMetaRow);
+        const bottomToolbarFoot = mktPage.querySelector('.market-your-toolbar--foot');
+        const bottomMetaRow = bottomToolbarFoot ? bottomToolbarFoot.querySelector('.market-your-metarow') : null;
+        const bottomPagerData = readPagerData(bottomMetaRow) || topPagerData;
+
+        let itemsStocked = 0, freeSpace = 0;
+        if (headerbar) {
+            const stats = Array.from(headerbar.querySelectorAll('span > b'));
+            // Order in native markup: Items Stocked, Free Space, Unpriced
+            if (stats[0]) itemsStocked = parseInt(digitsOf(stats[0].textContent), 10) || 0;
+            if (stats[1]) freeSpace = parseInt(digitsOf(stats[1].textContent), 10) || 0;
+        }
+
+        const staticVals = {
+            type: (oldForm.querySelector('[name="type"]') || {}).value || 'update_prices',
+            order_by: (oldForm.querySelector('[name="order_by"]') || {}).value || orderByVal || 'id',
+            view: (oldForm.querySelector('[name="view"]') || {}).value || '',
+            lim: (oldForm.querySelector('[name="lim"]') || {}).value || '30',
+            obj_name: (oldForm.querySelector('[name="obj_name"]') || {}).value || searchVal || '',
+        };
+
+        // ── Tear every native node in this region out of the DOM ──
+        if (window.app && typeof window.app.unmount === 'function') {
+            try { window.app.unmount(); } catch (e) {}
+        }
+        const toRemove = [header, banner, instructions, subnav, mktPage];
+        toRemove.forEach(function (el) { if (el && el.parentNode) el.remove(); });
+
+        // ── Build the replacement page shell ──
+        const page = document.createElement('div');
+        page.id = 'nui-shop-page';
+
+        const headerEl = document.createElement('div');
+        headerEl.className = 'nui-shop-header';
+        headerEl.innerHTML =
+            '<a class="nui-shop-back" href="' + backHref + '" title="Back">←</a>' +
+            '<div class="nui-shop-title">' + titleText + '</div>';
+
+        const bannerEl = document.createElement('div');
+        bannerEl.className = 'nui-shop-banner';
+        if (bannerSrc) bannerEl.innerHTML = '<img src="' + bannerSrc + '" alt="' + bannerAlt + '">';
+
+        const instructionsEl = document.createElement('div');
+        instructionsEl.className = 'nui-shop-instructions';
+        instructionsEl.innerHTML = instructionsHTML;
+
+        const subnavEl = document.createElement('nav');
+        subnavEl.className = 'nui-shop-subnav';
+        subnavLinks.forEach(function (l) {
+            const a = document.createElement('a');
+            a.href = l.href; a.textContent = l.text;
+            if (l.active) a.classList.add('is-active');
+            subnavEl.appendChild(a);
         });
-        obs.observe(tbody, { childList: true, subtree: true });
+
+        const infoCard = document.createElement('div');
+        infoCard.className = 'nui-shop-info-card';
+        infoCard.innerHTML =
+            (keeperSrc ? '<img src="' + keeperSrc + '" alt="">' : '') +
+            '<div>' +
+                '<div class="nui-shop-info-title">' + (welcomeText || 'Your Shop') + '</div>' +
+                infoParas.map(function (html) { return '<div class="nui-shop-info-note">' + html + '</div>'; }).join('') +
+            '</div>';
+
+        const toolbarEl = document.createElement('div');
+        toolbarEl.className = 'nui-shop-toolbar';
+        const searchWrap = document.createElement('form');
+        searchWrap.className = 'nui-shop-search';
+        searchWrap.method = 'GET';
+        searchWrap.action = 'market.phtml';
+        searchWrap.innerHTML =
+            '<input type="hidden" name="type" value="' + (searchHiddenType ? searchHiddenType.value : 'your') + '">' +
+            '<input type="hidden" name="order_by" value="' + orderByVal + '">' +
+            '<input type="text" name="obj_name" value="' + searchVal.replace(/"/g, '&quot;') + '" placeholder="Search your shop">' +
+            '<button type="submit">Find</button>';
+        const sortEl = document.createElement('select');
+        sortEl.className = 'nui-shop-sort';
+        sortOptions.forEach(function (o) {
+            const opt = document.createElement('option');
+            opt.value = o.value; opt.textContent = o.label; opt.selected = o.selected;
+            sortEl.appendChild(opt);
+        });
+        sortEl.addEventListener('change', function () {
+            location.href = 'market.phtml?type=your&order_by=' + sortEl.value;
+        });
+        toolbarEl.appendChild(searchWrap);
+        toolbarEl.appendChild(sortEl);
+
+        const statsEl = document.createElement('div');
+        statsEl.className = 'nui-shop-statsbar';
+
+        const list = document.createElement('div');
+        list.className = 'nui-shop-list';
+
+        const footerBar = document.createElement('div');
+        footerBar.className = 'nui-shop-footerbar';
+        const updateBtn = document.createElement('button');
+        updateBtn.type = 'button'; updateBtn.className = 'nui-shop-update-btn'; updateBtn.textContent = 'Update'; updateBtn.disabled = true;
+        const removeAllLabel = document.createElement('label');
+        removeAllLabel.className = 'nui-shop-removeall';
+        const removeAllCb = document.createElement('input');
+        removeAllCb.type = 'checkbox';
+        removeAllLabel.appendChild(removeAllCb);
+        removeAllLabel.appendChild(document.createTextNode('Remove All'));
+        const rmNote = document.createElement('span');
+        rmNote.className = 'nui-shop-rm-note';
+        rmNote.style.display = 'none';
+        const pinWrap = document.createElement('div');
+        pinWrap.className = 'nui-shop-pin-wrap';
+        const pinInput = document.createElement('input');
+        pinInput.type = 'password'; pinInput.maxLength = 4; pinInput.placeholder = 'PIN';
+        pinWrap.innerHTML = 'Enter your <a href="/pin_prefs.phtml" style="color:var(--nui-accent);">PIN</a>:&nbsp;';
+        pinWrap.appendChild(pinInput);
+        footerBar.appendChild(updateBtn);
+        footerBar.appendChild(removeAllLabel);
+        footerBar.appendChild(rmNote);
+        footerBar.appendChild(pinWrap);
+
+        const topPagerRow = buildPagerRow(topPagerData);
+        const bottomPagerRow = buildPagerRow(bottomPagerData);
+
+        page.appendChild(headerEl);
+        page.appendChild(bannerEl);
+        page.appendChild(instructionsEl);
+        page.appendChild(subnavEl);
+        page.appendChild(infoCard);
+        page.appendChild(toolbarEl);
+        page.appendChild(statsEl);
+        page.appendChild(topPagerRow);
+        page.appendChild(list);
+        page.appendChild(footerBar);
+        page.appendChild(bottomPagerRow);
+
+        const container = document.getElementById('container__2020');
+        const buffer = document.getElementById('navsub-buffer__2020');
+        if (buffer && buffer.parentNode) buffer.insertAdjacentElement('afterend', page);
+        else if (container) container.appendChild(page);
+        else document.body.appendChild(page);
+
+        // ── State + rendering for the stock list ──
+        const rows = (cfg.rows || []).map(function (r) {
+            return Object.assign({}, r, { _newCost: r.cost, _rm: 0 });
+        });
+        let removeAll = false;
+        let busy = false;
+
+        function renderStats() {
+            const unpriced = rows.filter(function (r) { return digitsOf(r._newCost) === '' || digitsOf(r._newCost) === '0'; }).length;
+            statsEl.innerHTML =
+                '<span>Items Stocked: <b>' + itemsStocked + '</b></span>' +
+                '<span>Free Space: <b>' + freeSpace + '</b></span>' +
+                '<span class="nui-shop-unpriced-stat">Unpriced: <b>' + unpriced + '</b></span>';
+        }
+
+        function recomputeChanged() {
+            let changed = removeAll;
+            let rmCount = 0;
+            rows.forEach(function (r) { rmCount += r._rm; if (r._rm > 0) changed = true; });
+            if (!changed) {
+                rows.forEach(function (r) { if (digitsOf(r._newCost) !== digitsOf(r.cost)) changed = true; });
+            }
+            updateBtn.disabled = !changed;
+            if (rmCount > 0 && !removeAll) {
+                rmNote.textContent = rmCount + ' item(s) to remove';
+                rmNote.style.display = '';
+            } else {
+                rmNote.style.display = 'none';
+            }
+        }
+
+        function buildCard(row) {
+            const card = document.createElement('div');
+            card.className = 'nui-shop-card';
+
+            const img = document.createElement('div');
+            img.className = 'nui-shop-card__img';
+            img.innerHTML = '<img src="' + cfg.imageHost + '/items/' + row.image + '.gif" alt="" loading="lazy">';
+
+            const body = document.createElement('div');
+            body.className = 'nui-shop-card__body';
+
+            const top = document.createElement('div');
+            top.className = 'nui-shop-card__top';
+            top.innerHTML =
+                '<div class="nui-shop-card__name">' + row.name + '</div>' +
+                '<div class="nui-shop-card__stock">Stock: ' + row.amount + '</div>';
+
+            const type = document.createElement('div');
+            type.className = 'nui-shop-card__type';
+            type.innerHTML = row.type_name || '';
+
+            const desc = document.createElement('div');
+            desc.className = 'nui-shop-card__desc';
+            desc.textContent = row.description || '';
+
+            const footer = document.createElement('div');
+            footer.className = 'nui-shop-card__footer';
+
+            const priceWrap = document.createElement('div');
+            priceWrap.className = 'nui-shop-price-field';
+            const dot = document.createElement('span');
+            dot.className = 'nui-shop-unpriced-dot';
+            const priceInput = document.createElement('input');
+            priceInput.type = 'text'; priceInput.inputMode = 'numeric';
+            priceInput.value = groupThousands(row._newCost);
+
+            const usesSSW = typeof NeoUI.isPremium === 'function' && NeoUI.isPremium();
+
+            function refreshUnpriced() {
+                const isUnpriced = digitsOf(priceInput.value) === '' || digitsOf(priceInput.value) === '0';
+                card.classList.toggle('nui-shop-unpriced', isUnpriced);
+                dot.style.visibility = isUnpriced ? 'visible' : 'hidden';
+            }
+            priceInput.addEventListener('input', function () {
+                const max = cfg.maxCostLen || 6;
+                priceInput.value = groupThousands(digitsOf(priceInput.value).slice(0, max));
+                row._newCost = digitsOf(priceInput.value) || '0';
+                refreshUnpriced();
+                recomputeChanged();
+                renderStats();
+            });
+            priceInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); priceInput.blur(); }
+            });
+            refreshUnpriced();
+
+            const checkBtn = document.createElement('button');
+            checkBtn.type = 'button';
+            checkBtn.className = 'nui-shop-check-btn';
+            checkBtn.title = (usesSSW ? 'Look up in Super Shop Wizard' : 'Look up in Shop Wizard') + ' — reference only, does not fill in a price';
+            checkBtn.textContent = usesSSW ? '⚡' : '🔍';
+            checkBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (usesSSW && typeof NeoUI.openSSW === 'function') NeoUI.openSSW(row.name);
+                else NeoUI.openSW(row.name);
+            });
+
+            priceWrap.appendChild(dot);
+            priceWrap.appendChild(priceInput);
+            priceWrap.appendChild(checkBtn);
+
+            const stepper = document.createElement('div');
+            stepper.className = 'nui-shop-stepper';
+            const decBtn = document.createElement('button'); decBtn.type = 'button'; decBtn.textContent = '\u2212';
+            const rmInput = document.createElement('input'); rmInput.type = 'text'; rmInput.inputMode = 'numeric'; rmInput.value = row._rm;
+            const incBtn = document.createElement('button'); incBtn.type = 'button'; incBtn.textContent = '+';
+
+            function clampRm() {
+                let n = parseInt(digitsOf(rmInput.value), 10);
+                if (isNaN(n) || n < 0) n = 0;
+                if (n > row.amount) n = row.amount;
+                row._rm = n; rmInput.value = n;
+                decBtn.disabled = n <= 0;
+                incBtn.disabled = n >= row.amount;
+            }
+            decBtn.addEventListener('click', function () { rmInput.value = row._rm - 1; clampRm(); recomputeChanged(); });
+            incBtn.addEventListener('click', function () { rmInput.value = row._rm + 1; clampRm(); recomputeChanged(); });
+            rmInput.addEventListener('input', function () { clampRm(); recomputeChanged(); });
+            clampRm();
+
+            stepper.appendChild(decBtn);
+            stepper.appendChild(rmInput);
+            stepper.appendChild(incBtn);
+
+            footer.appendChild(priceWrap);
+            footer.appendChild(stepper);
+            body.appendChild(top);
+            body.appendChild(type);
+            body.appendChild(desc);
+            body.appendChild(footer);
+            card.appendChild(img);
+            card.appendChild(body);
+            return card;
+        }
+
+        function renderList() {
+            list.innerHTML = '';
+            rows.forEach(function (row) { list.appendChild(buildCard(row)); });
+        }
+        const P = buildPopup();
+
+        renderList();
+        renderStats();
+        recomputeChanged();
+
+        removeAllCb.addEventListener('click', function (e) {
+            if (!removeAllCb.checked) { removeAll = false; recomputeChanged(); return; }
+            e.preventDefault();
+            removeAllCb.checked = false;
+            P.confirm('Remove All?', 'Checking this box will put ALL items on this page back into your inventory! Are you sure?', function () {
+                removeAllCb.checked = true;
+                removeAll = true;
+                recomputeChanged();
+            }, 'Yes', 'Cancel');
+        });
+
+        updateBtn.addEventListener('click', function () {
+            if (updateBtn.disabled || busy) return;
+            if (pinInput.value.trim() === '') {
+                P.show('Sorry!', 'Please enter your PIN to complete this update.');
+                return;
+            }
+            const fd = new FormData();
+            fd.append('type', staticVals.type);
+            fd.append('order_by', staticVals.order_by);
+            fd.append('view', staticVals.view);
+            fd.append('lim', staticVals.lim);
+            fd.append('obj_name', staticVals.obj_name);
+            fd.append('pin', pinInput.value.trim());
+            if (removeAll) fd.append('remove_all', 'on');
+            rows.forEach(function (row) {
+                fd.append('obj_id_' + row.idx, row.oi);
+                fd.append('oldcost_' + row.idx, row.cost);
+                fd.append('cost_' + row.idx, digitsOf(row._newCost) || '0');
+                fd.append('back_to_inv[' + row.oi + ']', row._rm || 0);
+            });
+
+            busy = true;
+            P.showLoading();
+            fetch('/np-templates/ajax/market/process_market.php', {
+                method: 'POST',
+                headers: { 'x-requested-with': 'XMLHttpRequest' },
+                body: fd,
+            })
+                .then(function (r) { return r.text(); })
+                .then(function (text) {
+                    P.hideLoading();
+                    busy = false;
+                    const t = (text || '').trim();
+                    const i = t.indexOf('error|');
+                    if (i !== -1) {
+                        P.show('Sorry!', t.slice(i + 6).trim() || 'We could not update your shop.');
+                        return;
+                    }
+                    if (t.indexOf('success') === -1) {
+                        P.show('Sorry!', 'We could not update your shop. Please try again.');
+                        return;
+                    }
+                    let removedCount = 0;
+                    if (removeAll) {
+                        removedCount = rows.length;
+                        rows.length = 0;
+                    } else {
+                        for (let k = rows.length - 1; k >= 0; k--) {
+                            const row = rows[k];
+                            row.cost = parseInt(digitsOf(row._newCost) || '0', 10);
+                            row._newCost = row.cost;
+                            if (row._rm >= row.amount) {
+                                removedCount += row.amount;
+                                rows.splice(k, 1);
+                            } else if (row._rm > 0) {
+                                removedCount += row._rm;
+                                row.amount -= row._rm;
+                                row._rm = 0;
+                            }
+                        }
+                    }
+                    rows.forEach(function (row, i2) { row.idx = i2 + 1; });
+                    itemsStocked = Math.max(0, itemsStocked - removedCount);
+                    freeSpace = freeSpace + removedCount;
+                    removeAll = false;
+                    removeAllCb.checked = false;
+                    pinInput.value = '';
+                    renderList();
+                    renderStats();
+                    recomputeChanged();
+                    P.show('Success!', 'Your shop has been updated!');
+                })
+                .catch(function () {
+                    P.hideLoading();
+                    busy = false;
+                    P.show('Sorry!', 'Something went wrong. Please try again.');
+                });
+        });
     }
 
     if (document.readyState === 'loading') {
