@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeoUI: Unified Suite
 // @namespace    https://github.com/dinosauringg-ui/NeoUISuite
-// @version      2.0.5
+// @version      2.0.6
 // @description  NeoUI Unified Suite: polished theme system, global search, and a daily timer hub for timed Neopets activities, bundled into one mobile-forward userscript.
 // @author       ext1nct
 // @match        *://*.neopets.com/*
@@ -908,6 +908,13 @@
  *   - Neomail previously ran as an unbannered IIFE tacked onto the end
  *     of Core Framework's code. It now has its own module banner and
  *     number so it can be read, audited, and toggled independently.
+ *   - Added Module 66 (Neohome Hub) and Module 67 (Neohome Editor): full
+ *     teardown/rebuild of the legacy-template /neohome/ hub page (snapshot,
+ *     wood-button links, rating, news, item spotlight grids) and the
+ *     /neohome/property/edit/* Flash editor page's chrome, plus a
+ *     scale-to-fit stage for the editor's Ruffle-wrapped SWF (same
+ *     transform-scale technique as Battledome/Games Room). Both share the
+ *     'neohome' toggle key.
  *
  * Previous versions' changelog trimmed for brevity — see version control
  * history for the full log prior to v1.2.0.
@@ -3813,7 +3820,7 @@
         { id: 'closet-restyle', label: 'Closet',                     desc: 'Reskins the native Closet Vue app to NeoUI tokens (chrome-only, no rebuild)', group: 'Economy & Banking' },
         { id: 'stamp-album',    label: 'Stamp Album',                desc: 'Overview + per-album grid SPA',                  group: 'Economy & Banking' },
         { id: 'shop-wizard',    label: 'Shop Wizard',                desc: 'Full page rebuild — additive multi-search results, sorted by price', group: 'Economy & Banking' },
-        { id: 'shop-pricing-helper', label: 'Your Shop — Card Rebuild',   desc: 'Card-based restyle of the Your Shop stock page (SDB-style), with per-item SW/SSW price lookup (reference only) + unpriced highlighting', group: 'Economy & Banking' },
+        { id: 'shop-pricing-helper', label: 'Your Shop — Card Rebuild',   desc: 'Card-based restyle of the Your Shop stock page (SDB-style) and the Shop Till withdraw page, with per-item SW/SSW price lookup (reference only) + unpriced highlighting', group: 'Economy & Banking' },
 
         { id: 'faerie-quests',  label: 'Faerie Quests',              desc: 'Quest watcher + full page SPA',                  group: 'Quests' },
         { id: 'faerie-bluffs',  label: "Jhudora's Bluff & Illusen's Glade", desc: "Level/score summary, 12h cooldown synced to Home timers, Level 26 avatar tip", group: 'Quests' },
@@ -3838,6 +3845,7 @@
         { id: 'kikopop',        label: 'Kiko Pop',                   desc: 'Dart game SPA / Flash bypass',                   group: 'Games & Daily Activities' },
         { id: 'lunartemple',    label: 'Lunar Temple',               desc: 'Daily puzzle SPA + auto-solver',                 group: 'Games & Daily Activities' },
         { id: 'neggcave',       label: 'Mysterious Negg Cave',       desc: 'Daily negg puzzle SPA',                          group: 'Games & Daily Activities' },
+        { id: 'trudys-surprise',label: "Trudy's Surprise",           desc: 'Themed reward/help popups + game frame, native slot machine kept', group: 'Games & Daily Activities' },
         { id: 'scratchcards',   label: 'Scratchcard Kiosks',         desc: 'Desert/Fairgrounds/Ice Caves SPA',               group: 'Games & Daily Activities' },
         { id: 'mysterypic',     label: 'Mystery Picture',            desc: 'Clean competition card, no archive clutter',      group: 'Games & Daily Activities' },
         { id: 'faerie-crossword', label: 'Faerie Crossword',         desc: 'Styled clue list + guess form, native grid kept', group: 'Games & Daily Activities' },
@@ -3855,6 +3863,7 @@
         { id: 'explore',        label: 'Explore Neopia',             desc: 'World map hub + location pages. Fetches animation JS to surface hidden canvas links (e.g. Hidden Tower).', group: 'Home & Reference' },
         { id: 'settings-pages', label: 'Account Settings',           desc: 'Restyles /settings/ pages — avatar & sticker pickers (with search/sort), popups, and page background', group: 'Home & Reference' },
         { id: 'createpet',      label: 'Create-a-Pet',               desc: 'Full NeoUI redesign of the Create-a-Pet page — species grid, color/bandana pickers, personality, stats, live preview', group: 'Home & Reference' },
+        { id: 'neohome',        label: 'Neohome',                    desc: 'Full rebuild of the Neohome hub page + mobile scale-to-fit wrapper for the Neohome editor', group: 'Home & Reference' },
     ];
 
     // Fixed display order for the groups above — same order as the section
@@ -5221,8 +5230,26 @@
                     </select>
                 </label>
             </div>
+            <div id="nui-ssw-pricerange" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--nui-text-muted);">
+                    Min
+                    <input type="number" id="nui-ssw-minprice" min="0" step="1" placeholder="0" class="nui-input" style="width:90px;padding:3px 6px;font-size:12px;">
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--nui-text-muted);">
+                    Max
+                    <input type="number" id="nui-ssw-maxprice" min="0" step="1" placeholder="No limit" class="nui-input" style="width:90px;padding:3px 6px;font-size:12px;">
+                </label>
+            </div>
         `;
         header.querySelector('#nui-ssw-close').addEventListener('click', closeModal);
+
+        // Min/Max only apply (and are only honored by the endpoint) alongside
+        // Price only mode — keep the fields tucked away until that's on,
+        // rather than showing controls that would silently no-op.
+        const priceRangeRow = header.querySelector('#nui-ssw-pricerange');
+        header.querySelector('#nui-ssw-priceonly').addEventListener('change', function () {
+            priceRangeRow.style.display = this.checked ? 'flex' : 'none';
+        });
 
         const content = document.createElement('div');
         content.style.cssText = 'padding:var(--nui-space-4);max-height:55vh;overflow-y:auto;font-size:14px;';
@@ -5236,14 +5263,28 @@
             const criteriaEl = header.querySelector('#nui-ssw-criteria');
             const priceOnlyEl = header.querySelector('#nui-ssw-priceonly');
             const areaEl = header.querySelector('#nui-ssw-area');
+            const minPriceEl = header.querySelector('#nui-ssw-minprice');
+            const maxPriceEl = header.querySelector('#nui-ssw-maxprice');
             const criteria = criteriaEl ? criteriaEl.value : 'exact';
             const priceOnly = priceOnlyEl && priceOnlyEl.checked ? 1 : 0;
             const partial = criteria === 'containing' ? 1 : 0;
             const context = areaEl ? parseInt(areaEl.value) : 0;
+            // Min/Max only mean anything to the endpoint in Price only mode —
+            // otherwise force them back to 0/0 (unbounded) so a value left
+            // over from a prior Price only search can't silently filter a
+            // normal listing search.
+            let minPrice = 0, maxPrice = 0;
+            if (priceOnly) {
+                const minVal = minPriceEl ? parseInt(minPriceEl.value, 10) : NaN;
+                const maxVal = maxPriceEl ? parseInt(maxPriceEl.value, 10) : NaN;
+                minPrice = Number.isFinite(minVal) && minVal > 0 ? minVal : 0;
+                maxPrice = Number.isFinite(maxVal) && maxVal > 0 ? maxVal : 0;
+                if (maxPrice > 0 && minPrice > maxPrice) { const t = minPrice; minPrice = maxPrice; maxPrice = t; }
+            }
 
             content.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:var(--nui-space-5) 0;color:var(--nui-text-muted);"><div style="width:24px;height:24px;border:3px solid var(--nui-border);border-top-color:var(--nui-accent);border-radius:50%;animation:spin 1s linear infinite;"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style><div>Searching for <b>${query}</b>…</div></div>`;
             try {
-                const fetchParams = new URLSearchParams({ q: query, priceOnly: priceOnly, context: context, partial: partial, min_price: 0, max_price: 0, lang: 'en', json: 1, cb: Date.now() });
+                const fetchParams = new URLSearchParams({ q: query, priceOnly: priceOnly, context: context, partial: partial, min_price: minPrice, max_price: maxPrice, lang: 'en', json: 1, cb: Date.now() });
                 const res = await fetch(`/shops/ssw/ssw_query.php?${fetchParams}`);
                 const data = await res.json();
                 if (data.data && data.data.error) {
@@ -23509,7 +23550,16 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
            reset never catches them and they keep spilling off a narrow
            viewport. Mirror the Step 2 fix here with the correct .sc/.sk
            class names. */
-        #bdFightStep4 {
+        /* Only force this layout when the native JS has actually made Step 4
+           the active step (inline style="display: block/inline-block/..."
+           set on it after 2-Player is chosen in Step 2). Forcing display
+           unconditionally by ID (as this used to do) beats the native
+           inline "display: none" that hides Step 4 for the 1-Player path,
+           since an ID selector + !important outranks a non-important
+           inline style — so Step 4's "Choose an Opponent" card (and by
+           extension Step 5's "Send a Challenge") was staying visible even
+           when 1-Player had been selected. */
+        #bdFightStep4[style*="block"] {
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
@@ -24593,6 +24643,23 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             color: var(--nui-text);
         }
 
+        /* Neutral empty-state for an unchosen weapon/ability slot — a dashed
+           outline + "+" instead of a misleading fixed emoji (there's no
+           real "shield" slot, weapon 1 and 2 are functionally identical). */
+        #nui-bd-controls .nui-bd-slot.empty {
+            border-style: dashed;
+            background: transparent;
+        }
+        #nui-bd-controls .nui-bd-slot.empty:hover {
+            background: var(--nui-surface-2);
+        }
+        #nui-bd-controls .nui-bd-slot-plus {
+            font-size: 22px;
+            font-weight: 300;
+            line-height: 1;
+            color: var(--nui-text-muted);
+        }
+
         #nui-bd-controls .nui-bd-slot img {
             width: 38px;
             height: 38px;
@@ -24920,10 +24987,25 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             display: none !important;
         }
 
-        #bdPopupGeneric-winnar, #bdPopupGeneric-ncrewards, #bdPopupGeneric-sendChallenge, #bdPopupGeneric-skirmish {
+        #bdPopupGeneric-sendChallenge, #bdPopupGeneric-skirmish {
             top: 50% !important;
             left: 50% !important;
             transform: translate(-50%, -50%) !important;
+            margin: 0 !important;
+            width: 90% !important;
+            max-width: 500px !important;
+            height: auto !important;
+            position: fixed !important;
+            z-index: 100000 !important;
+        }
+
+        /* Post-fight rewards popups (victory + prize reveal): nudged ~12px
+           below true center — dead-center made the close button/top edge
+           feel cramped against the arena chrome above it. */
+        #bdPopupGeneric-winnar, #bdPopupGeneric-ncrewards {
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, calc(-50% + 48px)) !important;
             margin: 0 !important;
             width: 90% !important;
             max-width: 500px !important;
@@ -25333,9 +25415,9 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         const row1 = document.createElement('div');
         row1.className = 'nui-bd-row';
 
-        const slotE1 = makeSlot('⚔️', 'Weapon 1', function () { openCustomSelector('e1'); }, 'slot-e1');
-        const slotE2 = makeSlot('🛡️', 'Weapon 2', function () { openCustomSelector('e2'); }, 'slot-e2');
-        const slotAbil = makeSlot('✨', 'Ability', function () { openCustomSelector('abil'); }, 'slot-abil');
+        const slotE1 = makeSlot('Weapon 1', function () { openCustomSelector('e1'); }, 'slot-e1');
+        const slotE2 = makeSlot('Weapon 2', function () { openCustomSelector('e2'); }, 'slot-e2');
+        const slotAbil = makeSlot('Ability', function () { openCustomSelector('abil'); }, 'slot-abil');
 
         row1.appendChild(slotE1);
         row1.appendChild(slotE2);
@@ -25369,6 +25451,18 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             document.body.appendChild(strip);
         }
 
+        // applyScale() already ran once during tryMount(), but at that point
+        // #nui-bd-arena-wrapper didn't exist yet (mountControls() hadn't run,
+        // since it waits on #fight to appear) — so its wrapper-height branch
+        // was a no-op and the strip landed with no explicit height/overflow
+        // on the wrapper, leaving it sitting wherever the un-collapsed
+        // native layout put it (page bottom) until *something* fired
+        // 'resize' (e.g. the mobile address bar collapsing) and applyScale()
+        // ran again, this time finding the wrapper and snapping it into the
+        // compact height right below the arena. Re-run it now that the
+        // wrapper actually exists, so the correct layout applies immediately
+        // on mount instead of waiting on an incidental resize.
+        applyScale();
         syncControlStrip();
         // Coalesce to at most one syncControlStrip() run per animation frame,
         // no matter how many mutations land in between. During an active
@@ -25401,21 +25495,24 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         observeSlotChanges();
     }
 
-    function makeSlot(icon, label, onClick, id) {
+    function renderEmptySlot(container, label) {
+        container.innerHTML = '';
+        const plusEl = document.createElement('span');
+        plusEl.className = 'nui-bd-slot-plus';
+        plusEl.textContent = '+';
+        container.appendChild(plusEl);
+        const lbl = document.createElement('span');
+        lbl.className = 'nui-bd-slot-label';
+        lbl.textContent = label;
+        container.appendChild(lbl);
+    }
+
+    function makeSlot(label, onClick, id) {
         const slot = document.createElement('div');
-        slot.className = 'nui-bd-slot';
+        slot.className = 'nui-bd-slot empty';
         slot.id = 'nui-bd-' + id;
 
-        const iconEl = document.createElement('span');
-        iconEl.textContent = icon;
-        iconEl.style.fontSize = '20px';
-
-        const labelEl = document.createElement('span');
-        labelEl.className = 'nui-bd-slot-label';
-        labelEl.textContent = label;
-
-        slot.appendChild(iconEl);
-        slot.appendChild(labelEl);
+        renderEmptySlot(slot, label);
         slot.addEventListener('click', onClick);
         return slot;
     }
@@ -25452,12 +25549,12 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
     function observeSlotChanges() {
         function refreshSlots() {
-            refreshSlot('p1e1m', 'nui-bd-slot-e1', '⚔️', 'Weapon 1');
-            refreshSlot('p1e2m', 'nui-bd-slot-e2', '🛡️', 'Weapon 2');
+            refreshSlot('p1e1m', 'nui-bd-slot-e1', 'Weapon 1');
+            refreshSlot('p1e2m', 'nui-bd-slot-e2', 'Weapon 2');
             refreshAbilSlot();
         }
 
-        function refreshSlot(realId, mirrorId, fallbackIcon, label) {
+        function refreshSlot(realId, mirrorId, label) {
             const real = document.getElementById(realId);
             const mirror = document.getElementById(mirrorId);
             if (!real || !mirror) return;
@@ -25465,10 +25562,11 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             const bg = real.querySelector('div') && getComputedStyle(real.querySelector('div')).backgroundImage;
             const imgMatch = bg && bg.match(/url\(["']?([^"')]+)["']?\)/);
 
-            mirror.innerHTML = '';
             mirror.classList.toggle('selected', real.classList.contains('selected'));
 
             if (imgMatch && imgMatch[1]) {
+                mirror.classList.remove('empty');
+                mirror.innerHTML = '';
                 const img = document.createElement('img');
                 img.src = imgMatch[1];
                 img.alt = label;
@@ -25478,14 +25576,8 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 lbl.textContent = label;
                 mirror.appendChild(lbl);
             } else {
-                const iconEl = document.createElement('span');
-                iconEl.textContent = fallbackIcon;
-                iconEl.style.fontSize = '20px';
-                mirror.appendChild(iconEl);
-                const lbl = document.createElement('span');
-                lbl.className = 'nui-bd-slot-label';
-                lbl.textContent = label;
-                mirror.appendChild(lbl);
+                mirror.classList.add('empty');
+                renderEmptySlot(mirror, label);
             }
         }
 
@@ -25498,8 +25590,9 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             const bg = div && getComputedStyle(div).backgroundImage;
             const imgMatch = bg && bg.match(/url\(["']?([^"')]+)["']?\)/);
 
-            mirror.innerHTML = '';
             if (imgMatch && imgMatch[1]) {
+                mirror.classList.remove('empty');
+                mirror.innerHTML = '';
                 const img = document.createElement('img');
                 img.src = imgMatch[1];
                 img.alt = 'Ability';
@@ -25509,14 +25602,8 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 lbl.textContent = 'Ability';
                 mirror.appendChild(lbl);
             } else {
-                const iconEl = document.createElement('span');
-                iconEl.textContent = '✨';
-                iconEl.style.fontSize = '20px';
-                mirror.appendChild(iconEl);
-                const lbl = document.createElement('span');
-                lbl.className = 'nui-bd-slot-label';
-                lbl.textContent = 'Ability';
-                mirror.appendChild(lbl);
+                mirror.classList.add('empty');
+                renderEmptySlot(mirror, 'Ability');
             }
         }
 
@@ -35015,6 +35102,32 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         '.missed-day-button,.missed-day-passes .missed-day-pass{background:var(--nui-accent);color:var(--nui-accent-ink,#fff);border:none;border-radius:var(--nui-radius-md,10px);padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;}',
         '.questlog-promo-banner{display:none!important;}',
 
+        // Streak Save Ticket popups (Forfeit confirm / Restore success). Like
+        // .ql-missed-day above, these are native/dynamic markup from
+        // missed-day.js rather than part of the synthesized popup template
+        // below, so they're reskinned in place via ID-scoped selectors.
+        // Note the inconsistent native class prefix: the Forfeit popup uses
+        // ql-missed-ticket/ql-image, the Restore popup uses md-missed-ticket/
+        // md-image/md-passes-left — both are covered here.
+        '#QuestLogForfeitPopup .ql-missed-ticket,#QuestLogRestorePopup .md-missed-ticket{margin:4px auto 8px;text-align:center;}',
+        '#QuestLogForfeitPopup .ql-image,#QuestLogRestorePopup .md-image{display:block;margin:0 auto;max-width:100px;height:auto;}',
+        '#QuestLogRestorePopup .md-passes-left{margin:6px 0 4px;font-size:12px;font-weight:700;color:var(--nui-text-muted);text-align:center;}',
+        '#QuestLogRestorePopup .md-passes-left .ql-pass-num{color:var(--nui-accent);font-weight:800;}',
+        '#QuestLogForfeitPopup #QLForfeitErrorMsg{margin-top:8px;font-size:12px;font-weight:700;color:var(--nui-danger,#d42326);text-align:center;}',
+        // The second "swap your prize" popup shown when a reroll is attempted
+        // before a broken streak is restored/forfeited — same native class
+        // names as the .ql-reroll-* markup used pre-rebuild (not the
+        // nui-ql-reroll-* names the synthesized QuestLogStreakReroll popup
+        // below uses), so it gets its own matching set of rules here.
+        '#QuestLogStreakSaveReroll .popup-body__2020 > p:first-of-type{margin:0 0 14px;font-size:13.5px;font-weight:700;text-align:center;color:var(--nui-text);}',
+        '#QuestLogStreakSaveReroll .ql-reroll-cost{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 0 14px;padding:12px 16px;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-md,10px);}',
+        '#QuestLogStreakSaveReroll .ql-reroll-cost img{width:36px;height:36px;flex-shrink:0;}',
+        '#QuestLogStreakSaveReroll .ql-reroll-current{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--nui-text-muted);}',
+        '#QuestLogStreakSaveReroll .ql-reroll-np{font-size:16px;font-weight:800;color:var(--nui-accent);}',
+        '#QuestLogStreakSaveReroll #QLRerollErrorMsg{display:block;margin-top:6px;padding:9px 12px;background:var(--nui-danger-soft, var(--nui-surface-2));border:1px solid var(--nui-danger,#d42326);border-radius:var(--nui-radius-sm,8px);color:var(--nui-danger,#d42326);font-size:11.5px;font-weight:700;line-height:1.4;text-align:center;}',
+        '#QuestLogStreakSaveReroll a[href*="support.neopets.com"]{color:var(--nui-accent);font-weight:700;text-decoration:none;}',
+
+
         // Quests list
         '.questlog-quests{position:relative;width:100%;display:flex;flex-direction:column;gap:10px;}',
         '.questlog-quests .ql-no-new{width:100%;max-width:340px;color:var(--nui-text-muted);margin:2.5em auto;text-align:center;font-size:13px;}',
@@ -35702,6 +35815,58 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         }
     }
 
+    // Streak Save Tickets: restoreStreak() fixes a broken streak (opens
+    // QuestLogRestorePopup with the "Tickets Left" count) and forfeitStreak()
+    // gives up on it (closes QuestLogForfeitPopup, no separate success popup
+    // — only #QLForfeitErrorMsg on failure). Both come from missed-day.js,
+    // a separate script tag only present when a streak has actually broken,
+    // and they aren't guaranteed to exist by the time patchHubFunctions'
+    // one-shot `needed` check passes — so this polls on its own schedule
+    // instead of living inside patchHubFunctions, and simply stops once both
+    // are patched (or gives up after a while if the streak isn't broken and
+    // neither will ever appear this session).
+    function patchStreakSaveFunctions(attemptsLeft) {
+        if (attemptsLeft === undefined) attemptsLeft = 40; // ~6s at 150ms
+
+        if (typeof window.restoreStreak === 'function' && !window.restoreStreak.__nuiPatched) {
+            var _rs = window.restoreStreak;
+            window.restoreStreak = function (e) {
+                var result = _rs.apply(this, arguments);
+                waitForPopup('QuestLogRestorePopup', function (p) {
+                    var left = p.querySelector('.ql-pass-num');
+                    showToast(left && left.textContent.trim()
+                        ? '\uD83C\uDFAB Streak restored! Tickets left: ' + left.textContent.trim()
+                        : '\uD83C\uDFAB Streak restored!');
+                });
+                setTimeout(forceListRefresh, 1000);
+                return result;
+            };
+            window.restoreStreak.__nuiPatched = true;
+        }
+
+        if (typeof window.forfeitStreak === 'function' && !window.forfeitStreak.__nuiPatched) {
+            var _fs = window.forfeitStreak;
+            window.forfeitStreak = function (e) {
+                var result = _fs.apply(this, arguments);
+                setTimeout(function () {
+                    var err = document.getElementById('QLForfeitErrorMsg');
+                    var msg = err && err.textContent.trim();
+                    if (msg) showToast('\u26A0\uFE0F ' + msg, true);
+                    else     showToast('\uD83D\uDC94 Streak forfeited.');
+                }, 650);
+                setTimeout(forceListRefresh, 1000);
+                return result;
+            };
+            window.forfeitStreak.__nuiPatched = true;
+        }
+
+        var bothPatched = (typeof window.restoreStreak !== 'function' || window.restoreStreak.__nuiPatched)
+            && (typeof window.forfeitStreak !== 'function' || window.forfeitStreak.__nuiPatched);
+        if (!bothPatched && attemptsLeft > 0) {
+            setTimeout(function () { patchStreakSaveFunctions(attemptsLeft - 1); }, 150);
+        }
+    }
+
     // ── Initial load ──────────────────────────────────────────────────────────
     (function kickoff() {
         if (typeof window.retrieveQuests === 'function') {
@@ -35711,6 +35876,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             // call immediately — it will catch renders whenever they arrive.
             patchHubFunctions();
             attachQuicklinkObserver();
+            patchStreakSaveFunctions();
         } else {
             setTimeout(kickoff, 50);
         }
@@ -43100,6 +43266,7 @@ return {
     // ---- KadWatch Logic ----
     const KW_MAIN_KEY = 'nui_kw_mainTime';
     const KW_MINIS_KEY = 'nui_kw_minisArr';
+    const KW_MAIN_FOODS_KEY = 'nui_kw_mainFoods';
     const KW_PENDING_KEY = 'nui_kw_pendingDrop';
 
     const KW = {
@@ -43107,6 +43274,8 @@ return {
         setMain: (ms) => { try { localStorage.setItem(KW_MAIN_KEY, ms.toString()); } catch (e) {} },
         getMinis: () => { try { return JSON.parse(localStorage.getItem(KW_MINIS_KEY) || '[]'); } catch (e) { return []; } },
         setMinis: (arr) => { try { localStorage.setItem(KW_MINIS_KEY, JSON.stringify(arr)); } catch (e) {} },
+        getMainFoods: () => { try { return JSON.parse(localStorage.getItem(KW_MAIN_FOODS_KEY) || '[]'); } catch (e) { return []; } },
+        setMainFoods: (arr) => { try { localStorage.setItem(KW_MAIN_FOODS_KEY, JSON.stringify(arr || [])); } catch (e) {} },
         getPending: () => { try { return JSON.parse(localStorage.getItem(KW_PENDING_KEY) || '{}'); } catch (e) { return {}; } },
         setPending: (obj) => { try { localStorage.setItem(KW_PENDING_KEY, JSON.stringify(obj)); } catch (e) {} },
 
@@ -43153,7 +43322,22 @@ return {
             return (m < 10 ? '0'+m : m) + ':' + (s < 10 ? '0'+s : s);
         },
 
-        genBoardStr: (label, ms, now) => {
+        // Ported from the standalone KadWatch script: certain food names trip
+        // Neoboards' word filter, so a stealth period gets inserted into the
+        // trigger substring before posting. Gated by the censorFood pref
+        // (defaults on, matching KadWatch's own default).
+        censorFood: (name) => {
+            return String(name)
+                .replace(/ball/gi, "b.all")
+                .replace(/crack/gi, "crac.k")
+                .replace(/weed/gi, "w.eed")
+                .replace(/rape/gi, "r.ape")
+                .replace(/cum/gi, "c.um")
+                .replace(/fuk/gi, "f.uk")
+                .replace(/\b(on)/gi, "$1.");
+        },
+
+        genBoardStr: (label, ms, now, foods, includeFood, censor) => {
             if (!ms) return null;
             let mainStart = ms + 2100000;
             let cycle = Math.floor((now - mainStart) / 420000);
@@ -43174,7 +43358,19 @@ return {
                 pends.push(":" + (m < 10 ? '0'+m : m));
             }
             let pendsStr = pends.length > 0 ? " / " + pends.join(" / ") : "";
-            return `${label} @ ${lastStr}\nNext ${nextStr}${pendsStr}`;
+
+            // Food list — same layout as KadWatch: a blank line before it,
+            // then names one per line, with an extra blank line every 4th
+            // name (counting back from the end) to break long lists up.
+            let foodLine = '';
+            if (includeFood && foods && foods.length) {
+                let names = censor ? foods.map(KW.censorFood) : foods.slice();
+                foodLine = "\n\n" + names.reduce(function (acc, food, i, arr) {
+                    return acc + (i > 0 ? ((arr.length - i) % 4 === 0 ? "\n\n" : "\n") : "") + food;
+                }, "");
+            }
+
+            return `${label} @ ${lastStr}\nNext ${nextStr}${pendsStr}${foodLine}`;
         },
 
         checkDrop: (kads) => {
@@ -43188,7 +43384,10 @@ return {
                 if (!k.isFed && (!prev[i] || prev[i].fed)) hasNew = true;
             });
             try { localStorage.setItem('nui_kw_states', JSON.stringify(states)); } catch (e) {}
-            if (hasNew) KW.setPending({ time: Date.now() });
+            if (hasNew) {
+                const foods = kads.filter(k => !k.isFed && k.itemName).map(k => k.itemName.replace(/[.!?,]+$/, '').trim());
+                KW.setPending({ time: Date.now(), foods: foods });
+            }
         }
     };
 
@@ -43196,6 +43395,17 @@ return {
         const profile = NeoUI.scrapeLegacyProfile();
 
         let initialKads = scrapeKadoaties();
+        // Tracks whichever kads array is currently on screen (initial scrape,
+        // then reassigned after every refreshBtn tap) so the KadWatch
+        // "Add Main"/"Add Mini" buttons can snapshot the food list at the
+        // moment a refresh is logged, without re-scraping the native DOM —
+        // which init() below wipes for the SPA rebuild.
+        let latestKads = initialKads;
+        function currentSadFoodNames() {
+            return (latestKads || [])
+                .filter(function (k) { return !k.isFed && k.itemName; })
+                .map(function (k) { return k.itemName.replace(/[.!?,]+$/, '').trim(); });
+        }
         let initialFeedResult = null;
         if (!initialKads.length) {
             const centerDiv = document.querySelector('td.content div[align="center"]');
@@ -43261,6 +43471,8 @@ return {
                             '<div style="margin-top:12px;display:flex;flex-direction:column;gap:0;">' +
                                 row('KadWatch on top', 'Move KadWatch above the grid', 'kwTop') +
                                 row('Shop buttons on bottom', 'Move SSW / SW / SDB below the grid', 'shopsBottom') +
+                                row('Include food in Copy', 'Append the sad kads\u2019 food list to the most recent block when copying', 'includeFood') +
+                                row('Censor food names', 'Break up words Neoboards\u2019 filter flags (ball, crack, etc.) with a stealth period', 'censorFood') +
                             '</div>' +
                         '</div>';
 
@@ -43448,8 +43660,8 @@ return {
         // ---- Kad Settings Prefs ----
         const KAD_PREF_KEY = 'neoui_kad_prefs_v1';
         function getKadPrefs() {
-            try { return Object.assign({ kwTop: false, shopsBottom: false }, JSON.parse(localStorage.getItem(KAD_PREF_KEY) || '{}')); }
-            catch (e) { return { kwTop: false, shopsBottom: false }; }
+            try { return Object.assign({ kwTop: false, shopsBottom: false, includeFood: true, censorFood: true }, JSON.parse(localStorage.getItem(KAD_PREF_KEY) || '{}')); }
+            catch (e) { return { kwTop: false, shopsBottom: false, includeFood: true, censorFood: true }; }
         }
         function setKadPrefs(p) {
             try { localStorage.setItem(KAD_PREF_KEY, JSON.stringify(p)); } catch (e) {}
@@ -43561,6 +43773,7 @@ return {
 
                 window.dispatchEvent(new CustomEvent('Statdoatie_SPA_Refresh'));
 
+                latestKads = newKads;
                 renderGridArea(newKads, feedHtml);
                 if (NeoUI.isModuleEnabled('kad-timer')) {
                     KW.checkDrop(newKads);
@@ -43855,13 +44068,13 @@ return {
 
             btnMain.addEventListener('click', () => {
                 let d = KW.parseInput(inputTime.value);
-                if (d) { KW.setMain(d.getTime()); inputTime.value = ''; updateUI(); }
+                if (d) { KW.setMain(d.getTime()); KW.setMainFoods(currentSadFoodNames()); inputTime.value = ''; updateUI(); }
             });
 
             btnMini.addEventListener('click', () => {
                 let d = KW.parseInput(inputTime.value);
                 if (d) {
-                    let m = KW.getMinis(); m.push({time: d.getTime()}); KW.setMinis(m);
+                    let m = KW.getMinis(); m.push({time: d.getTime(), foods: currentSadFoodNames()}); KW.setMinis(m);
                     inputTime.value = ''; updateUI();
                 }
             });
@@ -43870,12 +44083,24 @@ return {
                 let now = Date.now();
                 let blocks = [];
                 let main = KW.getMain();
+                let minis = KW.getMinis();
+                const prefs = getKadPrefs();
+
+                // Food only gets appended to whichever block is the single
+                // most-recently-logged refresh overall — same rule KadWatch
+                // itself uses — not every still-active block, so a copied
+                // post doesn't repeat a stale food list under an older time.
+                let overallHighestTime = main;
+                minis.forEach(m => { if (m.time > overallHighestTime) overallHighestTime = m.time; });
+
                 if (main > 0 && KW.getState(main, now).status !== 'expired') {
-                    blocks.push({t: main, text: KW.genBoardStr("Main", main, now)});
+                    let isMostRecent = main === overallHighestTime;
+                    blocks.push({t: main, text: KW.genBoardStr("Main", main, now, isMostRecent ? KW.getMainFoods() : null, prefs.includeFood, prefs.censorFood)});
                 }
-                KW.getMinis().forEach((m, i) => {
+                minis.forEach((m, i) => {
                     if (KW.getState(m.time, now).status !== 'expired') {
-                        blocks.push({t: m.time, text: KW.genBoardStr(`Mini ${i+1}`, m.time, now)});
+                        let isMostRecent = m.time === overallHighestTime;
+                        blocks.push({t: m.time, text: KW.genBoardStr(`Mini ${i+1}`, m.time, now, isMostRecent ? m.foods : null, prefs.includeFood, prefs.censorFood)});
                     }
                 });
                 if (!blocks.length) return;
@@ -43911,7 +44136,7 @@ return {
             }
 
             document.addEventListener('kw-del', (e) => {
-                if (e.detail.isMain) KW.setMain(0);
+                if (e.detail.isMain) { KW.setMain(0); KW.setMainFoods([]); }
                 else { let m = KW.getMinis(); m.splice(e.detail.idx, 1); KW.setMinis(m); }
                 updateUI();
             });
@@ -43938,8 +44163,8 @@ return {
 
             document.addEventListener('kw-merge', (e) => {
                 let pend = KW.getPending();
-                if (e.detail === 'main') KW.setMain(pend.time);
-                else if (e.detail === 'mini') { let m = KW.getMinis(); m.push({time: pend.time}); KW.setMinis(m); }
+                if (e.detail === 'main') { KW.setMain(pend.time); KW.setMainFoods(pend.foods || []); }
+                else if (e.detail === 'mini') { let m = KW.getMinis(); m.push({time: pend.time, foods: pend.foods || []}); KW.setMinis(m); }
                 KW.setPending({});
                 updateUI();
             });
@@ -45297,8 +45522,35 @@ return {
                 width: 90vw !important; max-width: 400px !important; height: auto !important;
             }
             .mnc_popup_generic.middle { width: 100% !important; }
-            .mnc_popup_generic.t, .mnc_popup_generic.b { width: calc(100% - 30px) !important; }
-            .mnc_popup_generic.bg { width: calc(100% - 10px) !important; height: calc(100% - 10px) !important; }
+            /* .frame / .edge are the decorative woodgrain border graphics
+               from the shared "popup_generic" template (same component
+               Battledome's reward popups use, under its own bdPopupGeneric-
+               prefixed classes) — hide them outright rather than just
+               resizing, or the native wood texture still paints behind our
+               themed contents. .t / .b (top/bottom edge strips) carry the
+               same texture, so strip their background instead of only
+               sizing them. */
+            .mnc_popup_generic.frame, .mnc_popup_generic.edge { display: none !important; }
+            .mnc_popup_generic.t, .mnc_popup_generic.b, .mnc_popup_generic.l, .mnc_popup_generic.r {
+                width: calc(100% - 30px) !important;
+                background: none !important;
+                background-image: none !important;
+                border: none !important;
+            }
+            .mnc_popup_generic.bg {
+                width: calc(100% - 10px) !important; height: calc(100% - 10px) !important;
+                background-color: var(--nui-surface) !important;
+                background-image: none !important;
+                border: 1px solid var(--nui-border) !important;
+                border-radius: var(--nui-radius-lg) !important;
+                box-shadow: 0 10px 40px var(--nui-shadow) !important;
+            }
+            /* Raw internal popup label (e.g. the "mnc_popup_generic_correct"
+               template name/code) that the native template renders as
+               visible text — same reason Battledome hides its equivalent
+               .title element. Our own heading comes from the rebuilt
+               .contents below, so this native one is pure noise. */
+            .mnc_popup_generic.title { display: none !important; }
             .mnc_popup_generic.contents {
                 display: flex; flex-direction: column; align-items: center;
                 gap: 16px; padding: 24px !important;
@@ -45343,6 +45595,13 @@ return {
             const continueContainer = contents.querySelector('#mnc_popup_complete_container');
 
             const clone = contents.cloneNode(true);
+
+            // Strip embedded <style>/<script> tags before we read textContent.
+            // textContent walks straight through a <style> element's rules as
+            // plain text, so leaving it in place dumps raw CSS (the native
+            // "#mnc_popup_complete_container { ... }" block Neopets ships
+            // inline in the popup) right into the reward message.
+            clone.querySelectorAll('style, script').forEach(el => el.remove());
 
             // Pull item images before stripping
             const itemImages = Array.from(clone.querySelectorAll('img'))
@@ -52402,7 +52661,21 @@ return {
             el.style.display = 'none';
         });
 
-        document.body.classList.add('nui-reset');
+        // 'nui-spa-active' (not just 'nui-reset') is what the shared
+        // ".nui-spa-active #footer / #header / #main / td.sidebar" rule
+        // keys off of to hide native chrome -- every other page module sets
+        // it via body.className = 'nui-reset nui-spa-active'. This module
+        // was only adding 'nui-reset'.
+        document.body.className = 'nui-reset nui-spa-active';
+        // That shared rule alone still doesn't hide the footer here though:
+        // it targets a bare "#footer" id, but this page's footer is
+        // class="footer__2020" id="footer__2020" (2020 template), so the
+        // selector never matches. Hide it directly -- same convention the
+        // Battledome module's HIDE list already uses ('.footer__2020', not
+        // '#footer').
+        document.querySelectorAll('.footer__2020, #footer__2020').forEach(function (el) {
+            el.style.display = 'none';
+        });
         NeoUI.ensureCoreStyles();
         NeoUI.init();
         NeoUI.setProfileInfo(profile);
@@ -52589,16 +52862,36 @@ return {
 
     function watchForResult() {
         let settled = false;
-        const finish = function () {
+        let debounceTimer = null;
+
+        function finish() {
             if (settled) return;
             settled = true;
+            clearTimeout(debounceTimer);
             observer.disconnect();
             revealNative();
-        };
+        }
 
-        const observer = new MutationObserver(function () { finish(); });
+        // petpetlab.js doesn't fill the result in as one atomic swap -- it
+        // writes it in stages (an explosion image first, then the outcome
+        // text, then the promo box, judging by the narrative). Calling
+        // finish() on the very *first* mutation record grabbed the DOM
+        // mid-write: the container itself got its card chrome (that part
+        // is a one-time style/class change on `content`, so it stuck), but
+        // the paragraphs/image/etc written a moment later never got the
+        // color + legacy-attribute stripping pass in revealNative(), which
+        // is exactly what left them as dark, unthemed native text. Debounce
+        // instead -- keep resetting the timer on every mutation, and only
+        // treat the result as "done" once the DOM has been quiet for a
+        // beat.
+        const observer = new MutationObserver(function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(finish, 250);
+        });
         observer.observe(content, { childList: true, subtree: true, attributes: true });
 
+        // Absolute fallback in case petpetlab.js errors out mid-sequence
+        // and content never settles on its own.
         setTimeout(finish, 8000);
     }
 
@@ -52606,8 +52899,43 @@ return {
         appEl.style.display = 'none';
         nativeSelect.style.display = '';
         content.style.display = '';
+
+        // buildShell() earlier set content's *inline* style to
+        // background:transparent/border:none/box-shadow:none/padding:0 (to
+        // sit flush during the picker screen) — inline styles beat a class's
+        // CSS regardless of source order, so just adding .nui-lab-card here
+        // wouldn't visibly do anything. Re-apply the card chrome via cssText
+        // (later declarations win over the earlier ones on the same
+        // element) so the result screen gets the same card treatment as the
+        // pick screen and the pet Lab Ray's themed renderResult().
+        content.classList.add('nui-lab-card');
         content.style.cssText += 'background:var(--nui-surface);border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg);box-shadow:0 4px 16px var(--nui-shadow);padding:var(--nui-space-4);';
-        content.querySelectorAll('p').forEach(function (p) { p.style.color = 'var(--nui-text)'; });
+
+        // The result markup petpetlab.js injects is classic legacy HTML —
+        // font/table/center tags carrying their own inline color, size and
+        // bgcolor — same as the reward popup in the Mysterious Negg Cave
+        // module. Left alone, those inline attributes win over our card
+        // background/text-color and the result reads as unstyled native
+        // content sitting inside a themed box. Strip them so everything
+        // actually inherits the card's theme.
+        content.querySelectorAll('font, span, td, th, tr, table, center, b, div').forEach(function (el) {
+            ['color', 'size', 'face', 'style', 'align', 'bgcolor', 'width', 'height'].forEach(function (attr) {
+                el.removeAttribute(attr);
+            });
+        });
+
+        content.querySelectorAll('p, li, td, th, div, span, b, center').forEach(function (el) { el.style.color = 'var(--nui-text)'; });
+        content.querySelectorAll('a').forEach(function (a) { a.style.color = 'var(--nui-accent)'; });
+        content.querySelectorAll('h1, h2, h3').forEach(function (h) {
+            h.style.cssText = 'font-family:var(--nui-font-display);color:var(--nui-text);';
+        });
+        // The result petpet image (and any avatar/item art alongside it) —
+        // give it the same treatment as the pick screen's preview image
+        // rather than leaving it at native size with no framing.
+        content.querySelectorAll('img').forEach(function (img) {
+            img.style.cssText = 'max-width:120px;max-height:120px;object-fit:contain;margin:8px auto;display:block;';
+        });
+
         nativeSelect.classList.add('nui-select');
         nativeZapBtn.classList.remove('button-default__2020', 'button-yellow__2020', 'btn-single__2020');
         nativeZapBtn.classList.add('nui-btn', 'nui-btn-primary', 'nui-btn-block');
@@ -56264,29 +56592,19 @@ return {
             overflow-x: hidden;
         }
 
-        /* Generic reskin for native buttons/links/inputs on unclaimed pages —
-           gives them the NeoUI accent/rounded look without needing to know
-           anything about the specific page's markup. Scoped to the content
-           areas only, so nothing outside a converted page is touched.
+        /* Generic reskin for native links/inputs on unclaimed pages — gives
+           them the NeoUI accent look without needing to know anything about
+           the specific page's markup. Scoped to the content areas only, so
+           nothing outside a converted page is touched. Buttons/submit/reset
+           inputs are NOT handled here — see replaceNativeButtons() below,
+           which swaps them for real .nui-btn elements instead of just
+           recoloring the originals in place, so hover/active/disabled
+           states all come from the same button system every module uses.
            Excludes both our own nui- classed elements AND nph- classed ones
            (Neopets Helper's topbar/badge integration, which also renders
            inside page content in places like item rarity/price badges) —
            see the aggressive recoloring pass below for why nph- needs the
            same exclusion. */
-        #nui-sitewide-content-wrap input[type="submit"],
-        #nui-sitewide-content-wrap input[type="button"],
-        #nui-sitewide-content-wrap button:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]),
-        #container__2020 input[type="submit"],
-        #container__2020 input[type="button"],
-        #container__2020 button:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]) {
-            background: var(--nui-accent) !important;
-            color: var(--nui-accent-ink,#fff) !important;
-            border: none !important;
-            border-radius: var(--nui-radius-pill) !important;
-            padding: 7px 16px !important;
-            font-weight: 700 !important;
-            cursor: pointer !important;
-        }
         #nui-sitewide-content-wrap a:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]),
         #container__2020 a:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]) {
             color: var(--nui-accent) !important;
@@ -56397,111 +56715,48 @@ return {
     // Pass 2: Any remaining top-level content that isn't already inside
     // a card gets wrapped in a catch-all card so it sits on a surface
     // instead of floating on the raw page background.
-    function runCardWrappingPass(contentWrap) {
-        function makeCard(titleText, bodyEl) {
-            const card = document.createElement('div');
-            card.className = 'nui-surface';
-            card.style.cssText = 'border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);box-shadow:0 2px 8px var(--nui-shadow);overflow:hidden;width:100%;box-sizing:border-box;margin-bottom:var(--nui-space-4);';
-            const details = document.createElement('details');
-            details.className = 'nui-card-details';
-            details.open = true;
-            if (titleText) {
-                const summary = document.createElement('summary');
-                summary.className = 'nui-card-summary';
-                summary.style.cssText = 'padding:10px 16px;border-bottom:1px solid var(--nui-border);font-family:var(--nui-font-display);font-size:15px;font-weight:800;color:var(--nui-text);background:var(--nui-surface-2);text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;';
-                summary.textContent = titleText;
-                summary.innerHTML += '<style>summary::-webkit-details-marker{display:none;}</style>';
-                details.appendChild(summary);
-            }
-            const body = document.createElement('div');
-            body.className = 'nui-card-body';
-            body.style.cssText = 'padding:var(--nui-space-4);box-sizing:border-box;color:var(--nui-text);font-size:14px;line-height:1.6;';
-            if (bodyEl) {
-                body.appendChild(bodyEl);
-            }
-            details.appendChild(body);
-            card.appendChild(details);
-            return { card, body };
-        }
-        function styleInnerTables(inner) {
-            inner.querySelectorAll('table').forEach(function (t) {
-                t.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;max-width:100%;';
-                t.querySelectorAll('tr').forEach(function (tr, i) {
-                    tr.style.background = i % 2 === 0 ? 'var(--nui-surface-2)' : 'var(--nui-surface)';
-                    tr.querySelectorAll('td, th').forEach(function (cell) {
-                        cell.style.padding = '5px 8px';
-                        cell.style.borderBottom = '1px solid var(--nui-border)';
-                        cell.style.color = cell.tagName === 'TH' ? 'var(--nui-text-muted)' : 'var(--nui-text)';
-                    });
-                });
-            });
-        }
+    // ── Native button replacement ───────────────────────────────────────
+    // Swaps native <button>/submit/button/reset <input> elements for real
+    // .nui-btn proxies instead of just CSS-reskinning the originals in
+    // place — that only fixed color, not the actual hover/active/disabled
+    // treatment every other NeoUI-built button gets for free from the
+    // shared .nui-btn/.nui-btn-primary system.
+    // The original element is kept in the DOM (visually hidden, not
+    // display:none or removed) and still does whatever it always did —
+    // submit its form with its own name/value pair, run an inline onclick,
+    // whatever a page-specific script wired to it. The proxy's click just
+    // forwards a real .click() to it. This replaces the pixel, not the
+    // behavior, so it's safe on completely unknown markup.
+    function replaceNativeButtons(scopeEl) {
+        if (!scopeEl) return;
+        const candidates = scopeEl.querySelectorAll('input[type="submit"], input[type="button"], input[type="reset"], button');
+        Array.from(candidates).forEach(function (orig) {
+            if (orig.dataset.nuiReplaced) return;
+            if (orig.closest('[class*="nui-"]')) return; // already one of ours
+            if (orig.closest('[class*="nph-"]')) return; // Neopets Helper's own controls
+            orig.dataset.nuiReplaced = '1';
 
-        // Pass 1: contentModule tables → cards
-        contentWrap.querySelectorAll('table.contentModule, .contentModule').forEach(function (mod) {
-            const headerEl = mod.querySelector('th.contentModuleHeader, th.contentModuleHeaderAlt, .contentModuleHeader, .contentModuleHeaderAlt');
-            const contentEl = mod.querySelector('td.contentModuleContent, .contentModuleContent');
-            const title = headerEl ? headerEl.textContent.trim() : '';
-            const inner = document.createElement('div');
-            inner.style.cssText = 'overflow-x:auto;max-width:100%;';
-            if (contentEl) {
-                // Move contentEl's children in, stripping the legacy td wrapper
-                Array.from(contentEl.childNodes).forEach(function (n) { inner.appendChild(n.cloneNode(true)); });
-            } else {
-                inner.innerHTML = mod.innerHTML;
-            }
-            // Normalise any remaining inline colors so theme vars apply
-            inner.querySelectorAll('*').forEach(function (e) {
-                e.removeAttribute('bgcolor'); e.removeAttribute('color');
-                e.removeAttribute('background'); e.removeAttribute('text');
+            const label = (orig.tagName === 'INPUT' ? orig.value : orig.textContent) || 'Submit';
+            const proxy = document.createElement('button');
+            proxy.type = 'button';
+            proxy.className = 'nui-btn nui-btn-primary nui-btn-sm';
+            proxy.textContent = label.trim();
+            if (orig.title) proxy.title = orig.title;
+            proxy.disabled = !!orig.disabled;
+
+            // Visually hide (not display:none — some browsers/pages treat a
+            // fully hidden form control oddly for validation/focus purposes)
+            // while leaving it clickable and part of the form.
+            orig.style.cssText += ';position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;';
+            orig.setAttribute('aria-hidden', 'true');
+            orig.tabIndex = -1;
+
+            proxy.addEventListener('click', function () {
+                if (!orig.disabled) orig.click();
             });
-            const { card } = makeCard(title, inner);
-            styleInnerTables(inner);
-            mod.parentNode && mod.parentNode.replaceChild(card, mod);
+
+            orig.insertAdjacentElement('afterend', proxy);
         });
-
-        // Pass 2: wrap remaining loose top-level nodes in a catch-all card
-        // Collect everything that isn't already a .nui-surface card and
-        // has actual visible content.
-        const loose = Array.from(contentWrap.childNodes).filter(function (n) {
-            if (n.nodeType === 3) return n.textContent.trim().length > 0; // non-empty text nodes
-            if (n.nodeType !== 1) return false;
-            if (n.classList && n.classList.contains('nui-surface')) return false;
-            // Skip invisible/chrome nodes
-            const tag = n.tagName && n.tagName.toLowerCase();
-            if (tag === 'style' || tag === 'script' || tag === 'link') return false;
-            return true;
-        });
-
-        if (loose.length > 0) {
-            // Try to find a title from the first h1/h2/h3 in the loose content
-            let pageTitle = '';
-            loose.forEach(function (n) {
-                if (!pageTitle && n.nodeType === 1) {
-                    const h = n.matches && n.matches('h1,h2,h3') ? n : n.querySelector && n.querySelector('h1,h2,h3');
-                    if (h) { pageTitle = h.textContent.trim(); h.remove(); }
-                }
-            });
-            if (!pageTitle) {
-                // Fall back to document title minus " | Neopets"
-                pageTitle = document.title.replace(/\s*[|\-–]\s*Neopets.*$/i, '').trim();
-            }
-
-            const fragment = document.createDocumentFragment();
-            loose.forEach(function (n) { fragment.appendChild(n); });
-
-            const inner = document.createElement('div');
-            inner.appendChild(fragment);
-            // Normalise color attrs
-            inner.querySelectorAll('*').forEach(function (e) {
-                e.removeAttribute('bgcolor'); e.removeAttribute('color');
-                e.removeAttribute('background'); e.removeAttribute('text');
-            });
-            styleInnerTables(inner);
-
-            const { card } = makeCard(pageTitle, inner);
-            contentWrap.appendChild(card);
-        }
     }
 
     try {
@@ -56579,7 +56834,23 @@ return {
             // the visual gap" pattern the Your Shop rebuild used for its
             // header, so an entirely-unclaimed page doesn't sit under the
             // topbar looking like undecorated raw HTML.
-            const existingH1 = container2020.querySelector('h1');
+            //
+            // "Has a heading" originally meant "querySelector('h1') found
+            // literally anything" — but plenty of 2020-template pages carry
+            // an empty, hidden, or off-screen <h1> (accessibility markup, a
+            // collapsed widget's heading, etc.), which made that check true
+            // on nearly every page and meant the actual visible fallback
+            // header almost never got built — it looked like the feature
+            // just didn't work. Only a heading that's actually visible and
+            // has real text now counts as "this page already has a title."
+            function isVisibleHeading(h) {
+                if (!h || !h.textContent || !h.textContent.trim()) return false;
+                const cs = window.getComputedStyle(h);
+                if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+                if (h.offsetWidth === 0 && h.offsetHeight === 0) return false;
+                return true;
+            }
+            const existingH1 = Array.from(container2020.querySelectorAll('h1')).find(isVisibleHeading);
             if (existingH1) {
                 existingH1.style.color = 'var(--nui-text)';
                 existingH1.style.fontFamily = 'var(--nui-font-display)';
@@ -56600,6 +56871,7 @@ return {
                 fallbackHeader.appendChild(titleEl);
                 container2020.insertAdjacentElement('beforebegin', fallbackHeader);
             }
+            replaceNativeButtons(container2020);
 
         } else if (classicContentTd) {
             // Case B: classic two-column layout.
@@ -56610,7 +56882,9 @@ return {
             });
             classicContentTd.style.cssText = 'display:block;padding:0;margin:0;border:none;background:transparent;width:auto;';
             document.body.appendChild(contentWrap);
-            requestAnimationFrame(function () { runCardWrappingPass(contentWrap); });
+            requestAnimationFrame(function () {
+                replaceNativeButtons(contentWrap);
+            });
 
         } else {
             // Case C: unrecognised layout — collect all non-NeoUI body children.
@@ -56633,10 +56907,9 @@ return {
                 })
                 .forEach(function (n) { contentWrap.appendChild(n); });
             document.body.appendChild(contentWrap);
-            // Case C used to leave this raw — no title, no cards, just the
-            // generic table/img max-width clamps from EXTRA_RULES. Give it
-            // the same treatment Case B gets instead of a second-class fallback.
-            requestAnimationFrame(function () { runCardWrappingPass(contentWrap); });
+            requestAnimationFrame(function () {
+                replaceNativeButtons(contentWrap);
+            });
         }
     } catch (e) {
         console.error('NeoUI Sitewide Chrome: conversion failed', e);
@@ -56646,6 +56919,17 @@ return {
 // ==============================================================================
 // MODULE 63: YOUR SHOP — FULL PAGE REBUILD
 // ==============================================================================
+// Also claims /market.phtml?type=till (Shop Till). The till page shares the
+// same header/banner/instructions/subnav chrome as type=your, so bootTill()
+// reuses that reading/rebuilding code path and the module's shared
+// buildPopup()/digitsOf()/groupThousands() helpers, then swaps in a small
+// balance card + withdraw form in place of the stock list/toolbar. The
+// native till page's own popup (#mkt-popup-root) and loading overlay
+// (#mkt-loading) — and the inline script that drives them — are torn out
+// along with the rest of the native chrome; withdrawals go through this
+// module's own themed popup instead, submitting to the same
+// process_market.php endpoint the stock-price form below already uses.
+//
 // Full teardown-and-rebuild of the native /market.phtml?type=your page, not
 // just the stock table. Every native element from the page header down
 // through the bottom pagination is read once for its data (text, hrefs,
@@ -56681,7 +56965,8 @@ return {
     const NeoUI = window.NeoUI;
     if (!NeoUI.isModuleEnabled('shop-pricing-helper')) return;
     if (location.pathname !== '/market.phtml') return;
-    if (new URLSearchParams(location.search).get('type') !== 'your') return;
+    const marketType = new URLSearchParams(location.search).get('type');
+    if (marketType !== 'your' && marketType !== 'till') return;
 
     let stylesInjected = false;
 
@@ -56824,6 +57109,23 @@ return {
                 border-top-color:var(--nui-accent); animation:nui-shop-spin 0.8s linear infinite;
             }
             @keyframes nui-shop-spin { to { transform:rotate(360deg); } }
+
+            .nui-shop-till-icon { flex-shrink:0; width:56px; height:56px; border-radius:var(--nui-radius-sm); background:var(--nui-surface-2); display:flex; align-items:center; justify-content:center; font-size:26px; }
+            .nui-shop-till-balance { font-size:20px; font-weight:800; color:var(--nui-text); font-family:var(--nui-font-display); margin-top:2px; }
+            .nui-shop-till-card {
+                display:flex; flex-direction:column; gap:12px; background:var(--nui-surface);
+                border:1px solid var(--nui-border); border-radius:var(--nui-radius-md); padding:14px 16px;
+            }
+            .nui-shop-till-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+            .nui-shop-till-label { flex:0 0 110px; font-size:12.5px; font-weight:700; color:var(--nui-text); }
+            .nui-shop-till-amount, .nui-shop-till-pin {
+                padding:8px 10px; border:1px solid var(--nui-border); border-radius:var(--nui-radius-sm);
+                background:var(--nui-surface-2); color:var(--nui-text); font-size:13px; font-weight:700;
+            }
+            .nui-shop-till-amount { flex:1; min-width:120px; text-align:right; }
+            .nui-shop-till-pin { width:80px; letter-spacing:3px; text-align:center; }
+            .nui-shop-till-pin-img { width:30px; height:30px; border-radius:var(--nui-radius-sm); }
+            .nui-shop-till-btn { align-self:flex-start; }
         `;
         document.head.appendChild(style);
     }
@@ -56963,6 +57265,8 @@ return {
 
     function boot() {
         injectStyles();
+
+        if (marketType === 'till') { bootTill(); return; }
 
         const cfg = window.__marketYourConfig;
         const appRoot = document.getElementById('market-your-app');
@@ -57385,6 +57689,827 @@ return {
                     P.show('Sorry!', 'Something went wrong. Please try again.');
                 });
         });
+    }
+
+    // Shop Till (/market.phtml?type=till). Reuses the same header/banner/
+    // instructions/subnav reading logic as the Your Shop rebuild above, then
+    // swaps in a balance card + withdraw form for the stock list/toolbar.
+    function bootTill() {
+        const header = document.querySelector('.qs-page-header');
+        const banner = document.querySelector('.mkt-banner');
+        const instructions = document.getElementById('mkt-instructions');
+        const subnav = document.querySelector('.mkt-subnav');
+        const mktPage = document.querySelector('.mkt-page');
+        const form = document.getElementById('mkt-till-form');
+        if (!mktPage || !form) { setTimeout(bootTill, 300); return; } // not rendered yet
+
+        // ── Read every piece of data we need out of native DOM before removing it ──
+        const backLink = header && header.querySelector('a');
+        const backHref = backLink ? backLink.getAttribute('href') : '/objects.phtml';
+        const titleText = header ? (header.querySelector('h1') || {}).textContent : 'The Marketplace';
+        const bannerSrc = banner ? banner.src : '';
+        const bannerAlt = banner ? banner.alt : '';
+        const instructionsHTML = instructions ? instructions.innerHTML : '';
+        const subnavLinks = subnav ? Array.from(subnav.querySelectorAll('a')).map(function (a) {
+            return { href: a.getAttribute('href'), text: a.textContent.trim(), active: a.classList.contains('is-active') };
+        }) : [];
+
+        const balanceEl = document.getElementById('mkt-till-balance');
+        let coffers = parseInt(digitsOf(balanceEl ? balanceEl.textContent : '0'), 10) || 0;
+
+        // Whether a PIN field is present is our signal for whether one's
+        // required — same assumption the native inline script made.
+        const pinRequired = !!form.querySelector('[name="pin"]');
+
+        // ── Tear every native node in this region — including the native
+        // popup/loading overlay ("rough shape") — out of the DOM ──
+        const popupRoot = document.getElementById('mkt-popup-root');
+        const loadingEl = document.getElementById('mkt-loading');
+        const toRemove = [header, banner, instructions, subnav, mktPage, popupRoot, loadingEl];
+        toRemove.forEach(function (el) { if (el && el.parentNode) el.remove(); });
+
+        // ── Build the replacement page shell (same chrome as Your Shop) ──
+        const page = document.createElement('div');
+        page.id = 'nui-shop-page';
+
+        const headerEl = document.createElement('div');
+        headerEl.className = 'nui-shop-header';
+        headerEl.innerHTML =
+            '<a class="nui-shop-back" href="' + backHref + '" title="Back">←</a>' +
+            '<div class="nui-shop-title">' + titleText + '</div>';
+
+        const bannerEl = document.createElement('div');
+        bannerEl.className = 'nui-shop-banner';
+        if (bannerSrc) bannerEl.innerHTML = '<img src="' + bannerSrc + '" alt="' + bannerAlt + '">';
+
+        const instructionsEl = document.createElement('div');
+        instructionsEl.className = 'nui-shop-instructions';
+        instructionsEl.innerHTML = instructionsHTML;
+
+        const subnavEl = document.createElement('nav');
+        subnavEl.className = 'nui-shop-subnav';
+        subnavLinks.forEach(function (l) {
+            const a = document.createElement('a');
+            a.href = l.href; a.textContent = l.text;
+            if (l.active) a.classList.add('is-active');
+            subnavEl.appendChild(a);
+        });
+
+        const balanceCard = document.createElement('div');
+        balanceCard.className = 'nui-shop-info-card';
+        balanceCard.innerHTML =
+            '<div class="nui-shop-till-icon">🗺️</div>' +
+            '<div>' +
+                '<div class="nui-shop-info-title">Till Balance</div>' +
+                '<div class="nui-shop-till-balance" id="nui-shop-till-balance">' + coffers.toLocaleString() + ' NP</div>' +
+            '</div>';
+
+        const withdrawCard = document.createElement('div');
+        withdrawCard.className = 'nui-shop-till-card';
+        withdrawCard.innerHTML =
+            '<div class="nui-shop-info-title">Withdraw to Inventory</div>' +
+            '<div class="nui-shop-till-row">' +
+                '<label class="nui-shop-till-label">Amount (NP)</label>' +
+                '<input type="text" inputmode="numeric" class="nui-shop-till-amount" placeholder="0">' +
+            '</div>' +
+            (pinRequired ?
+                '<div class="nui-shop-till-row">' +
+                    '<label class="nui-shop-till-label">Enter your <a href="/pin_prefs.phtml" style="color:var(--nui-accent);">PIN</a></label>' +
+                    '<input type="password" maxlength="4" inputmode="numeric" class="nui-shop-till-pin" placeholder="••••">' +
+                    '<img class="nui-shop-till-pin-img" src="https://images.neopets.com/pin/bank_pin_mgr_35.jpg" alt="">' +
+                '</div>' : ''
+            ) +
+            '<button type="button" class="nui-shop-update-btn nui-shop-till-btn">Withdraw</button>';
+
+        page.appendChild(headerEl);
+        page.appendChild(bannerEl);
+        page.appendChild(instructionsEl);
+        page.appendChild(subnavEl);
+        page.appendChild(balanceCard);
+        page.appendChild(withdrawCard);
+
+        const container = document.getElementById('container__2020');
+        const buffer = document.getElementById('navsub-buffer__2020');
+        if (buffer && buffer.parentNode) buffer.insertAdjacentElement('afterend', page);
+        else if (container) container.appendChild(page);
+        else document.body.appendChild(page);
+
+        // ── Withdraw flow — same validation + response parsing as the native
+        // inline script, but through this module's own popup ──
+        const amountInput = withdrawCard.querySelector('.nui-shop-till-amount');
+        const pinInput = withdrawCard.querySelector('.nui-shop-till-pin');
+        const withdrawBtn = withdrawCard.querySelector('.nui-shop-till-btn');
+        const balanceDisplay = document.getElementById('nui-shop-till-balance');
+        const P = buildPopup();
+        let busy = false;
+
+        amountInput.addEventListener('input', function () {
+            amountInput.value = groupThousands(digitsOf(amountInput.value));
+        });
+
+        function doWithdraw() {
+            if (busy) return;
+            const raw = digitsOf(amountInput.value);
+            const amount = parseInt(raw, 10);
+
+            if (!raw || amount < 1) {
+                P.show('Sorry!', 'Please enter a valid amount to withdraw — a whole number of Neopoints greater than 0.');
+                return;
+            }
+            if (amount > coffers) {
+                P.show('Sorry!', 'You do not have enough Neopoints in your till to withdraw that amount!');
+                return;
+            }
+            if (pinRequired && (!pinInput || pinInput.value.trim() === '')) {
+                P.show('Sorry!', 'Please enter your PIN to complete this withdrawal.');
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('type', 'withdraw');
+            fd.append('amount', String(amount));
+            if (pinRequired) fd.append('pin', pinInput.value.trim());
+
+            busy = true;
+            P.showLoading();
+            fetch('/np-templates/ajax/market/process_market.php', {
+                method: 'POST',
+                headers: { 'x-requested-with': 'XMLHttpRequest' },
+                body: fd,
+            })
+                .then(function (r) { return r.text(); })
+                .then(function (text) {
+                    P.hideLoading();
+                    busy = false;
+                    const t = (text || '').trim();
+                    const i = t.indexOf('error|');
+                    if (i !== -1) {
+                        P.show('Sorry!', t.slice(i + 6).trim() || 'We could not complete your withdrawal.');
+                        return;
+                    }
+                    if (t.indexOf('success') === -1) {
+                        P.show('Sorry!', 'We could not complete your withdrawal. Please try again.');
+                        return;
+                    }
+                    let newBal = coffers - amount;
+                    const sp = t.split('success|');
+                    if (sp[1] !== undefined && !isNaN(parseInt(sp[1], 10))) newBal = parseInt(sp[1], 10);
+                    coffers = newBal;
+                    if (balanceDisplay) balanceDisplay.textContent = newBal.toLocaleString() + ' NP';
+                    amountInput.value = '';
+                    if (pinInput) pinInput.value = '';
+                    P.show('Success!', 'You withdrew ' + amount.toLocaleString() + ' NP. Your till now holds ' + newBal.toLocaleString() + ' NP.');
+                })
+                .catch(function () {
+                    P.hideLoading();
+                    busy = false;
+                    P.show('Sorry!', 'Something went wrong. Please try again.');
+                });
+        }
+
+        withdrawBtn.addEventListener('click', doWithdraw);
+        amountInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doWithdraw(); } });
+        if (pinInput) pinInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doWithdraw(); } });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
+    }
+})();
+
+// ==============================================================================
+// MODULE 65: TRUDY'S SURPRISE
+// ==============================================================================
+// Restyles Trudy's Surprise in place — CSS only, nothing torn down or
+// rebuilt. The slot machine itself lives inside a cross-origin iframe
+// (images.neopets.com/trudydaily/game.phtml), which we can't reach or
+// restyle from here. Worse, the page's own inline script wires the reward
+// callback directly to native elements by ID: the iframe calls
+// parent.ShowDailyPrizes(prize, type) after a spin, and that function
+// writes straight into #trudyPrizeTitle / #trudyPrizeText / #trudyPrizeGrid
+// and opens #trudyprizePopup via the native togglePopup__2020(). Nuking and
+// rebuilding the page the way other daily modules do (Wishing Well, Negg
+// Cave) would destroy those IDs and silently break the reward popup the
+// next time the iframe calls back into the parent page. So instead this
+// only themes the native .trudyPopup popups (reward, help, already-played,
+// forfeit/streak-save/promo/error — they all share that one class). It
+// deliberately does NOT touch the game frame/container or the countdown
+// banner — two earlier attempts at sizing/theming those guessed at
+// dimensions of a cross-origin Ruffle-polyfilled Flash game this file has
+// no way to actually see, and made things worse both times.
+// This module doesn't call NeoUI.init() itself — Sitewide Chrome (Module 2)
+// is what builds the topbar/theme vars/drawer here, same as any other
+// unclaimed 2020-template page; this module only layers popup theming on
+// top of that once it's run.
+// Activates on: /trudys_surprise.phtml
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!/\/trudys_surprise\.phtml/.test(location.pathname)) return;
+    if (!window.NeoUI || !window.NeoUI.isModuleEnabled('trudys-surprise')) return;
+
+    function run() {
+        const style = document.createElement('style');
+        style.id = 'nui-trudy-style';
+        style.textContent = `
+            /* ── Popups (reward, help, already-played, forfeit/streak/promo/error) ──
+               All share the native .trudyPopup class. Sizing/chrome lives on the
+               base rule so it's ready the instant the popup opens; position/
+               display only flip once Neopets' own togglePopup__2020() sets an
+               inline display:block on it — matching the same "only react to the
+               native show/hide, never force it" pattern used for Battledome's
+               equivalent popups, so we're not fighting the native toggle logic. */
+            .trudyPopup {
+                margin: 0 !important;
+                width: 90vw !important;
+                max-width: 420px !important;
+                height: auto !important;
+                max-height: 85vh !important;
+                overflow: hidden !important;
+                background: var(--nui-surface) !important;
+                border: 1px solid var(--nui-border) !important;
+                border-radius: var(--nui-radius-lg) !important;
+                box-shadow: 0 10px 40px var(--nui-shadow) !important;
+            }
+            .trudyPopup[style*="block"] {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                z-index: 100000 !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+
+            .trudyPopup .popup-header__2020 {
+                background: var(--nui-surface-2) !important;
+                border-bottom: 1px solid var(--nui-border) !important;
+                border-radius: var(--nui-radius-lg) var(--nui-radius-lg) 0 0 !important;
+                box-shadow: none !important;
+                padding: 16px 44px 16px 20px !important;
+                position: relative !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            .trudyPopup .popup-header__2020 h3 {
+                color: var(--nui-text) !important;
+                font-family: var(--nui-font-display) !important;
+                font-size: 18px !important;
+                font-weight: 800 !important;
+                margin: 0 !important;
+                background: none !important;
+                text-shadow: none !important;
+            }
+            /* Decorative woodgrain strip behind the header title — same class
+               of "native texture graphic" fix used for the Battledome and
+               Negg Cave reward popups. */
+            .trudyPopup .popup-header-pattern__2020,
+            .trudyPopup .popup-footer-pattern__2020,
+            .trudyPopup .popup-image__2020,
+            .trudyPopup .beta-exit-popup-image__2020 { display: none !important; }
+
+            .trudyPopup .popup-exit.button-default__2020 {
+                position: absolute !important;
+                top: 10px !important;
+                right: 10px !important;
+                width: 28px !important;
+                height: 28px !important;
+                min-width: 0 !important;
+                padding: 0 !important;
+                border-radius: 50% !important;
+                background: var(--nui-surface-2) !important;
+                border: 1px solid var(--nui-border) !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                box-shadow: none !important;
+            }
+            .trudyPopup .popup-exit.button-default__2020:hover {
+                background: var(--nui-danger-soft, rgba(220,38,38,.12)) !important;
+            }
+            .trudyPopup .popup-exit-icon {
+                background-image: none !important;
+                width: auto !important; height: auto !important;
+            }
+            .trudyPopup .popup-exit-icon::after { content: "✕"; color: var(--nui-text-muted); font-weight: bold; font-size: 12px; }
+
+            .trudyPopup .popup-body__2020 {
+                padding: 20px !important;
+                overflow-y: auto !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                gap: 12px !important;
+                text-align: center !important;
+                color: var(--nui-text) !important;
+                font-family: var(--nui-font-body) !important;
+            }
+            .trudyPopup .popup-body__2020 p { color: var(--nui-text) !important; line-height: 1.6 !important; }
+            .trudyPopup .popup-body__2020 a { color: var(--nui-accent) !important; }
+
+            .trudyPopup .popup-footer__2020 {
+                background: var(--nui-surface-2) !important;
+                border-top: 1px solid var(--nui-border) !important;
+                padding: 14px 20px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 10px !important;
+            }
+            .trudyPopup .button-default__2020 {
+                font-family: var(--nui-font-body) !important;
+                font-weight: 800 !important;
+                font-size: 13px !important;
+                padding: 10px 22px !important;
+                border-radius: var(--nui-radius-pill) !important;
+                border: none !important;
+                background-image: none !important;
+                box-shadow: none !important;
+                cursor: pointer !important;
+                transition: filter .12s ease, transform .12s ease !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 6px !important;
+            }
+            .trudyPopup .button-default__2020:active { transform: scale(0.96) !important; }
+            .trudyPopup .button-default__2020:hover { filter: brightness(1.08) !important; }
+            .trudyPopup .button-yellow__2020,
+            .trudyPopup .button-green__2020,
+            .trudyPopup .button-purple__2020 {
+                background: var(--nui-accent) !important;
+                color: var(--nui-accent-ink) !important;
+            }
+            .trudyPopup .button-red__2020 {
+                background: var(--nui-surface-3, var(--nui-surface-2)) !important;
+                color: var(--nui-text) !important;
+                border: 1px solid var(--nui-border) !important;
+            }
+            .trudyPopup .btn-grain__2020 { display: none !important; }
+
+            /* Reward grid inside #trudyprizePopup */
+            .trudyPopup .trudyPrizeGrid {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 12px !important;
+                width: 100% !important;
+            }
+            .trudyPopup .trudyPrizeGrid > div {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                gap: 6px !important;
+            }
+            .trudyPopup .trudyPrize {
+                width: 60px !important;
+                height: 60px !important;
+                background-size: contain !important;
+                background-repeat: no-repeat !important;
+                background-position: center !important;
+                border: 2px solid var(--nui-accent) !important;
+                border-radius: var(--nui-radius-md) !important;
+                background-color: var(--nui-surface) !important;
+                box-sizing: border-box !important;
+                padding: 4px !important;
+            }
+            .trudyPopup .trudyPrizeGrid h4 {
+                color: var(--nui-text-muted) !important;
+                font-size: 11px !important;
+                font-weight: 700 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.3px !important;
+                margin: 0 !important;
+                max-width: 84px !important;
+                line-height: 1.3 !important;
+            }
+
+            /* Missed-day ticket art (forfeit/streak-saved/promo popups) */
+            .trudyPopup .md-missed-ticket, .trudyPopup .md-ticket {
+                display: flex !important;
+                justify-content: center !important;
+                width: 100% !important;
+            }
+            .trudyPopup .md-image { max-width: 110px; height: auto; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run);
+    } else {
+        run();
+    }
+})();
+
+// ==============================================================================
+// MODULE 66: NEOHOME HUB — FULL PAGE REBUILD
+// ==============================================================================
+// Full teardown-and-rebuild of the legacy-template /neohome/ hub page (the
+// snapshot + Customise/Shops/FAQ/Board/Spotlight/Classic buttons + rating +
+// news + "new items" spotlight grids page — NOT the Flash editor, see
+// Module 67 for that). This page still ships the old pre-2020 header/
+// sidebar/footer/premium-bottom-bar template; the sitewide topbar + drawer
+// (Module 2) already coexist with it, so this module only removes and
+// rebuilds #main and #superfooter, leaving that shared chrome alone.
+//
+// Data read out of the native DOM before it's torn down: the snapshot image,
+// the six "wood button" links (their labels are baked into text-image PNGs,
+// so they're matched by stable href pattern instead of OCR'd), the visitor
+// count, the share-snapshot link, the "New Neohomes: N" stat line, the news
+// blurb, and the two item spotlight grids (NP + NC).
+//
+// The star rating widget is rebuilt with fresh markup, but keeps the exact
+// element IDs (rating_star_1..5, rating_feedback) the page's own rating.js
+// expects, and wires clicks/hover to that same already-loaded
+// window.ratingHover / window.ratingSave — this reuses the site's real
+// submit contract instead of guessing at process_rating_url's parameters.
+//
+// Activates on: /neohome/ (and /neohome/index.phtml)
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('neohome')) return;
+    if (!/^\/neohome\/(index\.phtml)?$/.test(location.pathname)) return;
+
+    function injectStyles() {
+        if (document.getElementById('nui-neohome-style')) return;
+        const style = document.createElement('style');
+        style.id = 'nui-neohome-style';
+        style.textContent = `
+            .nui-nh-page { display:flex; flex-direction:column; gap:14px; }
+            .nui-nh-header { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+            .nui-nh-title { font-family:var(--nui-font-display); font-size:19px; font-weight:800; color:var(--nui-text); }
+            .nui-nh-rating-wrap { display:flex; align-items:center; gap:6px; }
+            .nui-nh-rating { display:flex; gap:1px; }
+            .nui-nh-star { font-size:19px; line-height:1; cursor:pointer; color:var(--nui-border); text-decoration:none; }
+            .nui-nh-star.rating_star_full { color:#f5a623; }
+            .nui-nh-feedback { font-size:11px; color:var(--nui-text-muted); }
+
+            .nui-nh-hero { display:flex; gap:16px; background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:var(--nui-radius-lg); padding:16px; flex-wrap:wrap; }
+            .nui-nh-snapshot { width:220px; max-width:100%; border-radius:var(--nui-radius-md); overflow:hidden; background:var(--nui-surface-2); flex-shrink:0; }
+            .nui-nh-snapshot img { width:100%; display:block; }
+            .nui-nh-hero-body { flex:1; min-width:180px; display:flex; flex-direction:column; gap:8px; justify-content:center; }
+            .nui-nh-stat-line { font-size:12.5px; color:var(--nui-text-muted); }
+            .nui-nh-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+
+            .nui-nh-links { display:flex; flex-wrap:wrap; gap:8px; }
+            .nui-nh-link-pill {
+                display:flex; align-items:center; gap:6px; padding:8px 12px; background:var(--nui-surface);
+                border:1px solid var(--nui-border); border-radius:999px; color:var(--nui-text); text-decoration:none;
+                font-size:12.5px; font-weight:700; transition:transform var(--nui-dur-fast) var(--nui-ease-snap);
+            }
+            .nui-nh-link-pill:active { transform:scale(0.96); }
+
+            .nui-nh-card { background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:var(--nui-radius-lg); padding:14px 16px; }
+            .nui-nh-card-title { font-family:var(--nui-font-display); font-size:14px; font-weight:800; color:var(--nui-text); margin-bottom:8px; }
+            .nui-nh-news { font-size:13px; color:var(--nui-text); line-height:1.5; }
+            .nui-nh-news ul { margin:6px 0; padding-left:18px; }
+
+            .nui-nh-item-grid { display:flex; flex-wrap:wrap; gap:10px; }
+            .nui-nh-item {
+                display:flex; flex-direction:column; align-items:center; gap:4px; width:88px; text-decoration:none;
+                padding:8px 6px; border-radius:var(--nui-radius-sm); transition:background 0.15s;
+            }
+            .nui-nh-item:active { background:var(--nui-surface-2); }
+            .nui-nh-item img { width:56px; height:56px; object-fit:contain; }
+            .nui-nh-item span { font-size:10.5px; color:var(--nui-text); text-align:center; line-height:1.25; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // The six "wood button" labels are baked into text-image PNGs, not real
+    // text, so they're matched by stable href pattern rather than guessed
+    // from the (untranscribable) image itself.
+    const WOOD_BUTTON_MAP = [
+        { test: /\/neohome\/main\/shopping/,          label: 'Neohome Shops',   icon: '🛋️' },
+        { test: /ncmall\.neopets\.com.*page=neohomes/, label: 'NC Mall Shop',    icon: '💎' },
+        { test: /\/s\/index\.phtml\?cat_id=/,          label: 'Neohomes FAQ',    icon: '❓' },
+        { test: /\/neoboards\/boardlist\.phtml/,       label: 'Neohomes Board',  icon: '💬' },
+        { test: /\/homespotlight\.phtml/,              label: 'Spotlight',       icon: '🌟' },
+        { test: /\/neohome\.phtml/,                    label: 'Classic Neohomes',icon: '🏚️' },
+    ];
+    function labelForWoodButton(href) {
+        for (let i = 0; i < WOOD_BUTTON_MAP.length; i++) {
+            if (WOOD_BUTTON_MAP[i].test.test(href)) return WOOD_BUTTON_MAP[i];
+        }
+        return { label: 'Neohomes', icon: '🏠' };
+    }
+
+    function moduleByHeaderImg(match) {
+        const img = document.querySelector('.nh_content_module img[src*="' + match + '"]');
+        return img ? img.closest('.nh_content_module') : null;
+    }
+
+    function readItems(mod) {
+        if (!mod) return [];
+        return Array.from(mod.querySelectorAll('td.newItems')).map(function (td) {
+            const a = td.querySelector('a');
+            const img = td.querySelector('img');
+            const label = td.querySelector('b');
+            return {
+                href: a ? a.getAttribute('href') : '#',
+                imgSrc: img ? img.src : '',
+                imgAlt: img ? (img.getAttribute('alt') || '') : '',
+                label: label ? label.textContent.trim() : (img ? (img.getAttribute('alt') || '') : ''),
+            };
+        });
+    }
+
+    function boot() {
+        injectStyles();
+
+        const heroImg = document.querySelector('.nh_home_img img');
+        const editLink = document.querySelector('.nh_blue_btn a');
+        if (!heroImg || !editLink) { setTimeout(boot, 300); return; } // not rendered yet
+
+        const profile = NeoUI.scrapeLegacyProfile();
+
+        const woodLinks = Array.from(document.querySelectorAll('.nh_wood_btns a')).map(function (a) {
+            return a.getAttribute('href');
+        });
+
+        // Rating widget globals — set by the page's own inline script before
+        // this module runs. window.ratingHover/window.ratingSave are the
+        // real functions from the site's rating.js; we call them directly
+        // below rather than reimplementing the submit endpoint ourselves.
+        const currentRating = typeof window.current_rating === 'number' ? window.current_rating : 0;
+        const currentFeedback = typeof window.current_feedback === 'string' ? window.current_feedback : '';
+
+        let visitorCount = '';
+        const visitorCell = Array.from(document.querySelectorAll('td')).find(function (td) {
+            return /visitors and counting/.test(td.textContent || '');
+        });
+        if (visitorCell) {
+            const b = visitorCell.querySelector('b');
+            visitorCount = b ? b.textContent.trim() : '';
+        }
+        const shareLink = document.querySelector('a[href*="/neohome/property/share/"]');
+
+        const statsEl = document.querySelector('.nh_stats');
+        const statsText = statsEl ? statsEl.textContent.replace(/\s+/g, ' ').trim() : '';
+
+        const newsModule = moduleByHeaderImg('nh_neohome_news_header');
+        const newsContentEl = newsModule ? newsModule.querySelector('div[style*="padding-top: 10px"]') : null;
+        const newsHTML = newsContentEl ? newsContentEl.innerHTML : '';
+
+        const npItems = readItems(moduleByHeaderImg('nh_items_header'));
+        const ncItems = readItems(moduleByHeaderImg('nh_neocash_items_header'));
+
+        // ── Tear down the legacy template: old header/sidebar/footer, and
+        // the redundant premium bottom bar (SSW/Dailies/Snapshot — all of
+        // which already live in the NeoUI topbar/drawer) ──
+        const main = document.getElementById('main');
+        const superfooter = document.getElementById('superfooter');
+        [main, superfooter].forEach(function (el) { if (el && el.parentNode) el.remove(); });
+
+        // ── Build the replacement page ──
+        const page = document.createElement('div');
+        page.id = 'nui-neohome-page';
+        page.className = 'nui-nh-page';
+
+        const header = document.createElement('div');
+        header.className = 'nui-nh-header';
+        const starsHTML = [1, 2, 3, 4, 5].map(function (n) {
+            return '<a href="javascript:;" id="rating_star_' + n + '" class="nui-nh-star ' + (n <= currentRating ? 'rating_star_full' : 'rating_star_empty') + '" data-n="' + n + '">★</a>';
+        }).join('');
+        header.innerHTML =
+            '<div class="nui-nh-title">' + profile.username + '&rsquo;s Neohome</div>' +
+            '<div class="nui-nh-rating-wrap">' +
+                '<div class="nui-nh-rating">' + starsHTML + '</div>' +
+                '<span class="nui-nh-feedback" id="rating_feedback">' + currentFeedback + '</span>' +
+            '</div>';
+        page.appendChild(header);
+
+        const hero = document.createElement('div');
+        hero.className = 'nui-nh-hero';
+        hero.innerHTML =
+            '<div class="nui-nh-snapshot"><img src="' + heroImg.src + '" alt="Neohome snapshot"></div>' +
+            '<div class="nui-nh-hero-body">' +
+                (visitorCount ? '<div class="nui-nh-stat-line">' + visitorCount + ' visitor' + (visitorCount === '1' ? '' : 's') + ' and counting!</div>' : '') +
+                (statsText ? '<div class="nui-nh-stat-line">' + statsText + '</div>' : '') +
+                '<div class="nui-nh-actions">' +
+                    '<a class="nui-btn nui-btn-primary" href="' + editLink.getAttribute('href') + '">Customise Neohome</a>' +
+                    (shareLink ? '<a class="nui-btn nui-btn-secondary nui-btn-sm" href="' + shareLink.getAttribute('href') + '">Share Snapshot</a>' : '') +
+                '</div>' +
+            '</div>';
+        page.appendChild(hero);
+
+        const linksRow = document.createElement('div');
+        linksRow.className = 'nui-nh-links';
+        woodLinks.forEach(function (href) {
+            const meta = labelForWoodButton(href);
+            const a = document.createElement('a');
+            a.className = 'nui-nh-link-pill';
+            a.href = href;
+            a.innerHTML = '<span>' + meta.icon + '</span><span>' + meta.label + '</span>';
+            linksRow.appendChild(a);
+        });
+        page.appendChild(linksRow);
+
+        if (newsHTML) {
+            const newsCard = document.createElement('div');
+            newsCard.className = 'nui-nh-card';
+            newsCard.innerHTML = '<div class="nui-nh-card-title">What\u2019s New</div><div class="nui-nh-news">' + newsHTML + '</div>';
+            page.appendChild(newsCard);
+        }
+
+        function buildItemGrid(title, items) {
+            if (!items.length) return null;
+            const card = document.createElement('div');
+            card.className = 'nui-nh-card';
+            card.innerHTML = '<div class="nui-nh-card-title">' + title + '</div>';
+            const grid = document.createElement('div');
+            grid.className = 'nui-nh-item-grid';
+            items.forEach(function (it) {
+                const a = document.createElement('a');
+                a.className = 'nui-nh-item';
+                a.href = it.href;
+                a.innerHTML = '<img src="' + it.imgSrc + '" alt="' + it.imgAlt.replace(/"/g, '&quot;') + '" loading="lazy"><span>' + it.label + '</span>';
+                grid.appendChild(a);
+            });
+            card.appendChild(grid);
+            return card;
+        }
+        const npCard = buildItemGrid('New Items', npItems);
+        const ncCard = buildItemGrid('New NC Items', ncItems);
+        if (npCard) page.appendChild(npCard);
+        if (ncCard) page.appendChild(ncCard);
+
+        const container = document.getElementById('container__2020');
+        if (container) container.appendChild(page); else document.body.appendChild(page);
+
+        // ── Rating clicks/hover — delegate straight to the page's own
+        // ratingHover/ratingSave (loaded via rating.js) instead of guessing
+        // at process_rating_url's real submit contract ──
+        if (typeof window.ratingHover === 'function' && typeof window.ratingSave === 'function') {
+            const starEls = Array.from(header.querySelectorAll('.nui-nh-star'));
+            starEls.forEach(function (el) {
+                el.addEventListener('mouseover', function () { window.ratingHover(el); });
+                el.addEventListener('mouseout', function () { window.ratingHover(); });
+                el.addEventListener('click', function () { window.ratingSave(el); });
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
+    }
+})();
+
+// ==============================================================================
+// MODULE 67: NEOHOME EDITOR — CHROME REBUILD + MOBILE SCALE-TO-FIT
+// ==============================================================================
+// The Neohome editor's interactive surface is entirely a Ruffle-wrapped Flash
+// SWF (NeoHomeApplication_v81_we.swf) at a fixed 980x700 native resolution —
+// there is no DOM inside it to rebuild, same constraint as Module 15
+// (Battledome) and the Games Room Ruffle wrapper. This module:
+//   1. Tears down and rebuilds everything AROUND the embed — old header,
+//      premium bottom bar, rating widget, visitor/share row — into NeoUI
+//      chrome, same as Module 66 above.
+//   2. Detaches the embed's container synchronously (removeChild then
+//      immediately appendChild elsewhere, no tick in between) so the live
+//      Ruffle player keeps its state instead of restarting — the same
+//      technique and reasoning documented in the Games Room module.
+//   3. Wraps the embed in a scale-to-fit stage: the embed keeps its real
+//      980x700 box (never resized — only visually scaled via CSS
+//      transform, so nothing about its actual geometry changes mid-drag),
+//      and the stage's height is set to nativeHeight * scaleFactor so
+//      there's no blank gap below the shrunk player. Recomputed on
+//      resize/orientation change.
+//
+// Activates on: /neohome/property/edit/*
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('neohome')) return;
+    if (!/^\/neohome\/property\/edit\//.test(location.pathname)) return;
+
+    function injectStyles() {
+        if (document.getElementById('nui-neohome-editor-style')) return;
+        const style = document.createElement('style');
+        style.id = 'nui-neohome-editor-style';
+        style.textContent = `
+            .nui-nh-editor-page { display:flex; flex-direction:column; gap:14px; }
+            .nui-nh-editor-stage {
+                position:relative; width:100%; overflow:hidden; background:#000;
+                border-radius:var(--nui-radius-lg); border:1px solid var(--nui-border);
+                box-shadow:0 4px 24px var(--nui-shadow);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function boot() {
+        injectStyles();
+
+        const appRoot = document.getElementById('neohome_editor_app');
+        const embed = appRoot ? appRoot.querySelector('ruffle-embed, ruffle-player, embed[type="application/x-shockwave-flash"], embed[src*=".swf"]') : null;
+        if (!appRoot || !embed) { setTimeout(boot, 300); return; } // not rendered yet
+
+        const profile = NeoUI.scrapeLegacyProfile();
+
+        const currentRating = typeof window.current_rating === 'number' ? window.current_rating : 0;
+        const currentFeedback = typeof window.current_feedback === 'string' ? window.current_feedback : '';
+
+        let visitorCount = '';
+        const visitorCell = Array.from(document.querySelectorAll('td')).find(function (td) {
+            return /visitors and counting/.test(td.textContent || '');
+        });
+        if (visitorCell) {
+            const b = visitorCell.querySelector('b');
+            visitorCount = b ? b.textContent.trim() : '';
+        }
+        const shareLink = document.querySelector('a[href*="/neohome/property/share/"]');
+
+        const nativeW = parseInt(embed.getAttribute('width'), 10) || 980;
+        const nativeH = parseInt(embed.getAttribute('height'), 10) || 700;
+
+        // Detach the embed's container synchronously — no await/setTimeout
+        // between this and the later appendChild — so the live Ruffle
+        // player keeps its running state instead of restarting.
+        const detachedApp = appRoot.parentNode ? appRoot.parentNode.removeChild(appRoot) : appRoot;
+
+        // ── Tear down everything else: old header, premium bottom bar,
+        // rating/visitor row, tutorial popup — all native-template chrome ──
+        const header = document.getElementById('header');
+        const superfooter = document.getElementById('superfooter');
+        const main = document.getElementById('main'); // still holds #content wrapping detachedApp, but detachedApp is already out
+        [header, superfooter, main].forEach(function (el) { if (el && el.parentNode) el.remove(); });
+
+        // ── Build the replacement page ──
+        const page = document.createElement('div');
+        page.id = 'nui-neohome-editor-page';
+        page.className = 'nui-nh-editor-page nui-nh-page';
+
+        const headerEl = document.createElement('div');
+        headerEl.className = 'nui-nh-header';
+        const starsHTML = [1, 2, 3, 4, 5].map(function (n) {
+            return '<a href="javascript:;" id="rating_star_' + n + '" class="nui-nh-star ' + (n <= currentRating ? 'rating_star_full' : 'rating_star_empty') + '" data-n="' + n + '">★</a>';
+        }).join('');
+        headerEl.innerHTML =
+            '<div class="nui-nh-title"><a href="/neohome/" style="color:inherit;text-decoration:none;">← ' + profile.username + '&rsquo;s Neohome</a></div>' +
+            '<div class="nui-nh-rating-wrap">' +
+                '<div class="nui-nh-rating">' + starsHTML + '</div>' +
+                '<span class="nui-nh-feedback" id="rating_feedback">' + currentFeedback + '</span>' +
+            '</div>';
+        page.appendChild(headerEl);
+
+        if (visitorCount || shareLink) {
+            const statRow = document.createElement('div');
+            statRow.className = 'nui-nh-hero-body';
+            statRow.innerHTML =
+                (visitorCount ? '<div class="nui-nh-stat-line">' + visitorCount + ' visitor' + (visitorCount === '1' ? '' : 's') + ' and counting!</div>' : '') +
+                (shareLink ? '<a class="nui-btn nui-btn-secondary nui-btn-sm" style="align-self:flex-start;" href="' + shareLink.getAttribute('href') + '">Share Snapshot</a>' : '');
+            page.appendChild(statRow);
+        }
+
+        const stage = document.createElement('div');
+        stage.className = 'nui-nh-editor-stage';
+        appRoot.removeAttribute('align');
+        appRoot.style.cssText = 'margin:0;position:relative;width:' + nativeW + 'px;height:' + nativeH + 'px;transform-origin:top left;';
+        embed.style.cssText = 'display:block;border:none;width:' + nativeW + 'px;height:' + nativeH + 'px;';
+        stage.appendChild(detachedApp);
+        page.appendChild(stage);
+
+        const container = document.getElementById('container__2020');
+        if (container) container.appendChild(page); else document.body.appendChild(page);
+
+        // ── Scale-to-fit: the embed's real 980x700 box never changes size —
+        // only a CSS transform on its container shrinks it visually, so
+        // nothing about its actual geometry changes mid-drag ──
+        function applyScale() {
+            const w = stage.clientWidth || window.innerWidth;
+            const factor = Math.min(1, w / nativeW);
+            appRoot.style.transform = 'scale(' + factor + ')';
+            stage.style.height = Math.round(nativeH * factor) + 'px';
+        }
+        window.addEventListener('resize', applyScale);
+        window.addEventListener('orientationchange', applyScale);
+        applyScale();
+
+        if (typeof window.ratingHover === 'function' && typeof window.ratingSave === 'function') {
+            const starEls = Array.from(headerEl.querySelectorAll('.nui-nh-star'));
+            starEls.forEach(function (el) {
+                el.addEventListener('mouseover', function () { window.ratingHover(el); });
+                el.addEventListener('mouseout', function () { window.ratingHover(); });
+                el.addEventListener('click', function () { window.ratingSave(el); });
+            });
+        }
     }
 
     if (document.readyState === 'loading') {
