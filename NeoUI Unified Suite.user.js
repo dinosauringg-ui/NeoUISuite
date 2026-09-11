@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeoUI: Unified Suite
 // @namespace    https://github.com/dinosauringg-ui/NeoUISuite
-// @version      2.0.6
+// @version      2.1.0
 // @description  NeoUI Unified Suite: polished theme system, global search, and a daily timer hub for timed Neopets activities, bundled into one mobile-forward userscript.
 // @author       ext1nct
 // @match        *://*.neopets.com/*
@@ -79,6 +79,7 @@
  *   33. Food Club
  *   34. Coconut Shy
  *   35. Buried Treasure
+ *   71. Lair of the Beast (mobile scale-to-fit)
  *   36. Games Room
  *   37. Games Hi-Scores
  *   38. Dice-A-Roo
@@ -98,9 +99,247 @@
  *   55. Faerie Crossword
  *   63. Qasalan Expellibox
  *   64. Fishing Vortex Companion (pet switcher + local catch log)
+ *   68. Scorchy Slots (themed reel bezel, native form/tokens kept)
+ *   69. Godori (responsive scale-to-fit board, in-page rules/score modals)
+ *   70. Pick Your Own (full NeoUI SPA redesign — Meri Acres Farm)
  *   59. Neolodge
  *
  * CHANGELOG  (last 5 versions)
+ *
+ * v2.0.19
+ *   - Pick Your Own: found the actual root cause of the persistent blank
+ *     fallback card, and it wasn't the scraper. Module 70's code was
+ *     appended at the very end of the file — physically *after* Module 2
+ *     (Sitewide Chrome, the universal fallback), even though the file's
+ *     own architecture requires every page-specific module to sit *before*
+ *     it. Sitewide Chrome checks for an existing #nui-page-topbar to know
+ *     a page is already claimed; since Pick Your Own hadn't run yet when
+ *     Sitewide Chrome got to it, it treated pickyourown_index.phtml as
+ *     unclaimed and applied its classic-layout fallback, which physically
+ *     moves every child node out of <td class="content"> into a sibling
+ *     wrapper div. By the time our own scraper looked at td.content, the
+ *     element was still there but completely empty — hence the "nothing
+ *     at all" debug snapshot. Fix: relocated Module 70's entire block to
+ *     sit before Module 2's real code (next to the other Games & Daily
+ *     Activities modules, same as before v1.2.0's renumbering pass
+ *     established this ordering rule for everything else in the file). No
+ *     scraper or render logic changed in this version — same code, correct
+ *     position, so Sitewide Chrome now sees our topbar and skips the page
+ *     entirely, the way it does for every other page-specific module.
+ *
+ * v2.0.18
+ *   - Pick Your Own: the generic fallback screen (used for the intro/landing
+ *     page, collect summaries, and anything without a map+punnet) could
+ *     render a completely blank card — no heading, no text, no button —
+ *     when its heading/paragraph/form scrape came up empty, with no way to
+ *     tell why short of attaching devtools. It now captures a plain-text
+ *     snapshot of whatever the scraper actually saw and, whenever nothing
+ *     recognizable turned up, shows that snapshot directly on the page in
+ *     a monospace panel (inserted as text, not HTML, so it's safe to show
+ *     verbatim) — the screen can now report its own diagnosis instead of
+ *     going blank. Also logs the same info to console.debug for anyone
+ *     with devtools open.
+ *
+ * v2.0.17
+ *   - Pick Your Own: the intro/landing screen (pickyourown_index.phtml,
+ *     shown on first visit and whenever you're "in the middle of picking")
+ *     never actually entered the farm — its "Enter the Meri Acres Farm"
+ *     button goes through the generic other-state fallback, which was
+ *     re-submitting the native form with an empty POST body instead of
+ *     its real hidden field (x_continue=1). The server never got told to
+ *     continue, so the response didn't come back looking like a farm
+ *     screen and neither the map nor the punnet ever rendered. The
+ *     fallback scraper now captures every named, non-submit input off
+ *     the form at scrape time and the click handler forwards them for
+ *     real (as a POST body, or appended to the URL for GET forms),
+ *     instead of dropping them on the floor.
+ *
+ * v2.0.16
+ *   - NEW MODULE — Pick Your Own (Meri Acres Farm): full NeoUI SPA rebuild
+ *     of the pickyourown_index.phtml → pickyourown.phtml/process_pickyourown.phtml
+ *     flow. Replaces the native ISMAP arrow table with a themed banner, a
+ *     4-way d-pad (only the directions the server actually offers get
+ *     enabled — never invents a move the farm didn't render), and a
+ *     "Search This Spot" button standing in for the raw clickable map
+ *     image. The punnet is rendered as a proper 2x3 grid — always six
+ *     slots, empty ones shown as dashed placeholders — with each held
+ *     item labeled from the native discard-confirm string (scraping is
+ *     the only place that name exists) and a tap-to-discard control that
+ *     preserves the original "are you sure" confirm before firing the
+ *     real x_discard request. "Collect Berries and Leave Farm" posts the
+ *     native form via fetch and renders whatever summary/cooldown screen
+ *     comes back through the same generic fallback card the intro/landing
+ *     screen uses, so no server-rendered state is a dead end. Added to the
+ *     Daily Timers Hub (24h) and Games & Daily Activities toggles.
+ *
+ * v2.0.15
+ *   - Trudy's Surprise: v2.0.14's audit wrongly called this one already
+ *     correct. Real bug: .trudyPopup .popup-body__2020 never had its own
+ *     background set at all — it was relying on the shell's background
+ *     showing through, but the native .popup-body__2020 element almost
+ *     certainly has its own opaque fill sitting on top of that, hiding it
+ *     entirely. Gave the body its own explicit var(--nui-surface), same
+ *     as Grave Danger's body already had. Also hardened the shell/header/
+ *     body/footer with explicit background-image:none so a native texture
+ *     can't leak back in around the shorthand background declarations.
+ *   - Grave Danger: the shell (.gd-popup itself) had a background-color
+ *     but no explicit background-image reset — the wildcard rule that
+ *     strips background-image from everything inside .gd-popup only
+ *     targets *descendants* (.gd-popup *), never the shell element itself.
+ *     Added the missing reset directly on .gd-popup, plus on the .copy
+ *     wrapper div in case it carries its own native box styling.
+ *
+ * v2.0.14
+ *   - Audited every reskinned native popup sitewide specifically for
+ *     background coverage (as opposed to just text color, which got its
+ *     own audit in v2.0.7) — every popup should anchor its shell and/or
+ *     body to var(--nui-surface) rather than leaving it on native white
+ *     while only the text gets themed. Found and fixed five more gaps:
+ *     - Battledome (#BdPetDetailPopup): had themed text but no background
+ *       at all on the shell or body — #BattleEquipPopup/#BattleUnequipPopup
+ *       had one, but on --nui-bg rather than the --nui-surface convention
+ *       used everywhere else. Unified all three onto --nui-surface (shell,
+ *       body) / --nui-surface-2 (header, footer), matching Grave Danger.
+ *     - QuestLogForfeitPopup/QuestLogRestorePopup: inner elements (pass
+ *       count, error message) already had themed colors, but the popup
+ *       itself never had a background rule at all.
+ *     - QuestLogStreakSaveReroll: same gap — cost/warning boxes were
+ *       themed, the popup shell/body never was.
+ *     - QuestLogStreakReroll: header intentionally uses --nui-accent
+ *       (kept), but body/footer/shell had no background set.
+ *     Closet, Trudy's Surprise, Grave Danger, and the Jhudora/Illusen
+ *     generic popup reskin were all already correct — checked for
+ *     completeness, no changes needed there.
+ *
+ * v2.0.13
+ *   - Jhudora's Bluff/Illusen's Glade: made the quest-item/search-strip
+ *     card more compact — tighter padding throughout, smaller item-name
+ *     field and thumbnail (60px → 40px), dropped the redundant "Find it:"
+ *     label, and shortened button text to abbreviations (Super SW → SSW,
+ *     Shop Wizard → SW, Trading Post → TP) with the full name moved to a
+ *     hover tooltip. Also tightened the timer box and the gap between the
+ *     stat pills/timer/quest-item stack.
+ *
+ * v2.0.12
+ *   - Jhudora's Bluff/Illusen's Glade: the search-strip quicklinks (Super
+ *     SW/Shop Wizard/Trading Post/SDB) were still reported missing after
+ *     v2.0.10's fix, which only stopped gating them on a *successful
+ *     scrape* — they were still gated on hasActiveQuest() returning true
+ *     at all, and that detection kept missing real cases (wrong round of
+ *     the quest flow, wording variance, timing). Rather than chase another
+ *     detection edge case, dropped the gate entirely: the quicklinks now
+ *     always render on this page regardless of any detected quest state,
+ *     functioning as a general search tool with an editable item-name
+ *     field. Label reads "Requested Item" when something was actually
+ *     scraped, "Search for an item" otherwise.
+ *
+ * v2.0.11
+ *   - Grave Danger: the reward-reveal row (#gdReward — petpet photo,
+ *     "brought you", prize item) was rendering as completely unstyled
+ *     native markup while the rest of the page was properly reskinned.
+ *     Root cause: the module's own catch-all "strip native
+ *     backgrounds/recolor" rule already had id-substring selectors for
+ *     result/treasure/reward content, including a capitalized [id*="Result"]
+ *     variant — but no capitalized [id*="Reward"] counterpart, so
+ *     id="gdReward" (capital R) never matched any of them. Added the
+ *     missing selector (in both the page and popup-scoped copies of the
+ *     rule) and gave the section proper layout/typography instead of
+ *     just background/text-color, matching how other reward moments in
+ *     the suite are presented.
+ *
+ * v2.0.10
+ *   - Jhudora's Bluff/Illusen's Glade: the quest-item card (and its search
+ *     strip) only rendered at all when scrapeQuestItemName() successfully
+ *     guessed a name — scraping native quest text is inherently fragile,
+ *     so a missed guess meant no card and no search buttons at all, not
+ *     just an empty name. Decoupled the two: the card (with a "Find it"
+ *     row of Super SW/Shop Wizard/Trading Post/SDB buttons) now shows
+ *     whenever a quest is active, and the item name is an editable input
+ *     — prefilled if scraping worked, blank with a placeholder if not —
+ *     so a bad or missing scrape never blocks the buttons; every button
+ *     reads whatever's currently in that field at click time.
+ *   - Also hardened hasActiveQuest()'s button-label match, which required
+ *     the exact substring "yes i have it" — a native label with a comma
+ *     ("Yes, I have it!!!") wouldn't match at all, silently hiding the
+ *     whole card (search strip included) even with a genuinely active
+ *     quest. Now tolerant of punctuation/spacing around "yes"/"i have it".
+ *   - Daily Timers Hub: added Fruit Machine (/desert/fruit/index.phtml,
+ *     once a day).
+ *
+ * v2.0.9
+ *   - Home page: the Jhudora/Illusen cooldown pill picked which faerie to
+ *     show by sorting jhudora-s-bluff/illusen-s-glade on nextAt and taking
+ *     the later one — but the two share a synced cooldown (identical
+ *     nextAt the moment either is completed), so the comparator always saw
+ *     a tie and silently resolved it to whichever sorted first (Jhudora),
+ *     regardless of which quest was actually done. Reported as: did
+ *     Illusen's quest, but the Home page pill still said Jhudora's Quest
+ *     and linked to darkfaerie.phtml. Fixed by recording which one was
+ *     actually completed (neoui_jl_last_id, written by both Module 50's
+ *     in-page sync and the shared markDailyTimerDone) and having the pill
+ *     read that directly instead of guessing from the tied timestamps.
+ *   - Jhudora's Bluff/Illusen's Glade: the Trading Post button in the quest
+ *     item's search strip had its URL already built but no click handler
+ *     wired up (unlike the Super SW and SDB buttons next to it) — clicking
+ *     it did nothing. Wired it to open Trading Post pre-filtered to the
+ *     item, same pattern as the plain Shop Wizard link beside it.
+ *
+ * v2.0.8
+ *   - Jhudora's Bluff/Illusen's Glade: quest-item detection
+ *     (scrapeQuestItemName/hasActiveQuest/scrapeLevelScore) searched
+ *     document.querySelectorAll('b, strong')/'img[src*="/items/"]' — the
+ *     whole page, not just the quest text. On the same page sits the native
+ *     Dailies quick-launcher widget, which lists every daily including
+ *     "Jhudora's Quest" in its own <b> capsule text regardless of which
+ *     faerie's page you're actually on. Reported as: doing Illusen's quest,
+ *     but the item name/search-strip still showed Jhudora's Bluff and
+ *     linked there. Scoped all three to container2020 (the real page
+ *     content) minus the premium widgets/popups that live inside it.
+ *   - Jhudora's Bluff/Illusen's Glade: the native button fix from v2.0.7
+ *     (page-level Accept/Turn-In/Decline buttons) covered background/color/
+ *     border but not `appearance` — native <input type="submit"> buttons
+ *     (e.g. "Return to Meridell!!!") can keep their OS-level button chrome
+ *     underneath custom CSS unless appearance is explicitly reset, which
+ *     left this one still looking native/unthemed. Added appearance:none
+ *     (plus -webkit-/-moz- prefixes) and explicit padding/font-size so it
+ *     actually renders as the flat pill style instead of system chrome.
+ *
+ * v2.0.7
+ *   - Global (all modules): another round of the same root cause as v1.7.1/
+ *     v1.7.0's Battledome/Closet fixes — the sitewide rule that locks native
+ *     .popup-body__2020 text to a hardcoded #222 (correct for popups left on
+ *     their native white background) individually targets the bare div plus
+ *     its p/span/strong/a children as five separate !important selectors.
+ *     Any module that re-themes a popup's background to a dark surface has
+ *     to out-specify all five or some descendant text stays dark-on-dark.
+ *     Found and fixed the same gap in four more places: Battledome's
+ *     pre-fight popups (a was missing), Trudy's Surprise (span/strong were
+ *     missing), Closet (p/span/strong/a were all missing — only the outer
+ *     div was covered), Grave Danger (p/span/strong/a were missing outside
+ *     of .copy p), and the Jhudora's Bluff/Illusen's Glade generic popup
+ *     reskin (span/strong/a were missing). All five now mirror the sitewide
+ *     rule's own five-selector list so nothing slips through.
+ *   - Jhudora's Bluff/Illusen's Glade: the page-level Accept Quest/Turn It
+ *     In/Decline buttons (native .button-default__2020/.button-yellow__2020/
+ *     etc.) had no theming at all outside of popups — same root cause as
+ *     Closet's earlier "Bleed Fixes" (native button relies on its own
+ *     background-image sprite; if that ever gets stripped, its native text
+ *     color is left with nothing to sit on, in every theme, not just dark
+ *     ones). Gave them the same treatment Closet already uses.
+ *   - Three more modules (Games Room continue-to-play screen, the in-page
+ *     game player, and the post-game/hi-scores results screen) wipe
+ *     document.body and rebuild it via document.body.style.cssText =
+ *     'margin:0;padding:0;background:var(--nui-bg);' — missing color:, so
+ *     anything rendered without its own explicit color (e.g. the "Top
+ *     Scores" list) fell back to Neopets' native dark body text on the new
+ *     dark background. Added the missing color:var(--nui-text) to all four
+ *     places using that exact snippet (the fourth was already safe, Games
+ *     Hi-Scores' own rebuild, but got it too for consistency).
+ *   - Petpet Lab Ray: the intro/warning copy is carried over verbatim from
+ *     native <p> markup into .nui-lab-card, which itself had no color:
+ *     either — same gap, same fix, plus now strips any inline color/style
+ *     that copy might itself be carrying (matching the same cleanup
+ *     revealNative() already does for the post-zap result screen).
  *
  * v2.0.4
  *   - New: Quick Stock modal (full SPA rebuild). Reimplements quickstock.
@@ -3207,6 +3446,93 @@
         _setTimerDot();
     }
 
+        // ── Timer notification preferences (customization) ───────────────────
+        // The four ids below already had bespoke "ready" banners wired up on
+        // the Home page (Grave Danger, Buried Treasure, Jhudora's Bluff,
+        // Illusen's Glade) before this was generalized — they stay on by
+        // default so nothing changes for existing users. Every other daily
+        // is opt-in: a person turns notifications on per-item from the
+        // Daily Timers Hub (🔔/🔕 button on eligible cards). Only dailies
+        // that reset more than once a day (intervalHours < 24 — cooldowns
+        // like Symol Hole, kiosks, Grave Danger, or twice-a-day resets like
+        // Grumpy Old King) are eligible at all; plain once-a-day dailies
+        // don't get a toggle since there's nothing time-sensitive to alert.
+        const NUI_TIMER_NOTIFY_PREFS_KEY = 'neoui_timer_notify_prefs_v1';
+        const NUI_TIMER_NOTIFY_DEFAULT_ON = ['grave-danger', 'buried-treasure', 'jhudora-s-bluff', 'illusen-s-glade'];
+
+        function loadTimerNotifyPrefs() {
+            try {
+                const raw = localStorage.getItem(NUI_TIMER_NOTIFY_PREFS_KEY);
+                const parsed = raw ? JSON.parse(raw) : {};
+                return (parsed && typeof parsed === 'object') ? parsed : {};
+            } catch (e) { return {}; }
+        }
+        function saveTimerNotifyPrefs(prefs) {
+            try { localStorage.setItem(NUI_TIMER_NOTIFY_PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
+        }
+        // A daily is "notifiable" at all only if it resets faster than once
+        // a day — that's the whole population eligible for the toggle.
+        function isTimerNotifiable(item) {
+            return !!item && typeof item.intervalHours === 'number' && item.intervalHours < 24;
+        }
+        function isTimerNotifyEnabled(item) {
+            if (!isTimerNotifiable(item)) return false;
+            const prefs = loadTimerNotifyPrefs();
+            if (prefs[item.id] === true) return true;
+            if (prefs[item.id] === false) return false;
+            // No explicit preference saved yet — fall back to the
+            // previously-hardcoded defaults so behavior doesn't change.
+            return NUI_TIMER_NOTIFY_DEFAULT_ON.indexOf(item.id) !== -1;
+        }
+        function setTimerNotifyEnabled(id, enabled) {
+            const prefs = loadTimerNotifyPrefs();
+            prefs[id] = !!enabled;
+            saveTimerNotifyPrefs(prefs);
+        }
+
+        // ── Cross-page ready checker ──────────────────────────────────────────
+        // Runs on every page (Core loads everywhere), not just Home, so any
+        // notification-enabled daily fires the bell dot no matter where the
+        // person happens to be browsing when its cooldown ends. Persists a
+        // `notifiedReady` flag on each daily-timer record itself (survives
+        // normalizeDailyTimers' default-merge same as nextAt/hidden/etc.) so
+        // an alert only fires once per "ready" window — dismissing it from
+        // the notification drawer won't cause it to reappear on the next
+        // poll, and it won't re-fire until the timer actually resets.
+        function checkAllDailyTimersForNotifications() {
+            try {
+                const now = Date.now();
+                const list = normalizeDailyTimers(loadDailyTimers());
+                let changed = false;
+                list.forEach(function (t) {
+                    if (!t || !t.id || !isTimerNotifiable(t)) return;
+                    const ready = (t.nextAt || 0) <= now;
+                    const enabled = isTimerNotifyEnabled(t);
+                    if (ready && enabled && !t.notifiedReady) {
+                        t.notifiedReady = true;
+                        changed = true;
+                        // Don't clobber a nicer, purpose-built banner label
+                        // (e.g. Home page's Grave Danger/Buried Treasure/
+                        // Jhudora-Illusen pills) if one already registered
+                        // this id — just track that we've alerted for it.
+                        if (!_timerReadyItems[t.id]) {
+                            nuiTimerReady(t.id, t.label + ' is ready!', t.href, t.icon);
+                        }
+                    } else if (!ready && t.notifiedReady) {
+                        t.notifiedReady = false;
+                        changed = true;
+                        nuiTimerCleared(t.id);
+                    } else if (!enabled && t.notifiedReady) {
+                        // Notifications were turned off after this already fired.
+                        t.notifiedReady = false;
+                        changed = true;
+                        nuiTimerCleared(t.id);
+                    }
+                });
+                if (changed) saveDailyTimers(list);
+            } catch (e) {}
+        }
+
         function _setTimerDot() {
             const btn = document.getElementById('nui-notif-btn');
             if (!btn) return;
@@ -3431,6 +3757,13 @@
         // Apply dot immediately — localStorage may have restored ready items
         // from a prior page that finished its countdown before this navigation.
         _setTimerDot();
+        // Sweep every notification-enabled daily immediately, then keep
+        // polling — this is what makes the bell dot work for any daily
+        // (not just the Home page's hardcoded pills) no matter what page
+        // the person is currently on. 20s is plenty granular for cooldowns
+        // measured in minutes/hours and cheap enough to run everywhere.
+        checkAllDailyTimersForNotifications();
+        setInterval(checkAllDailyTimersForNotifications, 20000);
 
         // Right-side icon slot (NP/NC stats + Neopets Helper dock toggle).
         // Factored out so the "existing topbar" reuse path above can call
@@ -3831,10 +4164,12 @@
         { id: 'coincidence',    label: 'The Coincidence',            desc: 'Coincidence SPA',                                group: 'Games & Daily Activities' },
         { id: 'foodclub',       label: 'Food Club',                  desc: 'Bets, odds, history',                            group: 'Games & Daily Activities' },
         { id: 'coconut-shy',    label: 'Coconut Shy',                desc: 'Coconut Shy wrapper',                            group: 'Games & Daily Activities' },
+        { id: 'pickyourown',    label: 'Pick Your Own',              desc: 'Full NeoUI SPA — farm d-pad, punnet grid, one-tap discard/collect', group: 'Games & Daily Activities' },
         { id: 'qasalan-expellibox', label: 'Qasalan Expellibox',     desc: 'Styled result screen on the ncmall giveaway page', group: 'Games & Daily Activities' },
         { id: 'neolodge',       label: 'Neolodge',                   desc: 'Text color fix for the Vue booking app',         group: 'Games & Daily Activities' },
         { id: 'lab-ray',        label: 'Lab Ray',                    desc: 'Full SPA — pet grid with per-pet protect locks', group: 'Games & Daily Activities' },
         { id: 'buried-treasure',label: 'Buried Treasure',            desc: 'Map SPA',                                        group: 'Games & Daily Activities' },
+        { id: 'lairbeast-mobile', label: 'Lair of the Beast',        desc: 'Trims the walkthrough padding and scale-to-fits the lyre-scare canvas so the whole thing plays without side-scrolling on mobile', group: 'Games & Daily Activities' },
         { id: 'games',          label: 'Games Room',                 desc: 'Games list + Ruffle wrapper',                    group: 'Games & Daily Activities' },
         { id: 'dice-a-roo',     label: 'Dice-A-Roo',                 desc: 'Fetch-based play SPA with session stats',        group: 'Games & Daily Activities' },
         { id: 'kadoatery',      label: 'Kadoatery',                  desc: 'Mobile grid + tap-to-copy items',                group: 'Games & Daily Activities' },
@@ -3846,6 +4181,8 @@
         { id: 'lunartemple',    label: 'Lunar Temple',               desc: 'Daily puzzle SPA + auto-solver',                 group: 'Games & Daily Activities' },
         { id: 'neggcave',       label: 'Mysterious Negg Cave',       desc: 'Daily negg puzzle SPA',                          group: 'Games & Daily Activities' },
         { id: 'trudys-surprise',label: "Trudy's Surprise",           desc: 'Themed reward/help popups + game frame, native slot machine kept', group: 'Games & Daily Activities' },
+        { id: 'scorchy-slots',  label: 'Scorchy Slots',              desc: 'Themed reel bezel + jackpot/rules card, native form & tokens kept', group: 'Games & Daily Activities' },
+        { id: 'godori',         label: 'Godori',                     desc: 'Responsive scale-to-fit board, collapsed instructions, in-page rules/score modals, remembered game speed', group: 'Games & Daily Activities' },
         { id: 'scratchcards',   label: 'Scratchcard Kiosks',         desc: 'Desert/Fairgrounds/Ice Caves SPA',               group: 'Games & Daily Activities' },
         { id: 'mysterypic',     label: 'Mystery Picture',            desc: 'Clean competition card, no archive clutter',      group: 'Games & Daily Activities' },
         { id: 'faerie-crossword', label: 'Faerie Crossword',         desc: 'Styled clue list + guess form, native grid kept', group: 'Games & Daily Activities' },
@@ -4038,6 +4375,7 @@
             { id: 'deserted-tomb', label: 'Deserted Tomb', icon: '🎁', img: 'https://images.neopets.com/items/bd_ger_goldtalisman.gif', href: '/worlds/geraptiku/tomb.phtml', intervalHours: 24.0, note: 'Once a day', category: 'Daily', sourceGroup: 'Freebies' },
             { id: 'faerie-crossword', label: 'Faerie Crossword', icon: '🎁', img: 'https://images.neopets.com/items/fbo_library_tales.gif', href: '/games/crossword/index.phtml', intervalHours: 24.0, note: 'Once a day', category: 'Daily', sourceGroup: 'Freebies' },
             { id: 'forgotten-shore', label: 'Forgotten Shore', icon: '🎁', img: 'https://images.neopets.com/items/bg_forgotten_shore.gif', href: '/pirates/forgottenshore.phtml', intervalHours: 24.0, note: 'Once a day', category: 'Daily', sourceGroup: 'Freebies' },
+            { id: 'fruit-machine', label: 'Fruit Machine', icon: '🎁', img: 'https://images.neopets.com/items/food_desert18.gif', href: '/desert/fruit/index.phtml', intervalHours: 24.0, note: 'Once a day', category: 'Daily', sourceGroup: 'Freebies' },
             { id: 'giant-jelly', label: 'Giant Jelly', icon: '🎁', img: 'https://images.neopets.com/items/jel_cornupepper_whole.gif', href: '/jelly/jelly.phtml', intervalHours: 24.0, note: 'Once a day', category: 'Daily', sourceGroup: 'Freebies' },
             { id: 'giant-omelette', label: 'Giant Omelette', icon: '🎁', img: 'https://images.neopets.com/items/om_sausage_pepperoni1.gif', href: '/prehistoric/omelette.phtml', intervalHours: 24.0, note: 'Once a day', category: 'Daily', sourceGroup: 'Freebies' },
             { id: 'grave-danger', label: 'Grave Danger', icon: '🎁', img: 'https://images.neopets.com/items/boo_zombiehandbook.gif', href: '/halloween/gravedanger/', intervalHours: 10.0, note: 'Once every 4 to 10 hours', category: 'Timed', timed: true, sourceGroup: 'Freebies' },
@@ -4157,7 +4495,7 @@
     // daily whose destination later changed, like Qasalan Expellibox) would
     // silently keep winning forever even after the shipped default was
     // fixed. Only the fields below carry over from what's saved.
-    const DAILY_TIMER_USER_FIELDS = ['nextAt', 'hidden', 'label', 'note', 'intervalHours'];
+    const DAILY_TIMER_USER_FIELDS = ['nextAt', 'hidden', 'label', 'note', 'intervalHours', 'notifiedReady'];
 
     function normalizeDailyTimers(items) {
         const defaults = getDefaultDailyTimers();
@@ -4386,6 +4724,92 @@
         try { localStorage.setItem(DH_COLLAPSED_GROUPS_KEY, JSON.stringify(obj)); } catch (e) {}
     }
 
+    // NST is Pacific time (America/Los_Angeles).
+    // Returns the Unix-ms timestamp of the next NST midnight after `now`.
+    function nextNSTMidnight(now) {
+        const d = new Date(now);
+        // Advance to next calendar midnight in Pacific time.
+        const nstStr = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Los_Angeles',
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        }).format(d);
+        // nstStr: "MM/DD/YYYY"
+        const [m, day, y] = nstStr.split('/');
+        // Build midnight of today (NST) as a UTC ms value, then add one day.
+        const todayMidnightNST = new Date(
+            new Date(`${y}-${m}-${day}T00:00:00`).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })
+        );
+        // Simpler: find the next midnight by incrementing date in NST zone.
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Los_Angeles',
+            year: 'numeric', month: 'numeric', day: 'numeric',
+            hour: 'numeric', minute: 'numeric', second: 'numeric',
+            hour12: false
+        }).formatToParts(d);
+        const get = function (type) { return parseInt(parts.find(function (p) { return p.type === type; }).value, 10); };
+        // Construct "next midnight NST" by building that date in Pacific and converting to UTC ms.
+        // We can't instantiate a TZ-aware Date directly, so we use a trick:
+        // get the current NST wall-clock, figure out how many ms until next midnight,
+        // add that to now.
+        const nstHour = get('hour') % 24;
+        const nstMin  = get('minute');
+        const nstSec  = get('second');
+        const msUntilMidnight = ((24 - nstHour) * 3600 - nstMin * 60 - nstSec) * 1000;
+        return now + msUntilMidnight;
+    }
+
+    // Linked-group table: marking done on any member also marks all others.
+    const LINKED_GROUPS = [
+        ['desert-kiosk', 'haunted-fairgrounds-kiosk', 'ice-caves-kiosk'],
+        ['jhudora-s-bluff', 'illusen-s-glade'],
+    ];
+
+    // Marks a daily done directly against storage — independent of whether
+    // the Daily Timers Hub UI is even open. This is what lets "done" be
+    // flipped from the notification drawer/bell alert, a page's own module,
+    // or anywhere else, instead of requiring a trip into the Hub. Returns
+    // an array of {id, nextAt} for the timer plus any linked-group members
+    // that were also updated, so a caller holding its own in-memory copy
+    // (like the Hub, while open) can patch itself instead of reloading.
+    function markDailyTimerDone(id) {
+        const list = normalizeDailyTimers(loadDailyTimers());
+        const t = list.find(function (x) { return x.id === id; });
+        if (!t) return null;
+        const now = Date.now();
+        const updated = [];
+        // Midnight-reset items: category 'Daily' (once per day resets at NST midnight)
+        // or items whose note contains "twice per day"/"twice a day" (resets at midnight too).
+        const isMidnightReset = t.resetAtMidnight === true ||
+            t.category === 'Daily' ||
+            /\btwice (per|a) day\b/i.test(t.note || '') ||
+            /\bup to twice\b/i.test(t.note || '');
+        t.nextAt = isMidnightReset ? nextNSTMidnight(now) : now + t.intervalHours * 3600000;
+        updated.push({ id: t.id, nextAt: t.nextAt });
+        // Propagate to linked group members (e.g. all three kiosks, Jhudora+Illusen).
+        const myGroup = LINKED_GROUPS.find(function (g) { return g.indexOf(id) !== -1; });
+        if (myGroup) {
+            myGroup.forEach(function (linkedId) {
+                if (linkedId === id) return;
+                const lt = list.find(function (x) { return x.id === linkedId; });
+                if (lt) {
+                    lt.nextAt = isMidnightReset ? nextNSTMidnight(now) : now + lt.intervalHours * 3600000;
+                    updated.push({ id: lt.id, nextAt: lt.nextAt });
+                    nuiTimerCleared(lt.id);
+                }
+            });
+        }
+        saveDailyTimers(list);
+        nuiTimerCleared(t.id);
+        // Jhudora's Bluff/Illusen's Glade share a synced cooldown (identical
+        // nextAt on both), so the Home page pill can't tell which one was
+        // actually done from nextAt alone — record it explicitly here too,
+        // same as the in-page sync on either faerie's own page does.
+        if (id === 'jhudora-s-bluff' || id === 'illusen-s-glade') {
+            try { localStorage.setItem('neoui_jl_last_id', id); } catch (e) {}
+        }
+        return updated;
+    }
+
     function openDayTimerHub() {
         if (document.getElementById('nui-daily-hub')) return; // already open
 
@@ -4568,76 +4992,19 @@
         }
         window.addEventListener('storage', onCrossTabTimerSync);
 
-        // NST is Pacific time (America/Los_Angeles).
-        // Returns the Unix-ms timestamp of the next NST midnight after `now`.
-        function nextNSTMidnight(now) {
-            const d = new Date(now);
-            // Advance to next calendar midnight in Pacific time.
-            const nstStr = new Intl.DateTimeFormat('en-US', {
-                timeZone: 'America/Los_Angeles',
-                year: 'numeric', month: '2-digit', day: '2-digit'
-            }).format(d);
-            // nstStr: "MM/DD/YYYY"
-            const [m, day, y] = nstStr.split('/');
-            // Build midnight of today (NST) as a UTC ms value, then add one day.
-            const todayMidnightNST = new Date(
-                new Date(`${y}-${m}-${day}T00:00:00`).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })
-            );
-            // Simpler: find the next midnight by incrementing date in NST zone.
-            const parts = new Intl.DateTimeFormat('en-US', {
-                timeZone: 'America/Los_Angeles',
-                year: 'numeric', month: 'numeric', day: 'numeric',
-                hour: 'numeric', minute: 'numeric', second: 'numeric',
-                hour12: false
-            }).formatToParts(d);
-            const get = function (type) { return parseInt(parts.find(function (p) { return p.type === type; }).value, 10); };
-            // Construct "next midnight NST" by building that date in Pacific and converting to UTC ms.
-            // We can't instantiate a TZ-aware Date directly, so we use a trick:
-            // get the current NST wall-clock, figure out how many ms until next midnight,
-            // add that to now.
-            const nstHour = get('hour') % 24;
-            const nstMin  = get('minute');
-            const nstSec  = get('second');
-            const msUntilMidnight = ((24 - nstHour) * 3600 - nstMin * 60 - nstSec) * 1000;
-            return now + msUntilMidnight;
-        }
-
-        // Linked-group table: marking done on any member also marks all others.
-        const LINKED_GROUPS = [
-            ['desert-kiosk', 'haunted-fairgrounds-kiosk', 'ice-caves-kiosk'],
-            ['jhudora-s-bluff', 'illusen-s-glade'],
-        ];
-
+        // Thin wrapper: the real logic now lives in the Core-level
+        // markDailyTimerDone() (shared with the notification drawer's "Mark
+        // Done" button, so it works without the Hub being open at all).
+        // This just patches the Hub's own in-memory `timers` copy afterward
+        // so the already-open UI reflects the change immediately.
         function markDone(id) {
-            const t = timers.find(function (x) { return x.id === id; });
-            if (!t) return null;
-            const now = Date.now();
-            // Midnight-reset items: category 'Daily' (once per day resets at NST midnight)
-            // or items whose note contains "twice per day"/"twice a day" (resets at midnight too).
-            const isMidnightReset = t.resetAtMidnight === true ||
-                t.category === 'Daily' ||
-                /\btwice (per|a) day\b/i.test(t.note || '') ||
-                /\bup to twice\b/i.test(t.note || '');
-            if (isMidnightReset) {
-                t.nextAt = nextNSTMidnight(now);
-            } else {
-                t.nextAt = now + t.intervalHours * 3600000;
-            }
-            // Propagate to linked group members (e.g. all three kiosks, Jhudora+Illusen).
-            const myGroup = LINKED_GROUPS.find(function (g) { return g.indexOf(id) !== -1; });
-            if (myGroup) {
-                myGroup.forEach(function (linkedId) {
-                    if (linkedId === id) return;
-                    const lt = timers.find(function (x) { return x.id === linkedId; });
-                    if (lt) {
-                        lt.nextAt = isMidnightReset ? nextNSTMidnight(now) : now + lt.intervalHours * 3600000;
-                        nuiTimerCleared(lt.id);
-                    }
-                });
-            }
-            saveDailyTimers(timers);
-            nuiTimerCleared(t.id);
-            return t;
+            const updates = markDailyTimerDone(id);
+            if (!updates) return null;
+            updates.forEach(function (u) {
+                const local = timers.find(function (x) { return x.id === u.id; });
+                if (local) local.nextAt = u.nextAt;
+            });
+            return timers.find(function (x) { return x.id === id; });
         }
 
         // Nudges an item one slot earlier/later within whatever's currently
@@ -4864,6 +5231,9 @@
                         '<button type="button" data-act="newtab" data-id="' + item.id + '" class="nui-icon-btn" title="Open in a new tab" style="width:24px; height:24px; font-size:12px;">↗</button>' +
                         '<button type="button" data-act="done" data-id="' + item.id + '" class="nui-icon-btn" title="Mark done now" style="width:24px; height:24px; font-size:12px;">✓</button>' +
                         '<button type="button" data-act="skip" data-id="' + item.id + '" class="nui-icon-btn" title="Skip — snooze until next NST midnight" style="width:24px; height:24px; font-size:12px;">⏭</button>' +
+                        (isTimerNotifiable(item) ?
+                            '<button type="button" data-act="togglenotify" data-id="' + item.id + '" class="nui-icon-btn" title="' + (isTimerNotifyEnabled(item) ? 'Notifications on — tap to turn off' : 'Notifications off — tap to turn on') + '" style="width:24px; height:24px; font-size:12px; opacity:' + (isTimerNotifyEnabled(item) ? '1' : '0.45') + ';">' + (isTimerNotifyEnabled(item) ? '🔔' : '🔕') + '</button>'
+                        : '') +
                         '<button type="button" data-act="hide" data-id="' + item.id + '" class="nui-icon-btn" title="Hide" style="width:24px; height:24px; font-size:12px;">🙈</button>' +
                         '<button type="button" data-act="edit" data-id="' + item.id + '" class="nui-icon-btn" title="Edit" style="width:24px; height:24px; font-size:12px;">✏️</button>';
                 }
@@ -4989,6 +5359,14 @@
                 btn.addEventListener('click', function () {
                     const t = timers.find(function (x) { return x.id === btn.dataset.id; });
                     if (t) { t.hidden = true; saveDailyTimers(timers); if (viewerId === t.id) closeViewer(); render(filterInput.value); }
+                });
+            });
+            listPane.querySelectorAll('[data-act="togglenotify"]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const t = timers.find(function (x) { return x.id === btn.dataset.id; });
+                    if (!t) return;
+                    setTimerNotifyEnabled(t.id, !isTimerNotifyEnabled(t));
+                    render(filterInput.value);
                 });
             });
             listPane.querySelectorAll('[data-act="unhide"]').forEach(function (btn) {
@@ -11154,6 +11532,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         openTutorial: openTutorialModal,
         openGlobalSearch: openGlobalSearchModal,
         openDailyTimerHub: openDayTimerHub,
+        markDailyTimerDone: markDailyTimerDone,
         syncDailyTimer: function (id, msFromNow) {
             try {
                 const raw = localStorage.getItem(DAILY_TIMERS_KEY);
@@ -18234,6 +18613,8 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             { name: 'Dice-A-Roo', url: '/games/dicearoo.phtml', icon: '🎲', group: 'Games & Gambling' },
             { name: 'Food Club', url: '/pirates/foodclub.phtml?type=bet', icon: '🍗', group: 'Games & Gambling' },
             { name: 'Neopian Lottery', url: '/games/lottery.phtml', icon: '🎫', group: 'Games & Gambling' },
+            { name: 'Godori', url: '/games/godori/godori.phtml', icon: '🎴', group: 'Games & Gambling' },
+            { name: 'Scorchy Slots', url: '/games/slots.phtml', icon: '🎰', group: 'Games & Gambling' },
             { name: 'Scratchcard Kiosk (Desert)', url: '/desert/kiosk.phtml', icon: '🃏', group: 'Games & Gambling' },
             { name: 'Scratchcard Kiosk (Faerie)', url: '/faerieland/kiosk.phtml', icon: '🃏', group: 'Games & Gambling' },
             // — Training —
@@ -19575,8 +19956,17 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     const dtArr2 = JSON.parse(dtRaw2);
                     const jh = dtArr2.find(e => e.id === 'jhudora-s-bluff');
                     const il = dtArr2.find(e => e.id === 'illusen-s-glade');
-                    // Pick whichever has the later cooldown (i.e. was done more recently)
-                    const jlEntry = [jh, il].filter(Boolean).sort((a, b) => (b.nextAt || 0) - (a.nextAt || 0))[0];
+                    // jh/il share an identical synced nextAt once either is
+                    // completed (see Module 50's syncTimer), so "later nextAt
+                    // wins" can't actually distinguish them — it's always a
+                    // tie, silently resolved to whichever sorts first
+                    // (Jhudora), regardless of which one was really done.
+                    // Use the explicit last-acted id instead; fall back to
+                    // the old nextAt-based guess only if that's missing
+                    // (e.g. before either page has ever recorded one).
+                    const lastActedId = localStorage.getItem('neoui_jl_last_id');
+                    const jlEntry = (lastActedId && [jh, il].find(e => e && e.id === lastActedId)) ||
+                        [jh, il].filter(Boolean).sort((a, b) => (b.nextAt || 0) - (a.nextAt || 0))[0];
                     if (jlEntry) {
                         const jlSecsLeft = Math.max(0, Math.round(((jlEntry.nextAt || 0) - Date.now()) / 1000));
                         const jlFmt = s => s <= 0 ? 'Ready!' : (Math.floor(s/3600) ? `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m ${s%60}s` : Math.floor(s/60) ? `${Math.floor(s/60)}m ${s%60}s` : `${s}s`);
@@ -19756,7 +20146,17 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
         let linksBodyHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;">`;
         quickLinks.forEach(link => {
-            linksBodyHtml += `<a href="${link.url}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);text-decoration:none;color:var(--nui-text);font-weight:700;transition:background var(--nui-dur-fast) var(--nui-ease);text-align:center;">
+            // "Daily Tracker" and "NeoUI Settings" are special curated entries
+            // (url: '#') that are meant to open an in-page modal rather than
+            // navigate anywhere. Wire those up explicitly — a bare href="#"
+            // has no click handler and just no-ops.
+            let clickAttr = '';
+            if (link.url === '#' && link.name === 'Daily Tracker') {
+                clickAttr = ` onclick="event.preventDefault(); if (window.NeoUI && window.NeoUI.openDailyTimerHub) window.NeoUI.openDailyTimerHub();"`;
+            } else if (link.url === '#' && link.name === 'NeoUI Settings') {
+                clickAttr = ` onclick="event.preventDefault(); if (window.NeoUI && window.NeoUI.openDrawer) { window.NeoUI.openDrawer(); setTimeout(function () { var b = document.querySelector('[data-action=\\'open-settings\\']'); if (b) b.click(); }, 80); }"`;
+            }
+            linksBodyHtml += `<a href="${link.url}"${clickAttr} style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);text-decoration:none;color:var(--nui-text);font-weight:700;transition:background var(--nui-dur-fast) var(--nui-ease);text-align:center;">
                 <span style="font-size:22px;">${link.icon}</span>
                 <span style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${link.name}</span>
             </a>`;
@@ -23978,6 +24378,11 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
            and restores themed text color + scrollable bodies so long
            equip/ability lists don't overflow past the modal edge.
         ── */
+        #BdPetDetailPopup,
+        #BattleEquipPopup,
+        #BattleUnequipPopup {
+            background: var(--nui-surface) !important;
+        }
         #BdPetDetailPopup .popup-header__2020,
         #BattleEquipPopup .popup-header__2020,
         #BattleUnequipPopup .popup-header__2020 {
@@ -24060,6 +24465,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         #BdPetDetailPopup .popup-body__2020,
         #BattleEquipPopup .popup-body__2020,
         #BattleUnequipPopup .popup-body__2020 {
+            background: var(--nui-surface) !important;
             color: var(--nui-text) !important;
             font-family: var(--nui-font-body) !important;
             overflow-y: auto !important;
@@ -24086,17 +24492,19 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         #BdPetDetailPopup .popup-body__2020 p,
         #BdPetDetailPopup .popup-body__2020 span,
         #BdPetDetailPopup .popup-body__2020 strong,
+        #BdPetDetailPopup .popup-body__2020 a,
         #BattleEquipPopup .popup-body__2020 p,
         #BattleEquipPopup .popup-body__2020 span,
         #BattleEquipPopup .popup-body__2020 strong,
+        #BattleEquipPopup .popup-body__2020 a,
         #BattleUnequipPopup .popup-body__2020 p,
         #BattleUnequipPopup .popup-body__2020 span,
-        #BattleUnequipPopup .popup-body__2020 strong {
+        #BattleUnequipPopup .popup-body__2020 strong,
+        #BattleUnequipPopup .popup-body__2020 a {
             color: inherit !important;
         }
         #BattleEquipPopup .popup-body__2020,
         #BattleUnequipPopup .popup-body__2020 {
-            background: var(--nui-bg) !important;
             padding: 20px !important;
         }
 
@@ -35109,6 +35517,18 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         // Note the inconsistent native class prefix: the Forfeit popup uses
         // ql-missed-ticket/ql-image, the Restore popup uses md-missed-ticket/
         // md-image/md-passes-left — both are covered here.
+        //
+        // These two popups' inner text (md-passes-left, ql-pass-num, the
+        // error message) already had themed colors, but nothing ever set
+        // the popup's own background off native white — themed text sitting
+        // on an unthemed background is the same gap fixed sitewide for
+        // Battledome/Trudy/Closet/Grave Danger, just missed here since these
+        // are dynamic/native popups rather than part of the main synthesized
+        // QuestLog template below.
+        '#QuestLogForfeitPopup,#QuestLogRestorePopup{background:var(--nui-surface)!important;}',
+        '#QuestLogForfeitPopup .popup-header__2020,#QuestLogRestorePopup .popup-header__2020{background:var(--nui-surface-2)!important;border-bottom:1px solid var(--nui-border)!important;}',
+        '#QuestLogForfeitPopup .popup-body__2020,#QuestLogRestorePopup .popup-body__2020{background:var(--nui-surface)!important;color:var(--nui-text)!important;}',
+        '#QuestLogForfeitPopup .popup-footer__2020,#QuestLogRestorePopup .popup-footer__2020{background:var(--nui-surface-2)!important;border-top:1px solid var(--nui-border)!important;}',
         '#QuestLogForfeitPopup .ql-missed-ticket,#QuestLogRestorePopup .md-missed-ticket{margin:4px auto 8px;text-align:center;}',
         '#QuestLogForfeitPopup .ql-image,#QuestLogRestorePopup .md-image{display:block;margin:0 auto;max-width:100px;height:auto;}',
         '#QuestLogRestorePopup .md-passes-left{margin:6px 0 4px;font-size:12px;font-weight:700;color:var(--nui-text-muted);text-align:center;}',
@@ -35119,6 +35539,12 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         // names as the .ql-reroll-* markup used pre-rebuild (not the
         // nui-ql-reroll-* names the synthesized QuestLogStreakReroll popup
         // below uses), so it gets its own matching set of rules here.
+        // Same background gap as above: the first-paragraph text was
+        // already themed but the popup itself never was.
+        '#QuestLogStreakSaveReroll{background:var(--nui-surface)!important;}',
+        '#QuestLogStreakSaveReroll .popup-header__2020{background:var(--nui-surface-2)!important;border-bottom:1px solid var(--nui-border)!important;}',
+        '#QuestLogStreakSaveReroll .popup-body__2020{background:var(--nui-surface)!important;}',
+        '#QuestLogStreakSaveReroll .popup-footer__2020{background:var(--nui-surface-2)!important;border-top:1px solid var(--nui-border)!important;}',
         '#QuestLogStreakSaveReroll .popup-body__2020 > p:first-of-type{margin:0 0 14px;font-size:13.5px;font-weight:700;text-align:center;color:var(--nui-text);}',
         '#QuestLogStreakSaveReroll .ql-reroll-cost{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 0 14px;padding:12px 16px;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-md,10px);}',
         '#QuestLogStreakSaveReroll .ql-reroll-cost img{width:36px;height:36px;flex-shrink:0;}',
@@ -35208,9 +35634,11 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         // no semi-transparent fallback colors (a "faded" gradient toward a
         // translucent --nui-accent-soft just exposes whatever's behind it,
         // which reads as a stray white patch on light themes).
+        '#QuestLogStreakReroll{background:var(--nui-surface)!important;}',
         '#QuestLogStreakReroll .popup-header__2020{background:var(--nui-accent)!important;}',
         '#QuestLogStreakReroll .popup-header__2020 h3{color:var(--nui-accent-ink,#fff)!important;font-size:15.5px!important;font-weight:800!important;}',
-        '#QuestLogStreakReroll .popup-body__2020{padding:18px 20px 6px!important;}',
+        '#QuestLogStreakReroll .popup-body__2020{background:var(--nui-surface)!important;color:var(--nui-text)!important;padding:18px 20px 6px!important;}',
+        '#QuestLogStreakReroll .popup-footer__2020{background:var(--nui-surface)!important;}',
         '#QuestLogStreakReroll .nui-ql-reroll-lead{margin:0 0 14px!important;font-size:13.5px!important;font-weight:700;text-align:center;color:var(--nui-text);}',
         '#QuestLogStreakReroll .nui-ql-reroll-cost{display:flex;align-items:center;gap:14px;margin:0 0 14px;padding:12px 16px;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-md,10px);}',
         '#QuestLogStreakReroll .nui-ql-reroll-cost img{width:40px;height:40px;flex-shrink:0;}',
@@ -36026,6 +36454,23 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             const alertsList = document.createElement('div');
             alertsCard.appendChild(alertsList);
 
+            // Flips a daily done from wherever NeoUI is reachable — same
+            // window if this page is top-level, parent window if it's
+            // loaded in an iframe (mirrors the timerReady/timerCleared
+            // sync above). Falls back to a no-op if neither is reachable,
+            // so the button still just clears the alert like Dismiss does.
+            function markDoneEverywhere(id) {
+                try {
+                    if (window.NeoUI && window.NeoUI.markDailyTimerDone) return window.NeoUI.markDailyTimerDone(id);
+                } catch (e) {}
+                try {
+                    if (window.parent && window.parent !== window && window.parent.NeoUI && window.parent.NeoUI.markDailyTimerDone) {
+                        return window.parent.NeoUI.markDailyTimerDone(id);
+                    }
+                } catch (e) {}
+                return null;
+            }
+
             function redrawAlertsList() {
                 alertsList.innerHTML = '';
                 const remaining = Object.entries(timerItems);
@@ -36043,8 +36488,14 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                         '  <a href="' + item.href + '" target="_top" style="font-weight:700;font-size:13px;color:var(--nui-text);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + item.label + '</a>',
                         '  <span style="font-size:11px;color:var(--nui-text-muted);">Ready — tap to go</span>',
                         '</div>',
+                        '<button type="button" data-done="' + id + '" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;border:1px solid #86efac;background:#f0fdf4;color:#166534;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Mark done — resets its cooldown">✓</button>',
                         '<button type="button" data-dismiss="' + id + '" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;border:1px solid var(--nui-border);background:var(--nui-surface-2);color:var(--nui-text-muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Dismiss">✕</button>',
                     ].join('');
+                    row.querySelector('[data-done]').addEventListener('click', function () {
+                        markDoneEverywhere(id); // resets the underlying daily timer's cooldown, if it has one
+                        delete timerItems[id];
+                        saveAndRedraw();
+                    });
                     row.querySelector('[data-dismiss]').addEventListener('click', function () {
                         delete timerItems[id];
                         saveAndRedraw();
@@ -39439,6 +39890,627 @@ return {
 })();
 
 // ==============================================================================
+// MODULE 70: PICK YOUR OWN
+// ==============================================================================
+// Full NeoUI SPA rebuild of Meri Acres Farm — replaces the raw ISMAP arrow
+// table + inline punnet table with a themed d-pad navigator and a proper
+// item grid. Every action (move, search, discard, collect) goes through
+// fetch() against the real native endpoints; nothing here changes odds,
+// rewards, or the underlying game logic — it's presentation only.
+// ==============================================================================
+// Activates on: /medieval/pickyourown_index.phtml (landing/intro screen),
+//               /medieval/pickyourown.phtml and
+//               /medieval/process_pickyourown.phtml (farm screen — map,
+//               movement, picking, discarding, collecting all render through
+//               the same script server-side).
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!/\/medieval\/(pickyourown_index|pickyourown|process_pickyourown)\.phtml/i.test(location.pathname)) return;
+    if (!window.NeoUI || !window.NeoUI.isModuleEnabled('pickyourown')) return;
+
+    const NeoUI = window.NeoUI;
+    if (!NeoUI || !NeoUI.__ready) return;
+
+    function showFatalError(err) {
+        try {
+            const box = document.createElement('div');
+            box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fee2e2;color:#7f1d1d;font:14px monospace;padding:15px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-bottom:3px solid #dc2626;';
+            box.textContent = 'Pick Your Own SPA crashed:\n' + (err && err.stack ? err.stack : String(err));
+            document.body.insertBefore(box, document.body.firstChild);
+        } catch (e2) {}
+    }
+
+    const DAILY_TIMERS_KEY = 'neoui_daily_timers_v1';
+    const TIMER_ID = 'pick-your-own';
+
+    function syncTimer(msFromNow) {
+        try {
+            const raw = localStorage.getItem(DAILY_TIMERS_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            const list = Array.isArray(parsed) ? parsed : [];
+            let entry = list.find(function (item) { return item && item.id === TIMER_ID; });
+            if (!entry) { entry = { id: TIMER_ID }; list.push(entry); }
+            entry.nextAt = Date.now() + msFromNow;
+            localStorage.setItem(DAILY_TIMERS_KEY, JSON.stringify(list));
+        } catch (e) {}
+        try { if (NeoUI.timerCleared) NeoUI.timerCleared(TIMER_ID); } catch (e) {}
+    }
+
+    const DIRECTION_META = {
+        n: { label: 'North', arrow: '▲' },
+        s: { label: 'South', arrow: '▼' },
+        e: { label: 'East',  arrow: '▶' },
+        w: { label: 'West',  arrow: '◀' },
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SCRAPER — the farm screen (map + moves + punnet) is the common case;
+    // anything else (intro/landing page, collect summary, "already picked
+    // today" message) falls back to a generic text+links card so nothing
+    // the server sends back is ever a dead end.
+    // ─────────────────────────────────────────────────────────────────────────
+    function scrapeState(doc, baseUrl) {
+        const content = doc.querySelector('td.content') || doc.body;
+
+        // The punnet: a table whose inline style references punnet.gif.
+        const punnetTable = Array.prototype.find.call(content.querySelectorAll('table'), function (t) {
+            return /punnet\.gif/i.test(t.getAttribute('style') || '');
+        });
+
+        // The pick/search link: an <a> wrapping the path/farm scene image,
+        // whose href carries x_pick=1.
+        const pickAnchor = Array.prototype.find.call(content.querySelectorAll('a'), function (a) {
+            return /x_pick=1/i.test(a.getAttribute('href') || '') && a.querySelector('img');
+        });
+
+        if (punnetTable && pickAnchor) {
+            const pickImg = pickAnchor.querySelector('img');
+
+            // Movement arrows: any <a> whose href carries x_move=1&x_direction=X
+            const moves = [];
+            Array.prototype.forEach.call(content.querySelectorAll('a[href*="x_move=1"]'), function (a) {
+                const m = (a.getAttribute('href') || '').match(/x_direction=([nsew])/i);
+                if (m) moves.push({ direction: m[1].toLowerCase(), url: new URL(a.getAttribute('href'), baseUrl).href });
+            });
+
+            // Punnet slots — each is an <a> wrapping an <img>, href carries
+            // x_discard=1&x_pick_id=N; the item's real name only exists in
+            // the confirm() dialog text ("discard your X?").
+            const slots = [];
+            Array.prototype.forEach.call(punnetTable.querySelectorAll('a'), function (a) {
+                const img = a.querySelector('img');
+                if (!img) return;
+                const href = a.getAttribute('href') || '';
+                const idMatch = href.match(/x_pick_id=(\d+)/i);
+                if (!idMatch) return;
+                // Same slot's <img> is duplicated in the source markup
+                // (two identical anchors per item) — de-dupe by pick_id.
+                if (slots.some(function (s) { return s.pickId === idMatch[1]; })) return;
+                const onclick = img.getAttribute('onclick') || '';
+                const nameMatch = onclick.match(/discard your (.+?)\?/i);
+                slots.push({
+                    pickId: idMatch[1],
+                    discardUrl: new URL(href, baseUrl).href,
+                    imgSrc: new URL(img.getAttribute('src'), baseUrl).href,
+                    name: nameMatch ? nameMatch[1].trim() : 'Unknown Item',
+                    isJunk: /booby/i.test(img.getAttribute('src') || ''),
+                });
+            });
+
+            // Collect form
+            const collectForm = Array.prototype.find.call(content.querySelectorAll('form'), function (f) {
+                return f.querySelector('input[name="x_collect"]');
+            });
+
+            // Leading message paragraph — the very first <p>, which is
+            // either the standing instructions or a "you found X" /
+            // "didn't find anything" result line depending on what just
+            // happened.
+            const firstP = content.querySelector('p');
+            const rawMessage = firstP ? firstP.textContent.replace(/\s+/g, ' ').trim() : '';
+            const isInstructions = /follow the arrows/i.test(rawMessage);
+
+            return {
+                type: 'farm',
+                message: isInstructions ? null : rawMessage,
+                mapImg: pickImg ? new URL(pickImg.getAttribute('src'), baseUrl).href : null,
+                mapTitle: pickImg ? (pickImg.getAttribute('title') || '') : '',
+                pickUrl: new URL(pickAnchor.getAttribute('href'), baseUrl).href,
+                moves: moves,
+                slots: slots,
+                collectUrl: collectForm ? new URL(collectForm.getAttribute('action'), baseUrl).href : null,
+                collectMethod: collectForm ? (collectForm.getAttribute('method') || 'POST').toUpperCase() : 'POST',
+            };
+        }
+
+        // ── Fallback: intro/landing page, collect summary, cooldown /
+        // "come back tomorrow" message, or anything else the server sends.
+        // Grab the heading, any paragraph text, and the first actionable
+        // form/link so there's always a way forward.
+        const heading = content.querySelector('b, h1, h2');
+        const paragraphs = Array.prototype.map.call(content.querySelectorAll('p'), function (p) {
+            return p.textContent.replace(/\s+/g, ' ').trim();
+        }).filter(Boolean);
+
+        const primaryForm = content.querySelector('form');
+        const primaryLink = Array.prototype.find.call(content.querySelectorAll('a[href]'), function (a) {
+            return /pickyourown|process_pickyourown/i.test(a.getAttribute('href') || '');
+        });
+
+        // Capture every named, non-submit input on the form (x_continue=1,
+        // x_collect=1, any hidden CSRF-style token, etc.) so re-submitting
+        // it via fetch() actually tells the server what to do — an empty
+        // POST body silently does nothing and the response won't look like
+        // any recognized state.
+        const formFields = primaryForm
+            ? Array.prototype.map.call(
+                primaryForm.querySelectorAll('input[name]:not([type="submit"]):not([type="button"])'),
+                function (input) { return { name: input.getAttribute('name'), value: input.value || '' }; }
+              )
+            : [];
+
+        // Diagnostic snapshot — if none of heading/paragraphs/form/link below
+        // turn up anything, this lets the fallback UI show the raw text it
+        // actually saw instead of quietly rendering an empty card. Also
+        // logged to console for anyone with devtools open.
+        const matchedContentCell = !!doc.querySelector('td.content');
+        const debugSnippet = ((content.innerText || content.textContent || '')
+            .replace(/\s+/g, ' ').trim()).slice(0, 800);
+        try {
+            console.debug('[NeoUI Pick Your Own] fallback scrape', {
+                url: baseUrl, matchedContentCell: matchedContentCell,
+                contentTag: content.tagName, snippet: debugSnippet.slice(0, 200),
+            });
+        } catch (e) {}
+
+        return {
+            type: 'other',
+            heading: heading ? heading.textContent.replace(/\s+/g, ' ').trim() : 'Meri Acres Farm',
+            paragraphs: paragraphs,
+            debugSnippet: debugSnippet,
+            matchedContentCell: matchedContentCell,
+            actionForm: primaryForm ? {
+                url: new URL(primaryForm.getAttribute('action') || location.href, baseUrl).href,
+                method: (primaryForm.getAttribute('method') || 'GET').toUpperCase(),
+                fields: formFields,
+                submitLabel: (function () {
+                    const btn = primaryForm.querySelector('input[type="submit"]');
+                    return btn && btn.value ? btn.value : 'Continue';
+                })(),
+            } : null,
+            actionLink: (!primaryForm && primaryLink) ? {
+                url: new URL(primaryLink.getAttribute('href'), baseUrl).href,
+                label: primaryLink.textContent.replace(/\s+/g, ' ').trim() || 'Continue',
+            } : null,
+        };
+    }
+
+    async function fetchState(url, opts) {
+        const res = await fetch(url, Object.assign({ credentials: 'include' }, opts || {}));
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return scrapeState(doc, url);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SHARED CHROME
+    // ─────────────────────────────────────────────────────────────────────────
+    function buildBanner() {
+        const banner = document.createElement('div');
+        banner.className = 'nui-surface';
+        banner.style.cssText = 'border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);overflow:hidden;box-shadow:0 4px 12px var(--nui-shadow);position:relative;';
+        banner.innerHTML = `
+            <div style="position:relative;width:100%;height:110px;overflow:hidden;background:linear-gradient(135deg,#3A6B1E 0%,#5C9A2E 50%,#3A6B1E 100%);display:flex;align-items:center;gap:14px;padding:0 var(--nui-space-4);">
+                <img src="https://images.neopets.com/medieval/berry_farm06.gif"
+                     style="width:74px;height:74px;border-radius:var(--nui-radius-md);border:2px solid rgba(255,255,255,0.35);object-fit:cover;flex-shrink:0;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));background:#fff;"
+                     onerror="this.style.display='none'">
+                <div>
+                    <div style="font-family:var(--nui-font-display);font-weight:800;font-size:24px;color:#FFF4C2;text-shadow:0 2px 8px rgba(0,0,0,0.55);line-height:1.1;">Meri Acres Farm</div>
+                    <div style="font-size:12.5px;color:rgba(220,255,200,0.9);font-weight:600;margin-top:3px;text-shadow:0 1px 3px rgba(0,0,0,0.45);">Pick Your Own · once a day</div>
+                </div>
+            </div>
+        `;
+        return banner;
+    }
+
+    function backLink() {
+        const btn = document.createElement('a');
+        btn.href = '/medieval/pickyourown_index.phtml';
+        btn.className = 'nui-btn nui-btn-secondary nui-btn-block';
+        btn.style.cssText = 'text-decoration:none;display:block;box-sizing:border-box;';
+        btn.textContent = '← Back to Farm Entrance';
+        return btn;
+    }
+
+    function messageBanner(text) {
+        if (!text) return '';
+        const isGood = /found|distipear|berry|mortog|juppie/i.test(text) && !/didn.?t find|nothing/i.test(text);
+        const isBad = /didn.?t find|nothing|no luck/i.test(text);
+        const bg = isGood ? '#f0fdf4' : (isBad ? '#f4f4f5' : '#fefce8');
+        const border = isGood ? '#bbf7d0' : (isBad ? '#e4e4e7' : '#fde68a');
+        const color = isGood ? '#166534' : (isBad ? '#52525b' : '#92400e');
+        return '<div style="background:' + bg + ';border:1px solid ' + border + ';color:' + color + ';border-radius:var(--nui-radius-md);padding:10px 14px;font-size:13.5px;font-weight:600;text-align:center;line-height:1.4;">' + text + '</div>';
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RENDERERS
+    // ─────────────────────────────────────────────────────────────────────────
+    function renderFarm(wrapper, state) {
+        wrapper.innerHTML = '';
+        wrapper.appendChild(buildBanner());
+
+        if (state.message) {
+            const msg = document.createElement('div');
+            msg.innerHTML = messageBanner(state.message);
+            wrapper.appendChild(msg.firstElementChild);
+        }
+
+        const moveByDir = {};
+        state.moves.forEach(function (m) { moveByDir[m.direction] = m; });
+
+        const card = document.createElement('div');
+        card.className = 'nui-surface';
+        card.style.cssText = 'border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg);padding:var(--nui-space-4);box-shadow:0 4px 12px var(--nui-shadow);display:flex;flex-direction:column;align-items:center;gap:var(--nui-space-3);';
+
+        function dpadBtn(dir) {
+            const meta = DIRECTION_META[dir];
+            const enabled = !!moveByDir[dir];
+            return '<button type="button" data-dir="' + dir + '" class="nui-btn ' + (enabled ? 'nui-btn-secondary' : '') + '" ' +
+                'style="width:44px;height:44px;padding:0;font-size:18px;border-radius:var(--nui-radius-md);' +
+                (enabled ? '' : 'opacity:0.25;pointer-events:none;') + '" ' +
+                (enabled ? '' : 'disabled') + ' title="' + meta.label + '">' + meta.arrow + '</button>';
+        }
+
+        card.innerHTML = `
+            <div style="font-size:13.5px;font-weight:700;color:var(--nui-text);text-align:center;">Find your way around the farm, then search each spot for berries.</div>
+            <div id="pyo-map-wrap" style="width:100%;max-width:320px;border-radius:var(--nui-radius-md);overflow:hidden;border:1px solid var(--nui-border);position:relative;">
+                <img id="pyo-map-img" src="${state.mapImg}" title="${state.mapTitle}" style="display:block;width:100%;height:auto;">
+            </div>
+            <div style="display:grid;grid-template-columns:44px 44px 44px;grid-template-rows:44px 44px 44px;gap:4px;justify-content:center;">
+                <div></div>${dpadBtn('n')}<div></div>
+                ${dpadBtn('w')}<div style="display:flex;align-items:center;justify-content:center;font-size:20px;">🌾</div>${dpadBtn('e')}
+                <div></div>${dpadBtn('s')}<div></div>
+            </div>
+            <button type="button" id="pyo-search-btn" class="nui-btn nui-btn-primary" style="width:100%;max-width:300px;">🔍 Search This Spot</button>
+        `;
+        wrapper.appendChild(card);
+
+        // Punnet
+        const punnetCard = document.createElement('div');
+        punnetCard.className = 'nui-surface';
+        punnetCard.style.cssText = 'border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg);padding:var(--nui-space-4);box-shadow:0 4px 12px var(--nui-shadow);display:flex;flex-direction:column;gap:var(--nui-space-3);';
+
+        const slotsHtml = [];
+        for (let i = 0; i < 6; i++) {
+            const s = state.slots[i];
+            if (s) {
+                slotsHtml.push(
+                    '<div data-pick-id="' + s.pickId + '" class="pyo-slot" style="border:1px solid var(--nui-border);border-radius:var(--nui-radius-md);padding:6px;display:flex;flex-direction:column;align-items:center;gap:4px;background:' + (s.isJunk ? 'var(--nui-surface-alt,#f4f4f4)' : 'var(--nui-surface)') + ';cursor:pointer;">' +
+                        '<img src="' + s.imgSrc + '" style="width:52px;height:52px;object-fit:contain;">' +
+                        '<div style="font-size:10.5px;text-align:center;line-height:1.25;color:' + (s.isJunk ? 'var(--nui-text-faint)' : 'var(--nui-text)') + ';font-weight:600;">' + s.name + '</div>' +
+                        '<div style="font-size:10px;color:var(--nui-danger,#dc2626);font-weight:700;">✕ discard</div>' +
+                    '</div>'
+                );
+            } else {
+                slotsHtml.push(
+                    '<div style="border:1px dashed var(--nui-border);border-radius:var(--nui-radius-md);padding:6px;display:flex;align-items:center;justify-content:center;min-height:88px;color:var(--nui-text-faint);font-size:11px;">Empty</div>'
+                );
+            }
+        }
+
+        punnetCard.innerHTML = `
+            <div style="font-size:13px;font-weight:700;color:var(--nui-text);">Your Punnet</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">${slotsHtml.join('')}</div>
+            <button type="button" id="pyo-collect-btn" class="nui-btn nui-btn-primary" style="width:100%;">🧺 Collect Berries and Leave Farm</button>
+        `;
+        wrapper.appendChild(punnetCard);
+        wrapper.appendChild(backLink());
+
+        // ── Wiring ──
+        let locked = false;
+        async function go(url, opts) {
+            if (locked) return;
+            locked = true;
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;border-radius:var(--nui-radius-md);';
+            overlay.textContent = 'Working...';
+            const mapWrap = card.querySelector('#pyo-map-wrap');
+            mapWrap.style.position = 'relative';
+            mapWrap.appendChild(overlay);
+            try {
+                const next = await fetchState(url, opts);
+                renderState(wrapper, next);
+            } catch (err) {
+                overlay.remove();
+                locked = false;
+                showFatalError(err);
+            }
+        }
+
+        Array.prototype.forEach.call(card.querySelectorAll('button[data-dir]'), function (btn) {
+            btn.addEventListener('click', function () {
+                const m = moveByDir[btn.getAttribute('data-dir')];
+                if (m) go(m.url);
+            });
+        });
+
+        card.querySelector('#pyo-search-btn').addEventListener('click', function () {
+            go(state.pickUrl);
+        });
+
+        Array.prototype.forEach.call(punnetCard.querySelectorAll('.pyo-slot'), function (slotEl) {
+            slotEl.addEventListener('click', function () {
+                const pickId = slotEl.getAttribute('data-pick-id');
+                const slot = state.slots.find(function (s) { return s.pickId === pickId; });
+                if (!slot) return;
+                if (!window.confirm('Are you sure you wish to discard your ' + slot.name + '?')) return;
+                go(slot.discardUrl);
+            });
+        });
+
+        punnetCard.querySelector('#pyo-collect-btn').addEventListener('click', function () {
+            if (!state.collectUrl) return;
+            syncTimer(24 * 60 * 60 * 1000);
+            if (state.collectMethod === 'POST') {
+                go(state.collectUrl, { method: 'POST', body: new URLSearchParams({ x_collect: '1' }) });
+            } else {
+                go(state.collectUrl + (state.collectUrl.includes('?') ? '&' : '?') + 'x_collect=1');
+            }
+        });
+    }
+
+    function renderOther(wrapper, state) {
+        wrapper.innerHTML = '';
+        wrapper.appendChild(buildBanner());
+
+        const card = document.createElement('div');
+        card.className = 'nui-surface';
+        card.style.cssText = 'border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg);padding:var(--nui-space-5) var(--nui-space-4);box-shadow:0 4px 12px var(--nui-shadow);text-align:center;display:flex;flex-direction:column;align-items:center;gap:var(--nui-space-3);';
+
+        const paraHtml = (state.paragraphs || []).map(function (p) {
+            return '<div style="font-size:14px;color:var(--nui-text-muted);line-height:1.5;">' + p + '</div>';
+        }).join('');
+
+        card.innerHTML = `
+            <div style="font-family:var(--nui-font-display);font-weight:800;font-size:18px;color:var(--nui-text);">${state.heading}</div>
+            ${paraHtml}
+            ${state.actionForm ? '<button type="button" id="pyo-action-btn" class="nui-btn nui-btn-primary" style="width:100%;max-width:300px;">' + state.actionForm.submitLabel + '</button>' : ''}
+            ${(!state.actionForm && state.actionLink) ? '<a href="' + state.actionLink.url + '" id="pyo-action-link" class="nui-btn nui-btn-primary" style="width:100%;max-width:300px;text-decoration:none;box-sizing:border-box;">' + state.actionLink.label + '</a>' : ''}
+        `;
+        wrapper.appendChild(card);
+
+        // Nothing recognizable — don't just leave a blank card. Show what the
+        // scraper actually saw so this is diagnosable straight from the page,
+        // no devtools needed (this text is inserted as plain text, not HTML,
+        // so it's safe even if the source looked like markup).
+        const foundNothing = !state.paragraphs.length && !state.actionForm && !state.actionLink;
+        if (foundNothing) {
+            const diag = document.createElement('div');
+            diag.className = 'nui-surface';
+            diag.style.cssText = 'border:1px dashed var(--nui-border);border-radius:var(--nui-radius-lg);padding:var(--nui-space-4);display:flex;flex-direction:column;gap:8px;';
+            const label = document.createElement('div');
+            label.style.cssText = 'font-size:12px;font-weight:700;color:var(--nui-text-muted);';
+            label.textContent = state.matchedContentCell
+                ? "Couldn't find anything recognizable on this screen — here's the raw text it saw:"
+                : "Couldn't find the page's content area at all — here's what was on the page instead:";
+            const pre = document.createElement('div');
+            pre.style.cssText = 'font-family:monospace;font-size:11px;line-height:1.5;color:var(--nui-text);background:var(--nui-surface-alt,#f4f4f4);border-radius:var(--nui-radius-md);padding:10px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;text-align:left;';
+            pre.textContent = state.debugSnippet || '(nothing at all — page may still be loading)';
+            diag.appendChild(label);
+            diag.appendChild(pre);
+            wrapper.appendChild(diag);
+        }
+
+        wrapper.appendChild(backLink());
+
+        const actionBtn = card.querySelector('#pyo-action-btn');
+        if (actionBtn && state.actionForm) {
+            actionBtn.addEventListener('click', async function () {
+                actionBtn.disabled = true;
+                actionBtn.textContent = 'Loading...';
+                try {
+                    const params = new URLSearchParams();
+                    (state.actionForm.fields || []).forEach(function (f) { params.append(f.name, f.value); });
+
+                    let url = state.actionForm.url;
+                    let opts = {};
+                    if (state.actionForm.method === 'POST') {
+                        opts = { method: 'POST', body: params };
+                    } else if ([...params].length) {
+                        url += (url.includes('?') ? '&' : '?') + params.toString();
+                    }
+                    const next = await fetchState(url, opts);
+                    renderState(wrapper, next);
+                } catch (err) {
+                    showFatalError(err);
+                    actionBtn.disabled = false;
+                    actionBtn.textContent = state.actionForm.submitLabel;
+                }
+            });
+        }
+    }
+
+    function renderState(wrapper, state) {
+        if (state.type === 'farm') return renderFarm(wrapper, state);
+        return renderOther(wrapper, state);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // INIT
+    // ─────────────────────────────────────────────────────────────────────────
+    async function init() {
+        const profile = NeoUI.scrapeLegacyProfile();
+        const initialState = scrapeState(document, location.href);
+
+        document.body.innerHTML = '';
+        document.body.className = 'nui-reset';
+        document.documentElement.style.background = 'var(--nui-bg)';
+        document.body.style.background = 'var(--nui-bg)';
+
+        NeoUI.init();
+        NeoUI.setProfileInfo(profile);
+        NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'nui-reset';
+        wrapper.style.cssText = 'padding: calc(var(--nui-topbar-h) + var(--nui-space-4)) var(--nui-space-4) var(--nui-space-5); max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--nui-space-4);';
+        document.body.appendChild(wrapper);
+
+        renderState(wrapper, initialState);
+    }
+
+    let booted = false;
+    function boot() {
+        if (booted) return;
+        booted = true;
+        init().catch(showFatalError);
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        boot();
+    } else {
+        document.addEventListener('DOMContentLoaded', boot);
+    }
+
+})();
+
+// ==============================================================================
+// MODULE 71: LAIR OF THE BEAST — MOBILE SCALE-TO-FIT
+// ==============================================================================
+// /prehistoric/thebeast.phtml has no dedicated NeoUI module — it falls
+// through to the Sitewide Chrome universal fallback (Module 2), which only
+// adds a topbar and doesn't touch the page's own layout. Two things force
+// scrolling on mobile:
+//   1. The multi-step walkthrough (#LairBeastStep1-4) is native content
+//      stacked with desktop-width padding/margins, so on a narrow phone
+//      viewport it runs several screens tall before you even reach Step 4.
+//   2. Step 4's CreateJS lyre-scare animation renders into a fixed
+//      1080x808px <canvas> inside a .evtH5-wrapper that's built to be
+//      horizontally click-dragged (see the mousedown/mousemove handlers
+//      near the canvas init script) rather than shrunk to fit — on a
+//      ~375-430px phone viewport that alone is 2.5-3x too wide, and the
+//      drag-to-scroll behavior fights with trying to tap the lyre.
+//
+// Rather than a third approach, this pairs two patterns already used
+// elsewhere in the suite:
+//   - Module 2 (Sitewide Chrome)'s technique of hard-clamping
+//     html/body/container overflow so nothing can force a horizontal
+//     scrollbar regardless of what the page's own CSS does, plus trimming
+//     the native step padding/margins down to a mobile-width column.
+//   - Module 15 (Battledome) / the Neohome & Games Room Ruffle wrappers'
+//     scale-to-fit technique: the canvas keeps its real 1080x808 box (its
+//     internal drawing coordinates, mouse hit-testing, and the CreateJS
+//     Ticker never change) — only a CSS transform: scale() on its wrapper
+//     shrinks it visually to the viewport width, and the wrapper's height
+//     is set to nativeHeight * scaleFactor so there's no blank gap below
+//     it. Recomputed on resize/orientation change.
+//
+// Activates on: /prehistoric/thebeast.phtml
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('lairbeast-mobile')) return;
+    if (!/\/prehistoric\/thebeast\.phtml/.test(location.pathname)) return;
+
+    const NATIVE_W = 1080;
+    const NATIVE_H = 808;
+
+    const style = document.createElement('style');
+    style.id = 'nui-lairbeast-style';
+    style.textContent = `
+        html, body, #container__2020 {
+            overflow-x: hidden !important;
+            max-width: 100vw !important;
+        }
+        body { margin: 0 !important; }
+
+        /* Trim the native page's desktop-width padding/margins on the step
+           containers so the walkthrough text doesn't run several screens
+           tall before the game is even reached. */
+        #LairBeast {
+            max-width: 480px !important;
+            margin: 0 auto !important;
+            padding: 8px 12px 16px !important;
+            box-sizing: border-box !important;
+        }
+        .lair-beast-step p {
+            margin: 6px 0 !important;
+            line-height: 1.35 !important;
+        }
+        .char-img-square {
+            margin: 8px auto !important;
+        }
+        .lair-beast-pet {
+            margin: 6px 0 !important;
+        }
+        .button-grid2__2020 {
+            margin-top: 10px !important;
+            gap: 8px !important;
+        }
+
+        /* .evtH5-wrapper is built for click-and-drag horizontal scrolling
+           of the oversized canvas — once it's scaled to fit, that behavior
+           is not just unnecessary but actively fights tapping the lyre, so
+           lock it down instead of leaving it draggable. */
+        .evtH5-wrapper {
+            overflow: hidden !important;
+            touch-action: manipulation !important;
+            width: 100% !important;
+            max-width: ${NATIVE_W}px !important;
+            margin: 0 auto !important;
+        }
+        #animation_container {
+            transform-origin: top left;
+            width: ${NATIVE_W}px;
+            height: ${NATIVE_H}px;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // ── Scale-to-fit ──────────────────────────────────────────────────────
+    // The canvas keeps its real 1080x808 geometry — only a CSS transform on
+    // its wrapper shrinks it visually — so CreateJS's own pointer-coordinate
+    // math (read against the canvas's un-transformed internal size) stays
+    // correct with no coordinate remapping needed on our end.
+    function applyScale() {
+        const wrapper = document.getElementById('animation_container');
+        const stage = wrapper ? wrapper.closest('.evtH5-wrapper') : null;
+        if (!wrapper || !stage || !stage.parentElement) return;
+
+        const availableW = Math.min(stage.parentElement.clientWidth || window.innerWidth, window.innerWidth) - 4;
+        const factor = Math.min(1, availableW / NATIVE_W);
+
+        wrapper.style.transform = 'scale(' + factor + ')';
+        stage.style.height = Math.round(NATIVE_H * factor) + 'px';
+    }
+
+    // The canvas doesn't exist until Step 4 is reached (proceedForward('4')
+    // swaps #LairBeastStep4's .hide class), and the CreateJS composition
+    // loads asynchronously after that — poll briefly rather than wrapping
+    // proceedForward() itself, since that's the page's own global function
+    // and redefining it risks breaking the sequence it drives.
+    let tries = 0;
+    const poll = setInterval(function () {
+        tries++;
+        if (document.getElementById('animation_container')) {
+            applyScale();
+            clearInterval(poll);
+        } else if (tries > 100) { // ~30s, then give up quietly
+            clearInterval(poll);
+        }
+    }, 300);
+
+    window.addEventListener('resize', applyScale);
+    window.addEventListener('orientationchange', applyScale);
+})();
+
 // MODULE 36: GAMES ROOM
 // ==============================================================================
 // Games room card grid (fetches category page, live filter); Ruffle player
@@ -39473,10 +40545,10 @@ return {
     ];
     function ctrlCatalogById(id) { return CTRL_BUTTON_CATALOG.find(function (b) { return b.id === id; }); }
     const CTRL_SIZE_PRESETS = {
-        sm: { btn: 34, gap: 3, font: 11, radius: 9 },
-        md: { btn: 44, gap: 3, font: 14, radius: 12 },
-        lg: { btn: 56, gap: 5, font: 17, radius: 14 },
-        xl: { btn: 68, gap: 6, font: 20, radius: 16 }
+        sm: { btn: 34, gap: 5, font: 11, radius: 9 },
+        md: { btn: 44, gap: 7, font: 14, radius: 12 },
+        lg: { btn: 56, gap: 9, font: 17, radius: 14 },
+        xl: { btn: 68, gap: 11, font: 20, radius: 16 }
     };
     const CTRL_DPAD_LAYOUTS = ['cross', 'row', 'diamond'];
 
@@ -40041,7 +41113,7 @@ return {
         const profile = NeoUI.scrapeLegacyProfile();
         document.body.innerHTML = '';
         document.documentElement.style.background = 'var(--nui-bg)';
-        document.body.style.cssText = 'margin:0;padding:0;background:var(--nui-bg);';
+        document.body.style.cssText = 'margin:0;padding:0;background:var(--nui-bg);color:var(--nui-text);';
         document.body.className = 'nui-reset';
         NeoUI.init();
         NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
@@ -40232,7 +41304,7 @@ return {
             // Nuke and rebuild
             document.body.innerHTML = '';
             document.documentElement.style.background = 'var(--nui-bg)';
-            document.body.style.cssText = 'margin:0;padding:0;background:var(--nui-bg);';
+            document.body.style.cssText = 'margin:0;padding:0;background:var(--nui-bg);color:var(--nui-text);';
             document.body.className = 'nui-reset';
 
             NeoUI.init();
@@ -40296,6 +41368,25 @@ return {
                                 found.host.style.setProperty('width', '100%', 'important');
                                 found.host.style.setProperty('height', '100%', 'important');
                                 found.host.style.setProperty('display', 'block', 'important');
+                                // The width/height query params on this iframe's src
+                                // (used above to set playerWrap's aspect-ratio) are
+                                // what the page ASKED Ruffle to render at — not
+                                // necessarily what it actually did. Some games' embed
+                                // URLs carry a size that doesn't match the SWF's real
+                                // stage, so the container ends up locked to the wrong
+                                // box and the content — forced to 100%/100% of it —
+                                // reads squished, cropped, or letterboxed. A
+                                // <canvas>'s .width/.height are its actual drawing-
+                                // buffer resolution, set by Ruffle to the real stage
+                                // size regardless of any CSS on it, so prefer that
+                                // over the URL guess once it exists.
+                                if (found.canvas && found.canvas.width && found.canvas.height) {
+                                    const realAspect = found.canvas.width + '/' + found.canvas.height;
+                                    if (realAspect !== aspect) {
+                                        aspect = realAspect;
+                                        playerWrap.style.aspectRatio = realAspect;
+                                    }
+                                }
                             } catch (e) {}
                             return;
                         }
@@ -40586,7 +41677,26 @@ return {
                 } else {
                     btn.textContent = label;
                 }
-                btn.style.cssText = 'display:flex;align-items:center;justify-content:center;line-height:1;width:' + sz.btn + 'px;height:' + sz.btn + 'px;border-radius:' + sz.radius + 'px;border:1px solid var(--nui-border);background:var(--nui-bg);color:var(--nui-text);font-family:var(--nui-font-display);font-weight:800;font-size:' + sz.font + 'px;user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent;' + (extraStyle || '');
+                btn.style.cssText = 'display:flex;align-items:center;justify-content:center;line-height:1;width:' + sz.btn + 'px;height:' + sz.btn + 'px;border-radius:' + sz.radius + 'px;border:1px solid var(--nui-border);background:var(--nui-bg);color:var(--nui-text);font-family:var(--nui-font-display);font-weight:800;font-size:' + sz.font + 'px;user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent;position:relative;' + (extraStyle || '');
+                // The visible circle/pill is deliberately small so the strip
+                // stays compact, but a real thumb doesn't land on a 44px
+                // target with pixel precision — it lands somewhere in the
+                // neighborhood of it. An invisible absolutely-positioned
+                // child extends the actual clickable region well past what's
+                // drawn, without changing the button's own box (which is
+                // what the surrounding grid/flex math is built around).
+                // Callers size this per context: generous where an empty
+                // buffer cell already exists next door (the d-pad's grid
+                // layouts), half the real gap where buttons sit directly
+                // next to each other (the action row), and conservative in
+                // the free-drag layout editor where the player controls
+                // spacing themselves.
+                if (sz.hitSlop) {
+                    const pad = document.createElement('span');
+                    pad.setAttribute('aria-hidden', 'true');
+                    pad.style.cssText = 'position:absolute;inset:-' + sz.hitSlop + 'px;';
+                    btn.appendChild(pad);
+                }
                 let active = false;
                 const press = function (e) {
                     e.preventDefault();
@@ -40892,10 +42002,11 @@ return {
                 const sizePreset = CTRL_SIZE_PRESETS[ctrlConfig.size] || CTRL_SIZE_PRESETS.md;
                 const dpadLayout = CTRL_DPAD_LAYOUTS.indexOf(ctrlConfig.dpadLayout) !== -1 ? ctrlConfig.dpadLayout : 'cross';
 
-                function makeCfgButton(id, extraStyle) {
+                function makeCfgButton(id, extraStyle, hitSlop) {
                     const def = ctrlCatalogById(id);
                     const bound = ctrlConfig.keymap[id] || { code: def.code, key: def.key, keyCode: def.keyCode };
-                    return makeKeyButton(def.label, bound.code, bound.key, bound.keyCode, extraStyle, sizePreset);
+                    const sz = hitSlop ? Object.assign({}, sizePreset, { hitSlop: hitSlop }) : sizePreset;
+                    return makeKeyButton(def.label, bound.code, bound.key, bound.keyCode, extraStyle, sz);
                 }
 
                 // ── Free-form drag & drop layout ────────────────────────────
@@ -40931,7 +42042,7 @@ return {
                         group.appendChild(buildCrossDpadGrid(dirIds, cellSize, sizePreset.gap, function (id) {
                             const def = ctrlCatalogById(id);
                             const bound = ctrlConfig.keymap[id] || def;
-                            return makeKeyButton(def.label, bound.code, bound.key, bound.keyCode, '', { btn: cellSize, radius: Math.round(cellSize / 4), font: Math.max(10, Math.round(cellSize * 0.32)), gap: sizePreset.gap });
+                            return makeKeyButton(def.label, bound.code, bound.key, bound.keyCode, '', { btn: cellSize, radius: Math.round(cellSize / 4), font: Math.max(10, Math.round(cellSize * 0.32)), gap: sizePreset.gap, hitSlop: Math.round(cellSize / 2) });
                         }));
                         canvas.appendChild(group);
                     }
@@ -40943,8 +42054,13 @@ return {
                         const btnSize = entry.size || sizePreset.btn;
                         const isWide = (id === 'space' || id === 'enter');
                         const extra = 'position:absolute;left:' + entry.xPct + '%;top:' + entry.yPct + '%;transform:translate(-50%,-50%);' +
-                            (isWide ? ('width:auto;min-width:' + btnSize + 'px;padding:0 ' + Math.round(btnSize * 0.3) + 'px;border-radius:' + Math.round(btnSize / 2) + 'px;') : 'border-radius:50%;');
-                        const btn = makeKeyButton(def.label, (ctrlConfig.keymap[id] || def).code, (ctrlConfig.keymap[id] || def).key, (ctrlConfig.keymap[id] || def).keyCode, extra, { btn: btnSize, radius: Math.round(btnSize / 4), font: Math.max(10, Math.round(btnSize * 0.32)), gap: sizePreset.gap });
+                            (isWide ? ('width:auto;min-width:' + btnSize + 'px;padding:0 ' + Math.round(btnSize * 0.36) + 'px;border-radius:' + Math.round(btnSize / 2) + 'px;border-color:var(--nui-accent);') : 'border-radius:50%;');
+                        // Positions here are whatever the player dragged them
+                        // to, so unlike the preset grid we can't assume any
+                        // buffer between neighbors — keep the slop modest
+                        // (~12% of the button's own size) so it can't eat
+                        // into a button placed close by on purpose.
+                        const btn = makeKeyButton(def.label, (ctrlConfig.keymap[id] || def).code, (ctrlConfig.keymap[id] || def).key, (ctrlConfig.keymap[id] || def).keyCode, extra, { btn: btnSize, radius: Math.round(btnSize / 4), font: Math.max(10, Math.round(btnSize * 0.32)), gap: sizePreset.gap, hitSlop: Math.round(btnSize * 0.12) });
                         canvas.appendChild(btn);
                     });
                     controllerWrap.appendChild(canvas);
@@ -40954,13 +42070,22 @@ return {
                 if (dirIds.length) {
                     const dpad = document.createElement('div');
                     const cell = sizePreset.btn, gap = sizePreset.gap;
+                    // Grid layouts (diamond/cross) have empty buffer cells on
+                    // every side of an active button — nothing is ever there
+                    // to compete for the touch — so their hit-slop can safely
+                    // reach halfway into that buffer. The flat row has no
+                    // buffer, just the visual gap, so its slop is capped at
+                    // half that gap so two neighbors' expanded zones meet
+                    // edge-to-edge instead of overlapping.
+                    const rowSlop = Math.floor(gap / 2);
+                    const gridSlop = Math.round(cell / 2);
 
                     if (dpadLayout === 'row') {
                         // Compact single-row strip, left-to-right: ◀ ▲ ▼ ▶ — keeps
                         // the whole d-pad thumb-reachable without a tall block.
                         dpad.style.cssText = 'display:flex;align-items:center;gap:' + gap + 'px;flex-shrink:0;';
                         ['left', 'up', 'down', 'right'].forEach(function (id) {
-                            if (dirIds.indexOf(id) !== -1) dpad.appendChild(makeCfgButton(id, 'border-radius:' + sizePreset.radius + 'px;'));
+                            if (dirIds.indexOf(id) !== -1) dpad.appendChild(makeCfgButton(id, 'border-radius:' + sizePreset.radius + 'px;', rowSlop));
                         });
                     } else if (dpadLayout === 'diamond') {
                         // Rotated-diamond arrangement (up top, left/right at the
@@ -40970,7 +42095,7 @@ return {
                         const grid = { up: 1, left: 3, right: 5, down: 7 };
                         for (let i = 0; i < 9; i++) {
                             const id = Object.keys(grid).find(function (k) { return grid[k] === i; });
-                            const cellEl = (id && dirIds.indexOf(id) !== -1) ? makeCfgButton(id, 'border-radius:50%;') : document.createElement('div');
+                            const cellEl = (id && dirIds.indexOf(id) !== -1) ? makeCfgButton(id, 'border-radius:50%;', gridSlop) : document.createElement('div');
                             if (id === 'left' || id === 'right') cellEl.style.marginTop = Math.round(cell * 0.3) + 'px';
                             dpad.appendChild(cellEl);
                         }
@@ -40980,7 +42105,7 @@ return {
                         const grid = { up: 1, left: 3, right: 5, down: 7 };
                         for (let i = 0; i < 9; i++) {
                             const id = Object.keys(grid).find(function (k) { return grid[k] === i; });
-                            dpad.appendChild((id && dirIds.indexOf(id) !== -1) ? makeCfgButton(id) : document.createElement('div'));
+                            dpad.appendChild((id && dirIds.indexOf(id) !== -1) ? makeCfgButton(id, undefined, gridSlop) : document.createElement('div'));
                         }
                     }
                     controllerWrap.appendChild(dpad);
@@ -40988,10 +42113,42 @@ return {
 
                 if (otherIds.length) {
                     const actions = document.createElement('div');
-                    actions.style.cssText = 'display:flex;align-items:center;gap:' + sizePreset.gap + 'px;flex-wrap:wrap;justify-content:center;flex:1;';
+                    // Anchored flush right (controllerWrap is already
+                    // justify-content:space-between with the d-pad on the
+                    // left) rather than flex:1 + centered — centering inside
+                    // whatever width happens to be left over made the
+                    // cluster's real screen position depend on the d-pad's
+                    // width, so it drifted away from the right edge a thumb
+                    // actually rests near. Pinning it to the same edge the
+                    // d-pad is pinned to (opposite corners) reads as a
+                    // deliberate two-zone layout instead of one cluster
+                    // floating in the middle.
+                    actions.style.cssText = 'display:flex;align-items:center;gap:' + (sizePreset.gap + 4) + 'px;flex-wrap:wrap;justify-content:flex-end;';
+                    const actionSlop = Math.floor((sizePreset.gap + 4) / 2);
+                    let circleIdx = 0;
                     otherIds.forEach(function (id) {
-                        const extra = (id === 'space' || id === 'enter') ? ('width:auto;padding:0 ' + Math.round(sizePreset.btn * 0.36) + 'px;border-radius:' + Math.round(sizePreset.btn / 2) + 'px;') : 'border-radius:50%;';
-                        actions.appendChild(makeCfgButton(id, extra));
+                        const isWide = (id === 'space' || id === 'enter');
+                        let extra;
+                        if (isWide) {
+                            // The wide button (almost always the main
+                            // action — jump/shoot/select) gets a bit more
+                            // padding and an accent-colored border so it
+                            // visually outranks the secondary circles
+                            // instead of just being "the same button but
+                            // shaped like a pill."
+                            extra = 'width:auto;padding:0 ' + Math.round(sizePreset.btn * 0.42) + 'px;border-radius:' + Math.round(sizePreset.btn / 2) + 'px;border-color:var(--nui-accent);';
+                        } else {
+                            // Real handheld ABXY-style clusters stagger their
+                            // buttons rather than lining them up in a flat
+                            // row — every other circular button sits a
+                            // little higher, breaking the "row of coins"
+                            // look and giving neighboring buttons more real
+                            // separation for a thumb, not just visual gap.
+                            const offset = (circleIdx % 2 === 0) ? 0 : -Math.round(sizePreset.btn * 0.22);
+                            extra = 'border-radius:50%;' + (offset ? ('margin-top:' + offset + 'px;') : '');
+                            circleIdx++;
+                        }
+                        actions.appendChild(makeCfgButton(id, extra, actionSlop));
                     });
                     controllerWrap.appendChild(actions);
                 }
@@ -41485,7 +42642,7 @@ return {
 
             document.body.innerHTML = '';
             document.documentElement.style.background = 'var(--nui-bg)';
-            document.body.style.cssText = 'margin:0;padding:0;background:var(--nui-bg);';
+            document.body.style.cssText = 'margin:0;padding:0;background:var(--nui-bg);color:var(--nui-text);';
             document.body.className = 'nui-reset';
             NeoUI.init();
             NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
@@ -41941,7 +43098,7 @@ return {
         function buildShell(maxWidth) {
             document.body.innerHTML = '';
             document.documentElement.style.background = 'var(--nui-bg)';
-            document.body.style.cssText = 'margin:0;padding:0;background:var(--nui-bg);';
+            document.body.style.cssText = 'margin:0;padding:0;background:var(--nui-bg);color:var(--nui-text);';
             document.body.className = 'nui-reset';
             NeoUI.init();
             NeoUI.setProfileInfo(profile);
@@ -46937,6 +48094,7 @@ return {
             /* ── Popups Full Reskin ── */
             .gd-popup {
                 background: var(--nui-surface) !important;
+                background-image: none !important;
                 border: 1px solid var(--nui-border) !important;
                 border-radius: var(--nui-radius-lg) !important;
                 box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important;
@@ -46944,6 +48102,7 @@ return {
 
             .gd-popup .popup-header__2020 {
                 background: var(--nui-surface-2) !important;
+                background-image: none !important;
                 border-bottom: 1px solid var(--nui-border) !important;
             }
 
@@ -46955,11 +48114,24 @@ return {
             /* THIS prevents the white text on white background clash */
             .gd-popup .popup-body__2020 {
                 background: var(--nui-surface) !important;
+                background-image: none !important;
                 color: var(--nui-text) !important;
                 text-shadow: none !important;
                 font-family: var(--nui-font-body) !important;
             }
+            .gd-popup .popup-body__2020 p,
+            .gd-popup .popup-body__2020 span,
+            .gd-popup .popup-body__2020 strong {
+                color: var(--nui-text) !important;
+            }
+            .gd-popup .popup-body__2020 a {
+                color: var(--nui-accent) !important;
+            }
 
+            .gd-popup .copy {
+                background: transparent !important;
+                background-image: none !important;
+            }
             .gd-popup .copy p {
                 color: var(--nui-text) !important;
                 text-shadow: none !important;
@@ -46968,6 +48140,7 @@ return {
 
             .gd-popup .popup-footer__2020 {
                 background: var(--nui-surface-2) !important;
+                background-image: none !important;
                 border-top: 1px solid var(--nui-border) !important;
             }
 
@@ -47032,7 +48205,8 @@ return {
             #container__2020 [id*="Result"],
             #container__2020 [id*="gdResult"],
             #container__2020 [id*="treasure"],
-            #container__2020 [id*="reward"] {
+            #container__2020 [id*="reward"],
+            #container__2020 [id*="Reward"] {
                 background: var(--nui-surface) !important;
                 background-image: none !important;
                 color: var(--nui-text) !important;
@@ -47042,6 +48216,52 @@ return {
                 border-radius: var(--nui-radius-md) !important;
                 box-shadow: none !important;
             }
+
+            /* ── Reward reveal (#gdReward): the case-sensitive [id*="reward"]
+               catch-all just above never matched it (id="gdReward" has a
+               capital R — [id*="Reward"] fixes that gap), so this whole
+               petpet-photo/"brought you"/prize row was rendering as raw,
+               unstyled native markup while everything around it was
+               reskinned. That generic rule only covers background/color/
+               border anyway; this gives it a proper card layout to match
+               how every other result/reward moment in the suite looks. */
+            #gdReward {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: center;
+                gap: var(--nui-space-4);
+                width: 100%;
+                max-width: 500px;
+                box-sizing: border-box;
+                padding: var(--nui-space-4);
+                margin-top: var(--nui-space-3);
+                text-align: center;
+            }
+            #gdReward .section {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 6px;
+                min-width: 90px;
+            }
+            #gdReward .section.brought {
+                min-width: 0;
+                font-size: 12px;
+                font-weight: 700;
+                color: var(--nui-text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            #gdReward .section.brought p { margin: 0; }
+            #gdReward .section p {
+                margin: 0;
+                color: var(--nui-text);
+                font-family: var(--nui-font-body);
+                font-size: 13px;
+                font-weight: 700;
+            }
+            #gdReward img { display: block; }
 
             /* ── Reward popup: same strip, but NOT scoped to #container__2020.
                Neopets renders these togglePopup__2020/movePopup__2020 modals
@@ -47064,7 +48284,8 @@ return {
             .gd-popup [id*="Result"],
             .gd-popup [id*="gdResult"],
             .gd-popup [id*="treasure"],
-            .gd-popup [id*="reward"] {
+            .gd-popup [id*="reward"],
+            .gd-popup [id*="Reward"] {
                 background: var(--nui-surface) !important;
                 background-image: none !important;
                 color: var(--nui-text) !important;
@@ -47338,6 +48559,13 @@ return {
             if (!partner) { partner = { id: PARTNER_TIMER_ID }; list.push(partner); }
             partner.nextAt = nextAt;
             localStorage.setItem(DAILY_TIMERS_KEY, JSON.stringify(list));
+            // Both timers now share the exact same nextAt (see comment above),
+            // so anything trying to infer "which one did I just do" from
+            // nextAt alone can't — they're tied. Record it explicitly instead;
+            // the Home page's cooldown pill reads this to pick the right
+            // label/link rather than always resolving the tie to whichever
+            // id happens to sort first.
+            localStorage.setItem('neoui_jl_last_id', TIMER_ID);
         } catch (e) {}
         // A fresh cooldown just started, so any stale "ready" notification
         // from the previous round shouldn't stick around in the bell/drawer.
@@ -47364,8 +48592,21 @@ return {
         return pad(h) + ':' + pad(m) + ':' + pad(s);
     }
 
+    // Scopes DOM scraping to container2020 (the actual page content) and
+    // excludes the premium widgets (Dailies/SSW/Bankroll — all share this
+    // class) and popups that live inside it. Without this, scraping the
+    // whole document/body also matches unrelated native chrome — e.g. the
+    // Dailies quick-launcher widget's own "Jhudora's Quest" capsule text is
+    // present on Illusen's page too, since that widget lists every daily
+    // regardless of which page you're on.
+    function scrapeScoped(selector) {
+        return Array.from(container2020.querySelectorAll(selector)).filter(function (el) {
+            return !el.closest('.premium-widget__2024, .togglePopup__2020, .footer__2020');
+        });
+    }
+
     function scrapeLevelScore() {
-        const text = document.body.innerText || '';
+        const text = container2020.innerText || '';
         const levelMatch = text.match(/Current Level\s*\n?\s*([\d,]+)/i);
         const scoreMatch = text.match(/Total Score\s*\n?\s*([\d,]+)/i);
         return {
@@ -47374,11 +48615,20 @@ return {
         };
     }
 
+    // The native button's exact wording/punctuation isn't guaranteed
+    // ("Yes, I have it!!!" vs "Yes I Have It" etc.) — matching the literal
+    // substring "yes i have it" missed real variants with a comma, which
+    // made hasActiveQuest() silently return false and drop the whole
+    // quest-item card (search strip included) even when a quest was active.
+    function isYesIHaveItLabel(label) {
+        return /\byes\b[,!.\s]*\bi\s*have\s*it\b/i.test(label || '');
+    }
+
     function hasActiveQuest() {
-        const buttons = document.querySelectorAll('input[type="button"], input[type="submit"], button');
+        const buttons = scrapeScoped('input[type="button"], input[type="submit"], button');
         for (const b of buttons) {
-            const label = (b.value || b.textContent || '').trim().toLowerCase();
-            if (label.indexOf('yes i have it') !== -1) return true;
+            const label = (b.value || b.textContent || '').trim();
+            if (isYesIHaveItLabel(label)) return true;
         }
         return false;
     }
@@ -47386,8 +48636,8 @@ return {
     document.addEventListener('click', function (e) {
         const el = e.target.closest('input[type="button"], button');
         if (!el) return;
-        const label = (el.value || el.textContent || '').trim().toLowerCase();
-        if (label.indexOf('yes i have it') !== -1) {
+        const label = (el.value || el.textContent || '').trim();
+        if (isYesIHaveItLabel(label)) {
             syncTimer(12 * 60 * 60 * 1000);
         }
     }, true);
@@ -47441,6 +48691,8 @@ return {
                 font-family: var(--nui-font-body) !important;
             }
             .togglePopup__2020.movePopup__2020 p,
+            .togglePopup__2020.movePopup__2020 span,
+            .togglePopup__2020.movePopup__2020 strong,
             .togglePopup__2020.movePopup__2020 .welcome,
             .togglePopup__2020.movePopup__2020 #ex-text {
                 color: var(--nui-text) !important;
@@ -47448,7 +48700,60 @@ return {
                 font-family: var(--nui-font-body) !important;
                 line-height: 1.5;
             }
+            .togglePopup__2020.movePopup__2020 a {
+                color: var(--nui-accent) !important;
+            }
             .togglePopup__2020.movePopup__2020 font[color] { color: ${NPC_COLOR} !important; }
+
+            /* ── Native page buttons (Accept Quest / I Have The Item! /
+               I Don't Have It / Decline, etc.) ──
+               These are the same native .button-*__2020 classes as every
+               other 2020-template page (Closet's "Remove Item" button hit
+               the identical issue — see that module's "Bleed Fixes"). Their
+               native look comes from a background-image sprite; text color
+               is a separate, unrelated native rule that assumes that sprite
+               is still there. The sitewide background-image kill above
+               (body/#main/#content/etc.) doesn't touch these buttons
+               directly, but plenty of other sitewide theme rules do strip
+               background-image more broadly — so if a future rule ever
+               reaches them, native text is left with nothing to sit on and
+               vanishes into the page background in every theme, not just
+               dark ones. Committing them fully to the flat NeoUI look here
+               (instead of half-native/half-themed) avoids relying on that
+               sprite ever staying intact. */
+            .button-default__2020, .button-yellow__2020,
+            .button-green__2020, .button-red__2020 {
+                appearance: none !important;
+                -webkit-appearance: none !important;
+                -moz-appearance: none !important;
+                background: var(--nui-surface-2) !important;
+                background-image: none !important;
+                border: 1px solid var(--nui-border) !important;
+                color: var(--nui-text) !important;
+                border-radius: var(--nui-radius-pill) !important;
+                font-family: var(--nui-font-body) !important;
+                font-weight: 700 !important;
+                box-shadow: none !important;
+                text-shadow: none !important;
+                cursor: pointer !important;
+                padding: 10px 20px !important;
+                font-size: 14px !important;
+                line-height: 1.2 !important;
+            }
+            .button-yellow__2020, .button-green__2020 {
+                background: var(--nui-accent) !important;
+                color: var(--nui-accent-ink, #fff) !important;
+                border-color: var(--nui-accent) !important;
+            }
+            .button-red__2020 {
+                background: var(--nui-danger-soft) !important;
+                color: var(--nui-danger) !important;
+                border-color: var(--nui-danger) !important;
+            }
+            .button-default__2020:hover, .button-yellow__2020:hover,
+            .button-green__2020:hover, .button-red__2020:hover {
+                filter: brightness(1.08) !important;
+            }
 
             /* ── Main app shell ── */
             #nui-fb-app {
@@ -47509,27 +48814,27 @@ return {
                 opacity: 0.5;
             }
             #nui-fb-quest-item-inner {
-                padding: var(--nui-space-3) var(--nui-space-4);
+                padding: var(--nui-space-2) var(--nui-space-3);
             }
             #nui-fb-quest-item-label {
-                font-size: 10px;
+                font-size: 9px;
                 font-weight: 800;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
                 color: var(--nui-text-muted);
-                margin-bottom: 8px;
+                margin-bottom: 4px;
             }
             #nui-fb-quest-item-row {
                 display: flex;
                 align-items: center;
-                gap: var(--nui-space-3);
+                gap: var(--nui-space-2);
             }
             /* Quest item thumbnail */
             #nui-fb-app img[width="80"][height="80"],
             #nui-fb-app .quest-item-img {
                 display: block !important;
-                width: 60px !important;
-                height: 60px !important;
+                width: 40px !important;
+                height: 40px !important;
                 object-fit: contain !important;
                 border-radius: var(--nui-radius-sm) !important;
                 border: 1px solid var(--nui-border) !important;
@@ -47539,25 +48844,40 @@ return {
             }
             #nui-fb-item-name {
                 font-weight: 700;
-                font-size: 15px;
+                font-size: 13px;
                 color: var(--nui-text);
                 flex: 1;
-                line-height: 1.3;
+                line-height: 1.2;
+                background: var(--nui-surface-2);
+                border: 1px solid var(--nui-border);
+                border-radius: var(--nui-radius-sm);
+                padding: 5px 8px;
+                width: 100%;
+                box-sizing: border-box;
+                font-family: inherit;
+            }
+            #nui-fb-item-name:focus {
+                outline: none;
+                border-color: ${NPC_COLOR};
+            }
+            #nui-fb-item-name::placeholder {
+                color: var(--nui-text-muted);
+                font-weight: 400;
             }
 
             /* ── SW / SSW / SDB search strip ── */
             #nui-fb-search-strip {
                 display: flex;
-                gap: 8px;
+                gap: 6px;
                 flex-wrap: wrap;
-                margin-top: var(--nui-space-2);
-                padding-top: var(--nui-space-2);
+                margin-top: 6px;
+                padding-top: 6px;
                 border-top: 1px solid var(--nui-border);
             }
             .nui-fb-search-btn {
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 700;
-                padding: 6px 12px;
+                padding: 4px 9px;
                 border-radius: var(--nui-radius-pill);
                 border: 1px solid var(--nui-border);
                 background: var(--nui-surface-2);
@@ -47568,7 +48888,7 @@ return {
                 text-decoration: none;
                 display: inline-flex;
                 align-items: center;
-                gap: 4px;
+                gap: 3px;
             }
             .nui-fb-search-btn:hover {
                 background: var(--nui-surface-3, var(--nui-border));
@@ -47692,7 +49012,7 @@ return {
 
         function scrapeQuestItemName() {
         // 1. Target the bold tags directly
-        const bTags = document.querySelectorAll('b, strong');
+        const bTags = scrapeScoped('b, strong');
 
         for (const b of bTags) {
             const parent = b.parentElement;
@@ -47717,7 +49037,7 @@ return {
         }
 
         // 4. Fallback: Find the actual item image and look at the text right before it
-        const imgs = document.querySelectorAll('img[src*="/items/"]');
+        const imgs = scrapeScoped('img[src*="/items/"]');
         if (imgs.length > 0) {
             // The quest item is always the last item image displayed in the container
             const lastImg = imgs[imgs.length - 1];
@@ -47740,18 +49060,12 @@ return {
     }
 
 
-    function buildSearchStrip(itemName) {
-        if (!itemName) return '';
-
-        const enc = encodeURIComponent(itemName);
-        const swUrl   = '/market.phtml?type=wizard&string=' + enc;
-        const sdbUrl  = '/safetydeposit.phtml?obj_name=' + enc + '&category=0';
-
+    function buildSearchStrip() {
         return `<div id="nui-fb-search-strip">
-            <span style="font-size:11px;font-weight:700;color:var(--nui-text-muted);align-self:center;white-space:nowrap;">Find it:</span>
-            <button class="nui-fb-search-btn nui-fb-search-btn--primary" id="nui-fb-btn-ssw">⚡ Super SW</button>
-            <a href="${swUrl}" target="_blank" class="nui-fb-search-btn">🪄 Shop Wizard</a>
-            <button class="nui-fb-search-btn" id="nui-fb-btn-sdb">📦 SDB</button>
+            <button class="nui-fb-search-btn nui-fb-search-btn--primary" id="nui-fb-btn-ssw" title="Super Shop Wizard">⚡ SSW</button>
+            <button class="nui-fb-search-btn" id="nui-fb-btn-sw" title="Shop Wizard">🪄 SW</button>
+            <button class="nui-fb-search-btn" id="nui-fb-btn-tp" title="Trading Post">📜 TP</button>
+            <button class="nui-fb-search-btn" id="nui-fb-btn-sdb" title="Safety Deposit Box">📦 SDB</button>
         </div>`;
     }
 
@@ -47759,11 +49073,11 @@ return {
         const { level, score } = scrapeLevelScore();
         const nextAt = getStoredNextAt();
         const onCooldown = !!(nextAt && nextAt > Date.now());
-        const itemName = hasActiveQuest() ? scrapeQuestItemName() : null;
+        const itemName = scrapeQuestItemName();
 
         const card = document.createElement('div');
         card.id = 'nui-faerie-bluff-card';
-        card.style.cssText = 'width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:var(--nui-space-3);';
+        card.style.cssText = 'width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:var(--nui-space-2);';
 
         // ── Stat pills ──
         if (level !== null || score !== null) {
@@ -47774,25 +49088,34 @@ return {
         }
 
         // ── Cooldown timer ──
-        card.innerHTML += `<div id="nui-fb-timer" style="background:var(--nui-surface);border:1px solid var(--nui-border);border-radius:var(--nui-radius-md);padding:10px 14px;text-align:center;font-size:13px;color:var(--nui-text-muted);">
+        card.innerHTML += `<div id="nui-fb-timer" style="background:var(--nui-surface);border:1px solid var(--nui-border);border-radius:var(--nui-radius-md);padding:7px 12px;text-align:center;font-size:12px;color:var(--nui-text-muted);">
             ${onCooldown
                 ? `⏳ Next quest in <b id="nui-fb-clock" style="color:var(--nui-text);font-variant-numeric:tabular-nums;">${formatClock(nextAt - Date.now())}</b>`
                 : `✅ No cooldown tracked — ready whenever the page allows it.`}
         </div>`;
 
         // ── Quest item + search strip ──
-        if (itemName) {
-            card.innerHTML += `<div id="nui-fb-quest-item">
-                <div id="nui-fb-quest-item-banner"></div>
-                <div id="nui-fb-quest-item-inner">
-                    <div id="nui-fb-quest-item-label">Requested Item</div>
-                    <div id="nui-fb-quest-item-row">
-                        <div id="nui-fb-item-name">${itemName}</div>
-                    </div>
-                    ${buildSearchStrip(itemName)}
+        // Always shown, regardless of whether hasActiveQuest()/
+        // scrapeQuestItemName() detect anything — repeated attempts at
+        // gating this on "is a quest actually active right now" kept
+        // missing real cases (wrong round of the quest flow, wording
+        // variance, DOM scoping, you name it), which meant the quicklinks
+        // just silently weren't there when they were needed. Now they're
+        // always available on this page: the item-name field is prefilled
+        // if scraping happened to find something, blank otherwise, and
+        // every button reads whatever's currently in that field at click
+        // time — so it works as a general-purpose search tool for this
+        // page independent of any detection logic.
+        card.innerHTML += `<div id="nui-fb-quest-item">
+            <div id="nui-fb-quest-item-banner"></div>
+            <div id="nui-fb-quest-item-inner">
+                <div id="nui-fb-quest-item-label">${itemName ? 'Requested Item' : 'Search for an item'}</div>
+                <div id="nui-fb-quest-item-row">
+                    <input id="nui-fb-item-name" type="text" value="${(itemName || '').replace(/"/g, '&quot;')}" placeholder="Type or paste the item name..." autocomplete="off">
                 </div>
-            </div>`;
-        }
+                ${buildSearchStrip()}
+            </div>
+        </div>`;
 
         // ── Avatar tip (Jhudora Level 25 → 26) ──
         if (NPC === 'jhudora' && level === 25) {
@@ -47818,11 +49141,18 @@ return {
 
         // ── Search strip button handlers ──
         requestAnimationFrame(function () {
+            // Reads whatever's currently in the editable field — so if
+            // scraping missed or the person corrected it, every button
+            // uses the up-to-date value, not the one scraped at build time.
+            function currentItemName() {
+                const input = card.querySelector('#nui-fb-item-name');
+                return (input ? input.value : itemName || '').trim();
+            }
+
             const sswBtn = card.querySelector('#nui-fb-btn-ssw');
             if (sswBtn) {
                 sswBtn.addEventListener('click', function () {
-                    const name = card.querySelector('#nui-fb-item-name') ?
-                        card.querySelector('#nui-fb-item-name').textContent.trim() : itemName;
+                    const name = currentItemName();
                     if (window.NeoUI && typeof window.NeoUI.openSSW === 'function') {
                         window.NeoUI.openSSW(name);
                     } else {
@@ -47830,16 +49160,31 @@ return {
                     }
                 });
             }
+            const swBtn = card.querySelector('#nui-fb-btn-sw');
+            if (swBtn) {
+                swBtn.addEventListener('click', function () {
+                    window.open('/market.phtml?type=wizard&string=' + encodeURIComponent(currentItemName()), '_blank');
+                });
+            }
             const sdbBtn = card.querySelector('#nui-fb-btn-sdb');
             if (sdbBtn) {
                 sdbBtn.addEventListener('click', function () {
-                    const name = card.querySelector('#nui-fb-item-name') ?
-                        card.querySelector('#nui-fb-item-name').textContent.trim() : itemName;
+                    const name = currentItemName();
                     if (window.NeoUI && typeof window.NeoUI.openGlobalSDB === 'function') {
                         window.NeoUI.openGlobalSDB(name);
                     } else {
                         window.open('/safetydeposit.phtml?obj_name=' + encodeURIComponent(name) + '&category=0', '_blank');
                     }
+                });
+            }
+            // Trading Post has no "open a search modal from anywhere" API
+            // like SSW/SDB do — it's a full page (Module: Trading Post SPA),
+            // so this just opens it pre-filtered to the item, same as the
+            // Shop Wizard button above.
+            const tpBtn = card.querySelector('#nui-fb-btn-tp');
+            if (tpBtn) {
+                tpBtn.addEventListener('click', function () {
+                    window.open('/island/tradingpost.phtml?type=browse&criteria=item_exact&search_string=' + encodeURIComponent(currentItemName()), '_blank');
                 });
             }
         });
@@ -51569,7 +52914,11 @@ return {
             color: var(--nui-accent) !important;
             text-shadow: none !important;
         }
-        #closet__popup .popup-body__2020 { color: var(--nui-text) !important; }
+        #closet__popup .popup-body__2020,
+        #closet__popup .popup-body__2020 p,
+        #closet__popup .popup-body__2020 span,
+        #closet__popup .popup-body__2020 strong { color: var(--nui-text) !important; }
+        #closet__popup .popup-body__2020 a { color: var(--nui-accent) !important; }
         #closet__popup .popup-footer__2020 {
             background: var(--nui-surface-2) !important;
             border-top: 1px solid var(--nui-border) !important;
@@ -52169,7 +53518,7 @@ return {
 
         const style = document.createElement('style');
         style.textContent = `
-            .nui-lab-card { background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:var(--nui-radius-lg); box-shadow:0 4px 16px var(--nui-shadow); padding:var(--nui-space-4); text-align:center; box-sizing:border-box; }
+            .nui-lab-card { background:var(--nui-surface); color:var(--nui-text); border:1px solid var(--nui-border); border-radius:var(--nui-radius-lg); box-shadow:0 4px 16px var(--nui-shadow); padding:var(--nui-space-4); text-align:center; box-sizing:border-box; }
             .nui-lab-header { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; }
             .nui-lab-header-title { font-family:var(--nui-font-display); font-size:20px; font-weight:800; color:var(--nui-text); margin:0; }
             .nui-lab-icon-btn { width:36px; height:36px; border-radius:50%; background:var(--nui-surface-2); border:1px solid var(--nui-border); display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--nui-text); font-weight:800; flex:0 0 auto; }
@@ -52630,18 +53979,33 @@ return {
     }
     const zapInfo = parseZaps();
 
+    // Same legacy-attribute problem as the post-zap result markup in
+    // revealNative() below: these <p> blocks are carried over verbatim from
+    // native Neopets HTML, which can carry its own inline color/style
+    // attributes assuming a native white background. Strip them so this
+    // copy actually inherits .nui-lab-card's theme instead of sometimes
+    // showing native dark text on the card's dark surface.
+    function stripLegacyColor(html) {
+        const frag = document.createElement('div');
+        frag.innerHTML = html;
+        frag.querySelectorAll('font, span, b, div, p').forEach(function (el) {
+            ['color', 'style', 'face', 'size', 'bgcolor'].forEach(function (attr) { el.removeAttribute(attr); });
+        });
+        return frag.innerHTML;
+    }
+
     // Warning copy from the two small <p> blocks below the button — carried
     // over verbatim so nothing Neopets-legal gets dropped.
-    const warningHtml = Array.from(content.querySelectorAll('p')).filter(function (p) {
+    const warningHtml = stripLegacyColor(Array.from(content.querySelectorAll('p')).filter(function (p) {
         return p.querySelector('span') && /WARNING|Important Warnings/i.test(p.textContent);
-    }).map(function (p) { return p.innerHTML; }).join('');
+    }).map(function (p) { return p.innerHTML; }).join(''));
 
     const kookithEl = content.querySelector('.ppl-kookith');
     
     // FIX APPLIED HERE: Exclude reaction paragraphs inside .ppl-petpet from intro copy
-    const introHtml = Array.from(content.querySelectorAll('p')).filter(function (p) {
+    const introHtml = stripLegacyColor(Array.from(content.querySelectorAll('p')).filter(function (p) {
         return !p.closest('.ppl-petpet') && !p.classList.contains('ppl-zaps') && !p.querySelector('span');
-    }).map(function (p) { return p.outerHTML; }).join('');
+    }).map(function (p) { return p.outerHTML; }).join(''));
 
     // ── State ────────────────────────────────────────────────────────────────
     let chosen = '';
@@ -52699,7 +54063,7 @@ return {
 
         const style = document.createElement('style');
         style.textContent = `
-            .nui-lab-card { background:var(--nui-surface); border:1px solid var(--nui-border); border-radius:var(--nui-radius-lg); box-shadow:0 4px 16px var(--nui-shadow); padding:var(--nui-space-4); text-align:center; box-sizing:border-box; margin-bottom:var(--nui-space-4); }
+            .nui-lab-card { background:var(--nui-surface); color:var(--nui-text); border:1px solid var(--nui-border); border-radius:var(--nui-radius-lg); box-shadow:0 4px 16px var(--nui-shadow); padding:var(--nui-space-4); text-align:center; box-sizing:border-box; margin-bottom:var(--nui-space-4); }
             .nui-lab-sub { color:var(--nui-text-muted); font-size:14px; line-height:1.6; }
             .nui-lab-warning { color:var(--nui-danger); font-size:12px; font-weight:700; text-align:left; margin-top:8px; }
             .nui-lab-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:10px; width:100%; }
@@ -56569,6 +57933,22 @@ return {
             color: inherit;
         }
 
+        /* Obelisk perk "voice in your head" direction hint (e.g. the
+           Cartography boon on Faerie Caverns / other fork-in-the-road
+           pages) — raw unclassed Neopets markup that ships with its own
+           native light background images (message_hdr_bg.jpg /
+           message_ftr_bg.png) instead of a CSS background-color. The
+           color:inherit reaffirmation just above (plus the
+           #container__2020 { color: var(--nui-text) } rule higher up)
+           makes its text follow the theme, so in dark themes it renders
+           light text on that light image and disappears. No id/class to
+           hook, so match on the background-image URL fragment instead
+           and pin it to a dark, legible color regardless of theme. */
+        #container__2020 div[style*="message_hdr_bg"],
+        #container__2020 div[style*="message_hdr_bg"] * {
+            color: #222 !important;
+        }
+
         /* Prevent legacy fixed-width layout tables/images/embeds... */
         #nui-sitewide-content-wrap table,
         #nui-sitewide-content-wrap img,
@@ -57931,6 +59311,7 @@ return {
                 max-height: 85vh !important;
                 overflow: hidden !important;
                 background: var(--nui-surface) !important;
+                background-image: none !important;
                 border: 1px solid var(--nui-border) !important;
                 border-radius: var(--nui-radius-lg) !important;
                 box-shadow: 0 10px 40px var(--nui-shadow) !important;
@@ -57947,6 +59328,7 @@ return {
 
             .trudyPopup .popup-header__2020 {
                 background: var(--nui-surface-2) !important;
+                background-image: none !important;
                 border-bottom: 1px solid var(--nui-border) !important;
                 border-radius: var(--nui-radius-lg) var(--nui-radius-lg) 0 0 !important;
                 box-shadow: none !important;
@@ -57998,6 +59380,8 @@ return {
             .trudyPopup .popup-exit-icon::after { content: "✕"; color: var(--nui-text-muted); font-weight: bold; font-size: 12px; }
 
             .trudyPopup .popup-body__2020 {
+                background: var(--nui-surface) !important;
+                background-image: none !important;
                 padding: 20px !important;
                 overflow-y: auto !important;
                 display: flex !important;
@@ -58008,11 +59392,14 @@ return {
                 color: var(--nui-text) !important;
                 font-family: var(--nui-font-body) !important;
             }
-            .trudyPopup .popup-body__2020 p { color: var(--nui-text) !important; line-height: 1.6 !important; }
+            .trudyPopup .popup-body__2020 p,
+            .trudyPopup .popup-body__2020 span,
+            .trudyPopup .popup-body__2020 strong { color: var(--nui-text) !important; line-height: 1.6 !important; }
             .trudyPopup .popup-body__2020 a { color: var(--nui-accent) !important; }
 
             .trudyPopup .popup-footer__2020 {
                 background: var(--nui-surface-2) !important;
+                background-image: none !important;
                 border-top: 1px solid var(--nui-border) !important;
                 padding: 14px 20px !important;
                 display: flex !important;
@@ -58516,5 +59903,1268 @@ return {
         document.addEventListener('DOMContentLoaded', boot);
     } else {
         boot();
+    }
+})();
+
+// ==============================================================================
+// MODULE 68: SCORCHY SLOTS
+// ==============================================================================
+// Themed rebuild of Scorchy Slots (games/slots.phtml + games/process_slots2.
+// phtml), same extraction convention as Guess the Weight of the Marrow
+// (Module 41): the live <td class="content"> is cloned, the pieces we want to
+// relocate/restyle are plucked out of the clone by shape (a table containing
+// "WIN" + slot-reel images, a table of the 1lit..8dull feature-bar images, the
+// "Rules of the Game" table, and the <form> itself), and whatever text is left
+// over — jackpot line, "view prize list" link, and any win/loss message
+// Neopets wrote in — is kept as-is and just styled, not reconstructed.
+//
+// Deliberately NOT a headless/fetch SPA like Coconut Shy or Dice-A-Roo: the
+// reel result is baked directly into the server-rendered <img> markup (which
+// row is faded vs. bordered) rather than returned as parseable JSON, and both
+// slots.phtml (first play) and process_slots2.phtml (Play Again) are real
+// full-page POSTs. Reimplementing that via fetch would mean guessing at a
+// response shape this file can't see, and any mistake risks losing the spin
+// itself. So instead this only rearranges and restyles the DOM Neopets
+// already rendered — the cloned <form> (hidden _ref_ck token, action, method,
+// submit button all included verbatim) is what actually gets submitted;
+// this module never reads or predicts an outcome.
+//
+// Two states share the same treatment:
+//   • Intro (slots.phtml, first load) — no reel/feature table exists yet, so
+//     the bezel shows the Scorchio mascot in place of reels, jackpot + rules
+//     render as normal, and the button reads "Click Here to Play".
+//   • Result (after POST, and process_slots2.phtml) — the real reel grid
+//     Neopets rendered (win-row images visually distinguished from the two
+//     faded rows) sits in the bezel, the feature-bar strip renders below it,
+//     and the button reads "Play Again".
+//
+// Activates on: /games/slots.phtml, /games/process_slots2.phtml
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!/\/games\/(slots|process_slots2)\.phtml/.test(location.pathname)) return;
+    if (!window.NeoUI || !window.NeoUI.isModuleEnabled('scorchy-slots')) return;
+
+    const NeoUI = window.NeoUI;
+    if (!NeoUI || !NeoUI.__ready) return;
+
+    function showFatalError(err) {
+        try {
+            const box = document.createElement('div');
+            box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fee2e2;color:#7f1d1d;font:14px monospace;padding:15px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-bottom:3px solid #dc2626;';
+            box.textContent = 'Scorchy Slots module crashed:\n' + (err && err.stack ? err.stack : String(err));
+            document.body.insertBefore(box, document.body.firstChild);
+        } catch (e2) {}
+    }
+
+    // ── Extraction ────────────────────────────────────────────────────────
+    // Allow-list-free: rather than guessing which text is safe to keep,
+    // everything that isn't specifically relocated below (reel table,
+    // feature-bar table, rules table, form) stays in the clone and gets
+    // dropped into a generic "flavor text" area untouched — so a jackpot
+    // line, a "you have won ..." message, or the prize-list link all survive
+    // even though this module has never seen a winning spin's markup.
+    function extractPageData() {
+        const content = document.querySelector('td.content');
+        if (!content) return null;
+
+        const clone = content.cloneNode(true);
+
+        // Title bar — the topbar already says where we are.
+        const headerBar = clone.querySelector('.contentModuleHeader');
+        if (headerBar) headerBar.remove();
+
+        // Reel grid: table containing "WIN" text plus slot-reel images
+        // (//images.neopets.com/games/slots/...). Only present after a play.
+        const reelTable = Array.from(clone.querySelectorAll('table')).find(function (t) {
+            return /WIN/.test(t.textContent) && t.querySelector('img[src*="/games/slots/"]');
+        }) || null;
+        if (reelTable) reelTable.remove();
+
+        // Feature-bar strip: row of 1lit.gif..8dull.gif images below the reel.
+        const featureTable = Array.from(clone.querySelectorAll('table')).find(function (t) {
+            return t.querySelector('img[src*="lit.gif"], img[src*="dull.gif"]');
+        }) || null;
+        if (featureTable) featureTable.remove();
+
+        // Reference table, only present on the intro page.
+        const rulesTable = Array.from(clone.querySelectorAll('table')).find(function (t) {
+            return /Rules of the Game/i.test(t.textContent);
+        }) || null;
+        if (rulesTable) rulesTable.remove();
+
+        // The actual play/spin form — cloned wholesale (hidden _ref_ck
+        // token, action, method, submit button included) so submission is
+        // byte-for-byte what Neopets shipped.
+        const form = clone.querySelector('form');
+        if (form) form.remove();
+
+        // Drop now-empty wrapper <center>/<div align> left behind by the
+        // removals above so the flavor-text area doesn't have dead gaps.
+        clone.querySelectorAll('center, div[align]').forEach(function (el) {
+            if (!el.textContent.trim() && el.children.length === 0) el.remove();
+        });
+
+        return {
+            flavorHtml: clone.innerHTML.trim(),
+            reelTable: reelTable,
+            featureTable: featureTable,
+            rulesTable: rulesTable,
+            form: form
+        };
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────
+    function styleReelTable(table) {
+        table.removeAttribute('align');
+        table.style.cssText = 'border-collapse:collapse;margin:0 auto;';
+        table.querySelectorAll('td').forEach(function (td) {
+            td.style.padding = '4px';
+            td.style.textAlign = 'center';
+        });
+        table.querySelectorAll('b').forEach(function (b) {
+            b.style.cssText = 'color:var(--nui-accent);font-family:var(--nui-font-display);font-size:13px;letter-spacing:0.5px;';
+        });
+        table.querySelectorAll('img').forEach(function (img) {
+            const isWinRow = img.getAttribute('border') === '1';
+            img.removeAttribute('border');
+            img.style.cssText = 'display:block;border-radius:var(--nui-radius-sm);width:64px;height:64px;object-fit:contain;background:var(--nui-surface);' +
+                (isWinRow
+                    ? 'box-shadow:0 0 0 2px var(--nui-accent), 0 2px 8px var(--nui-shadow);'
+                    : 'opacity:0.5;');
+        });
+    }
+
+    function styleFeatureTable(table) {
+        table.removeAttribute('align');
+        table.removeAttribute('width');
+        table.style.cssText = 'border-collapse:collapse;margin:0 auto;';
+        table.querySelectorAll('img').forEach(function (img) {
+            img.removeAttribute('border');
+            img.style.cssText = 'display:block;width:32px;height:auto;margin:0 auto;';
+        });
+    }
+
+    function styleRulesTable(table) {
+        table.removeAttribute('style');
+        table.removeAttribute('width');
+        table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12.5px;';
+        table.querySelectorAll('td, th').forEach(function (cell) {
+            cell.removeAttribute('style');
+            cell.removeAttribute('width');
+            cell.style.cssText = 'border:1px solid var(--nui-border);padding:8px;text-align:left;vertical-align:top;color:var(--nui-text);';
+        });
+        table.querySelectorAll('b').forEach(function (b) {
+            b.style.color = 'var(--nui-text)';
+        });
+    }
+
+    function styleFlavorArea(area) {
+        area.querySelectorAll('a').forEach(function (a) {
+            a.style.cssText = 'color:var(--nui-accent);font-weight:700;text-decoration:none;';
+        });
+        area.querySelectorAll('b').forEach(function (b) {
+            const t = b.textContent.trim();
+            if (/^[\d,]+$/.test(t)) {
+                // A bare number in bold near "Jackpot:" — the jackpot figure.
+                b.style.cssText = 'color:var(--nui-accent);font-family:var(--nui-font-display);font-weight:800;';
+            } else if (/won|congratulations/i.test(t)) {
+                b.style.cssText = 'color:var(--nui-success);';
+            } else if (/sorry|better luck/i.test(t)) {
+                b.style.cssText = 'color:var(--nui-text-muted);';
+            }
+        });
+        area.querySelectorAll('br + br').forEach(function (br) { br.style.display = 'none'; });
+    }
+
+    function buildUI() {
+        const data = extractPageData();
+        if (!data || !data.form) return; // Shape changed / not found — let native Neopets render.
+
+        const profile = NeoUI.scrapeLegacyProfile();
+        document.body.innerHTML = '';
+        document.body.className = 'nui-reset nui-spa-active';
+        document.documentElement.style.background = 'var(--nui-bg)';
+        document.body.style.background = 'var(--nui-bg)';
+
+        if (typeof NeoUI.resetDrawer === 'function') NeoUI.resetDrawer();
+        NeoUI.init();
+        NeoUI.setProfileInfo(profile);
+        NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
+
+        const pageWrapper = document.createElement('div');
+        pageWrapper.style.cssText = 'min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:calc(var(--nui-topbar-h) + var(--nui-space-5)) var(--nui-space-4) var(--nui-space-5);box-sizing:border-box;';
+        document.body.appendChild(pageWrapper);
+
+        const card = document.createElement('div');
+        card.className = 'nui-surface';
+        card.style.cssText = 'width:100%;max-width:520px;border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 4px 12px var(--nui-shadow);';
+        pageWrapper.appendChild(card);
+
+        // Header
+        const cardHeader = document.createElement('div');
+        cardHeader.style.cssText = 'padding:var(--nui-space-4);border-bottom:1px solid var(--nui-border);display:flex;align-items:center;gap:12px;background:var(--nui-surface-2);';
+        cardHeader.innerHTML =
+            '<a href="/games/" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--nui-surface-3);color:var(--nui-text);text-decoration:none;font-size:18px;font-weight:900;flex-shrink:0;line-height:1;transition:background 0.2s;">\u2039</a>' +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="font-family:var(--nui-font-display);font-size:20px;font-weight:800;color:var(--nui-text);">\ud83c\udfb0 Scorchy Slots</div>' +
+                '<div style="font-size:12px;color:var(--nui-text-muted);margin-top:1px;">5 NP per play</div>' +
+            '</div>';
+        const backBtn = cardHeader.querySelector('a');
+        backBtn.addEventListener('mouseenter', function () { backBtn.style.background = 'var(--nui-border)'; });
+        backBtn.addEventListener('mouseleave', function () { backBtn.style.background = 'var(--nui-surface-3)'; });
+        card.appendChild(cardHeader);
+
+        // Reel bezel — always shown, even on the intro state (mascot in
+        // place of reels) so the card doesn't visually jump between states.
+        const bezel = document.createElement('div');
+        bezel.style.cssText = 'padding:var(--nui-space-5) var(--nui-space-4);background:var(--nui-surface-2);border-bottom:1px solid var(--nui-border);display:flex;justify-content:center;';
+        if (data.reelTable) {
+            styleReelTable(data.reelTable);
+            bezel.appendChild(data.reelTable);
+        } else {
+            bezel.innerHTML = '<img src="https://images.neopets.com/reg/pets/full_pets/scorchio_blue_m.png" style="width:150px;height:150px;filter:drop-shadow(0 6px 12px var(--nui-shadow));">';
+        }
+        card.appendChild(bezel);
+
+        // Feature bar, result state only
+        if (data.featureTable) {
+            const featureWrap = document.createElement('div');
+            featureWrap.style.cssText = 'padding:var(--nui-space-3) var(--nui-space-4);background:var(--nui-surface-2);border-bottom:1px solid var(--nui-border);display:flex;flex-direction:column;align-items:center;gap:6px;';
+            const featureLabel = document.createElement('div');
+            featureLabel.textContent = 'Feature Bar';
+            featureLabel.style.cssText = 'font-size:11px;font-weight:700;color:var(--nui-text-muted);text-transform:uppercase;letter-spacing:0.5px;';
+            featureWrap.appendChild(featureLabel);
+            styleFeatureTable(data.featureTable);
+            featureWrap.appendChild(data.featureTable);
+            card.appendChild(featureWrap);
+        }
+
+        // Flavor text — jackpot line, prize-list link, and (if present)
+        // whatever win/loss message Neopets wrote in near the form.
+        if (data.flavorHtml) {
+            const flavorArea = document.createElement('div');
+            flavorArea.style.cssText = 'padding:var(--nui-space-4) var(--nui-space-4) 0;text-align:center;font-size:14px;color:var(--nui-text);line-height:1.6;';
+            flavorArea.innerHTML = data.flavorHtml;
+            styleFlavorArea(flavorArea);
+            card.appendChild(flavorArea);
+        }
+
+        // Action area — the real form, restyled but functionally untouched.
+        const actionArea = document.createElement('div');
+        actionArea.style.cssText = 'padding:var(--nui-space-5) var(--nui-space-4);display:flex;flex-direction:column;align-items:center;gap:8px;';
+        data.form.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;';
+        const submitBtn = data.form.querySelector('input[type="submit"]');
+        if (submitBtn) {
+            submitBtn.className = 'nui-btn nui-btn-primary';
+            submitBtn.style.cssText = 'font-size:16px;padding:14px 24px;border:none;border-radius:var(--nui-radius-pill);width:100%;max-width:280px;box-shadow:0 4px 12px var(--nui-shadow);cursor:pointer;';
+        }
+        actionArea.appendChild(data.form);
+        card.appendChild(actionArea);
+
+        // Rules — collapsed so the intro state's reference table doesn't
+        // dominate the screen.
+        if (data.rulesTable) {
+            const details = document.createElement('details');
+            details.style.cssText = 'border-top:1px solid var(--nui-border);padding:var(--nui-space-3) var(--nui-space-4) var(--nui-space-4);';
+            const summary = document.createElement('summary');
+            summary.textContent = 'Rules of the Game';
+            summary.style.cssText = 'cursor:pointer;font-weight:700;font-size:13px;color:var(--nui-text-muted);';
+            details.appendChild(summary);
+
+            const rulesWrap = document.createElement('div');
+            rulesWrap.style.cssText = 'margin-top:10px;overflow-x:auto;';
+            styleRulesTable(data.rulesTable);
+            rulesWrap.appendChild(data.rulesTable);
+            details.appendChild(rulesWrap);
+            card.appendChild(details);
+        }
+    }
+
+    let booted = false;
+    function boot() {
+        if (booted) return;
+        booted = true;
+        try { buildUI(); } catch (err) { showFatalError(err); }
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        boot();
+    } else {
+        document.addEventListener('DOMContentLoaded', boot);
+    }
+
+})();
+
+// ==============================================================================
+// MODULE 69: GODORI
+// ==============================================================================
+// Godori's board (#computer_hand / #table_cards / #player_hand / the score
+// bar / capture piles) is populated and driven entirely by inline scripts —
+// cardgame_funcs.js / godori_funcs.js call add_to_stack()/process_click() by
+// element ID, both on initial page parse and on every subsequent move (turns
+// go through /games/godori/process_move.phtml via AJAX, no page reload). This
+// module never clones or rebuilds any of that: cloning would hand the game
+// fresh DOM nodes that are different objects from the ones godori_funcs.js
+// already has references to, silently breaking later getElementById() calls
+// or closures — the same failure mode documented in Module 65 (Trudy's
+// Surprise). Every relocation below uses appendChild()/insertBefore() on the
+// *live* nodes instead, which only changes their position in the tree —
+// their identity (and every ID lookup or reference to them) is unaffected.
+//
+// What "more efficient and speedy" means here, concretely:
+//   1. Scale-to-fit — the board is a fixed 705x705 legacy table with several
+//      absolutely-positioned card layers inside relatively-positioned cells
+//      (drag targets, capture animations). A CSS transform: scale() on a
+//      wrapping stage scales that whole subtree together, so nothing about
+//      the internal geometry changes (same technique as Module 67's Neohome
+//      editor wrapper) — the board just fits a phone screen without the
+//      pinch-zoom-and-pan dance mobile play currently requires.
+//   2. The long "how to play" blurb between the page title and the game
+//      speed / forfeit bar gets moved (not copied) into a collapsed
+//      <details>, so a returning player lands on the board instead of
+//      scrolling past a paragraph they've already read.
+//   3. The chosen game speed (native radio buttons, already defaulting to
+//      Fast) is remembered across visits — Neopets' own copy on this page
+//      notes slower speeds bring back extra confirmation popups, so once
+//      someone's picked a speed we keep it instead of resetting to the
+//      default every load.
+//   4. The three reference links (Capture Matches / Scoring Matches / your
+//      score / opponent's score) open native popup windows via window.open()
+//      — frequently swallowed outright by mobile popup blockers, and a
+//      context switch even when they aren't. These get intercepted and
+//      rendered in an in-page modal instead, fetched from the same static,
+//      read-only reference pages Neopets already serves (list_cards.phtml,
+//      scoring_matches.phtml, score.phtml) — nothing about the live match
+//      state is touched.
+//   5. Folded in from a third-party "Better Faster Godori" (MettyNeo)
+//      userscript: clicking a card in hand auto-clicks its matching (or an
+//      empty) stack instead of requiring a second click, and vice versa for
+//      a highlighted stack match; a deck/capture/hand card counter; set
+//      highlighting on hover; and an optional speedrun clock.
+//
+// Deliberately NOT included: no hinting or "best play" logic. This module
+// has no visibility into godori_funcs.js's scoring/AI internals, and
+// everything above only removes clicks or displays counts of cards already
+// visible on the board — it never decides *what* to play; that's still
+// entirely the person's own click every time.
+//
+// Activates on: /games/godori/godori.phtml
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!/\/games\/godori\/godori\.phtml/.test(location.pathname)) return;
+    if (!window.NeoUI || !window.NeoUI.isModuleEnabled('godori')) return;
+
+    const SPEED_KEY = 'neoui_godori_speed';
+
+    // ── Folded in from a third-party "Better Faster Godori" (MettyNeo)
+    // userscript, at the person's request. This is still all UI/speed —
+    // one-click play instead of two, a deck/capture/hand counter, set
+    // highlighting, and a speedrun clock. None of it decides *what* to
+    // play; every legality/scoring call is still 100% native
+    // godori_funcs.js. NeoUI runs unsandboxed (@grant none), so unlike
+    // the original (a Tampermonkey @grant script needing `unsafeWindow`
+    // to patch `alert`) this can touch `window`/`localStorage` directly.
+    const BFG_ACTION_DELAY_MS = '0';   // native "Fast" speed is 500ms; 0 removes the delay entirely
+    const BFG_CARD_SORT = 'CAPTURE';   // 'CAPTURE' (default) or 'SCORE' — how the hand gets sorted
+    const BFG_COUNT_CARDS = true;      // remembers which cards have appeared, for the deck counter
+    const BFG_SPEEDRUN_CLOCK = true;
+
+    const BFG_CAPTURE_SETS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+    const BFG_CAPTURE_SET_COLORS = { jan: '#d47091', feb: '#d18d3f', mar: '#cae5ed', apr: '#e6c5ed', may: '#3862e0', jun: '#46544f', jul: '#8a7767', aug: '#27273b', sep: '#219c3d', oct: '#94110f', nov: '#dbd82c', dec: '#520e87' };
+    const BFG_CARD_TYPE = { '1': 0, '2': 2, '3': 2, t: 4, y: 6, k: 8 };
+    const BFG_SET_MINS = { bright: 3, animal: 5, ribbon: 5, junk: 10 };
+    const BFG_IMG_REGEX = /.*?\/godori\/(.{3})(.{1}).*/;
+    let bfgFreshHand = null;
+    let bfgCanAction = false;
+
+    // localStorage stand-in for the original script's GM_getValue/GM_setValue
+    // (NeoUI has no GM_* grants) — one key per concern, same shape as before.
+    function bfgGet(key, fallback) {
+        try {
+            const raw = localStorage.getItem('neoui_godori_bfg_' + key);
+            return raw !== null ? JSON.parse(raw) : fallback;
+        } catch (e) { return fallback; }
+    }
+    function bfgSet(key, value) {
+        try { localStorage.setItem('neoui_godori_bfg_' + key, JSON.stringify(value)); } catch (e) {}
+    }
+    function bfgDelete(key) {
+        try { localStorage.removeItem('neoui_godori_bfg_' + key); } catch (e) {}
+    }
+
+    // Suppresses the native "You must select a card from your hand first"
+    // alert, which the one-click hand→stack flow below makes moot.
+    (function suppressHandAlert() {
+        const nativeAlert = window.alert;
+        window.alert = function (str) {
+            if (typeof str === 'string' && str.indexOf('You must select a card from your hand first') !== -1) return;
+            nativeAlert(str);
+        };
+    })();
+
+    function showFatalError(err) {
+        try {
+            const box = document.createElement('div');
+            box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fee2e2;color:#7f1d1d;font:14px monospace;padding:15px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-bottom:3px solid #dc2626;';
+            box.textContent = 'Godori module crashed:\n' + (err && err.stack ? err.stack : String(err));
+            document.body.insertBefore(box, document.body.firstChild);
+        } catch (e2) {}
+    }
+
+    function injectStyles() {
+        if (document.getElementById('nui-godori-style')) return;
+        const style = document.createElement('style');
+        style.id = 'nui-godori-style';
+        style.textContent = `
+            .nui-godori-stage {
+                width: 100%;
+                max-width: 705px;
+                margin: 0 auto;
+                overflow: hidden;
+                border-radius: var(--nui-radius-lg);
+                border: 1px solid var(--nui-border);
+                box-shadow: 0 4px 16px var(--nui-shadow);
+            }
+            .nui-godori-stage-inner { transform-origin: top left; }
+
+            #intro.g_statustable {
+                background: var(--nui-surface-2) !important;
+                border: 1px solid var(--nui-border) !important;
+                border-radius: var(--nui-radius-md) !important;
+                width: 100% !important;
+                max-width: 705px;
+                margin: 0 auto var(--nui-space-3) !important;
+            }
+            #intro td { color: var(--nui-text) !important; }
+            #intro a { color: var(--nui-accent) !important; font-weight: 700; }
+
+            #nui-godori-intro-details {
+                max-width: 705px;
+                margin: 0 auto var(--nui-space-3);
+                background: var(--nui-surface) !important;
+                border: 1px solid var(--nui-border) !important;
+                border-radius: var(--nui-radius-md) !important;
+                padding: var(--nui-space-3) var(--nui-space-4);
+                color: var(--nui-text) !important;
+                font-size: 13px;
+                line-height: 1.6;
+            }
+            #nui-godori-intro-details summary {
+                cursor: pointer;
+                font-weight: 700;
+                color: var(--nui-text-muted) !important;
+                list-style: none;
+            }
+            #nui-godori-intro-details summary::-webkit-details-marker { display: none; }
+            #nui-godori-intro-details summary::before { content: '\u25B8  '; }
+            #nui-godori-intro-details[open] summary::before { content: '\u25BE  '; }
+            #nui-godori-intro-details a { color: var(--nui-accent) !important; }
+
+            .g_stats_table {
+                background: var(--nui-surface-2) !important;
+                border: 1px solid var(--nui-border) !important;
+                border-radius: var(--nui-radius-md) !important;
+                color: var(--nui-text) !important;
+                max-width: 705px !important;
+            }
+            .g_stats_table td, .g_stats_table b { color: var(--nui-text) !important; }
+
+            .nui-godori-links {
+                max-width: 705px;
+                margin: var(--nui-space-3) auto 0;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
+            }
+            .nui-godori-links a {
+                font-size: 12px;
+                font-weight: 700;
+                color: var(--nui-text) !important;
+                background: var(--nui-surface-2);
+                border: 1px solid var(--nui-border);
+                border-radius: var(--nui-radius-pill);
+                padding: 6px 14px;
+                text-decoration: none !important;
+            }
+
+            /* ── In-page modal for the popup-window reference links ── */
+            .nui-godori-modal-overlay {
+                position: fixed; inset: 0; z-index: 100000;
+                background: rgba(0,0,0,0.5);
+                display: flex; align-items: center; justify-content: center;
+                padding: var(--nui-space-4);
+            }
+            .nui-godori-modal {
+                width: 100%; max-width: 640px; max-height: 85vh;
+                display: flex; flex-direction: column; overflow: hidden;
+                background: var(--nui-surface) !important;
+                border: 1px solid var(--nui-border);
+                border-radius: var(--nui-radius-lg);
+                box-shadow: 0 10px 40px var(--nui-shadow);
+            }
+            .nui-godori-modal-header {
+                display: flex; align-items: center; justify-content: space-between;
+                padding: 14px 16px; border-bottom: 1px solid var(--nui-border);
+                background: var(--nui-surface-2); flex-shrink: 0;
+            }
+            .nui-godori-modal-title {
+                font-family: var(--nui-font-display); font-weight: 800; font-size: 16px;
+                color: var(--nui-text);
+            }
+            .nui-godori-modal-close {
+                width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--nui-border);
+                background: var(--nui-surface); color: var(--nui-text-muted); cursor: pointer;
+                font-size: 13px; line-height: 1; flex-shrink: 0;
+            }
+            .nui-godori-modal-body {
+                overflow-y: auto; padding: 16px; color: var(--nui-text); font-size: 13px; line-height: 1.6;
+            }
+            .nui-godori-modal-body table { max-width: 100%; }
+            .nui-godori-modal-body img { max-width: 100%; height: auto; }
+            .nui-godori-modal-loading, .nui-godori-modal-error {
+                text-align: center; color: var(--nui-text-muted); padding: 24px 0;
+            }
+
+            /* ── Folded in from Better Faster Godori: deck/capture/hand
+               counters, set-highlighting, and the speedrun clock ── */
+            #speedruntimer { vertical-align: bottom; color: var(--nui-text) !important; }
+            .countlabel {
+                position: absolute; display: flex; justify-content: center; align-items: center;
+                bottom: -18px; left: 2px; width: 24px; height: 24px; border-radius: 50%;
+                text-align: center; font-weight: bold; background-color: rgba(255,204,0,0.95);
+                pointer-events: none; color: #1a1a1a;
+            }
+            .caplabel {
+                left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%;
+                justify-content: center; align-items: center; font-weight: bold;
+                background-color: rgba(255,204,0,0.85); display: flex; position: absolute;
+                z-index: 10000; color: #1a1a1a;
+            }
+            .handlabel {
+                display: block; position: absolute; width: 130px; text-align: center;
+                font-size: 9pt; font-weight: bold; left: 50%; padding: 2px 4px;
+                transform: translateX(-50%); background-color: rgba(255,204,0,1);
+                border-radius: 4px; pointer-events: none; color: #1a1a1a;
+                transition: 0.25s; opacity: 1.0; visibility: visible;
+            }
+            tbody:has(td.g_card_cell:hover) ~ .handlabel, .handlabel:hover { opacity: 0; visibility: hidden; }
+
+            .sethighlight {
+                display: block; position: absolute; box-sizing: border-box;
+                width: 60px; height: 93px; border-style: solid; border-width: 8px;
+            }
+            .sethighlight::before {
+                content: ""; display: block; position: absolute; box-sizing: border-box;
+                width: 48px; height: 81px; left: -2px; top: -2px;
+                border-style: solid; border-width: 2px; border-color: rgba(0,0,0,0.2);
+            }
+            .sethighlight::after {
+                content: ""; display: block; position: absolute; box-sizing: border-box;
+                width: 60px; height: 93px; left: -8px; top: -8px;
+                border-style: solid; border-width: 2px; border-color: black;
+            }
+            #table_cards .g_container:has(.g_empty_card.highlighted)::after {
+                content: ""; display: block; position: absolute; box-sizing: border-box;
+                width: 64px; height: 97px; border: solid 4px white;
+                background-color: rgba(255,255,255,0.7); z-index: 3000;
+            }
+            .sethighlight.dull:hover {
+                border-color: #969696 !important; background-color: rgba(150,150,150,0.7); z-index: 1001 !important;
+            }
+            .g_card.highlighted.hl-selected + .sethighlight {
+                border-color: yellow !important; background-color: rgba(255,204,0,0.35); z-index: 1001 !important;
+            }
+            .sethighlight:hover, .g_card.highlighted + .sethighlight {
+                border-color: white !important; background-color: rgba(255,255,255,0.35); z-index: 1001 !important;
+            }
+            .g_card:has(+ .sethighlight:hover) { z-index: 1000 !important; }
+            .g_hand, .g_capture, .g_card_cell { position: relative; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // ── 1. Remembered game speed ────────────────────────────────────────────
+    function wireGameSpeed() {
+        const radios = Array.from(document.querySelectorAll('input[name="game_speed_sel"]'));
+        if (!radios.length) return;
+
+        try {
+            const saved = localStorage.getItem(SPEED_KEY);
+            if (saved) {
+                const match = radios.find(function (r) { return r.value === saved; });
+                if (match && !match.checked) match.click(); // real click → native handler runs as normal
+            }
+        } catch (e) {}
+
+        radios.forEach(function (r) {
+            r.addEventListener('change', function () {
+                if (!r.checked) return;
+                try { localStorage.setItem(SPEED_KEY, r.value); } catch (e) {}
+            });
+        });
+    }
+
+    // ── 2. Collapse the "how to play" blurb ─────────────────────────────────
+    function collapseIntro() {
+        const heading = Array.from(document.querySelectorAll('p b')).find(function (b) {
+            return b.textContent.trim() === 'Godori';
+        });
+        const startP = heading ? heading.closest('p') : null;
+        const endMarker = document.getElementById('intro');
+        if (!startP || !endMarker || startP.parentNode !== endMarker.parentNode) return; // shape mismatch — leave native
+
+        const container = startP.parentNode;
+        const details = document.createElement('details');
+        details.id = 'nui-godori-intro-details';
+        const summary = document.createElement('summary');
+        summary.textContent = 'How to play Godori';
+        details.appendChild(summary);
+
+        const toMove = [];
+        let node = startP;
+        while (node && node !== endMarker) {
+            toMove.push(node);
+            node = node.nextSibling;
+        }
+        if (!toMove.length) return;
+        toMove.forEach(function (n) { details.appendChild(n); }); // moves live nodes/text, nothing cloned
+        container.insertBefore(details, endMarker);
+    }
+
+    // ── 3. Scale-to-fit board ────────────────────────────────────────────────
+    function wrapBoardForScaling() {
+        const board = document.querySelector('table.g_container_table');
+        if (!board || board.closest('.nui-godori-stage')) return;
+
+        const nativeW = parseInt(board.getAttribute('width'), 10) || board.offsetWidth || 705;
+        const nativeH = parseInt(board.getAttribute('height'), 10) || board.offsetHeight || 605;
+
+        const stage = document.createElement('div');
+        stage.className = 'nui-godori-stage';
+        const inner = document.createElement('div');
+        inner.className = 'nui-godori-stage-inner';
+        inner.style.width = nativeW + 'px';
+
+        board.parentNode.insertBefore(stage, board);
+        stage.appendChild(inner);
+        inner.appendChild(board); // moves the live table — every #comp_*/#table_*/#player_* id inside it is untouched
+
+        function applyScale() {
+            const available = stage.clientWidth || window.innerWidth;
+            const factor = Math.min(1, available / nativeW);
+            inner.style.transform = 'scale(' + factor + ')';
+            stage.style.height = Math.round(nativeH * factor) + 'px';
+        }
+        window.addEventListener('resize', applyScale);
+        window.addEventListener('orientationchange', applyScale);
+        applyScale();
+    }
+
+    // ── 4. In-page modal for the reference-page popup links ─────────────────
+    function openGodoriModal(url, title) {
+        const overlay = document.createElement('div');
+        overlay.className = 'nui-godori-modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'nui-godori-modal';
+        modal.innerHTML =
+            '<div class="nui-godori-modal-header">' +
+                '<div class="nui-godori-modal-title"></div>' +
+                '<button type="button" class="nui-godori-modal-close" aria-label="Close">\u2715</button>' +
+            '</div>' +
+            '<div class="nui-godori-modal-body"><div class="nui-godori-modal-loading">Loading\u2026</div></div>';
+        modal.querySelector('.nui-godori-modal-title').textContent = title || 'Reference';
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        function close() { overlay.remove(); }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        modal.querySelector('.nui-godori-modal-close').addEventListener('click', close);
+
+        fetch(url, { credentials: 'same-origin' })
+            .then(function (res) { return res.text(); })
+            .then(function (html) {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const content = doc.querySelector('td.content') || doc.body;
+                const body = modal.querySelector('.nui-godori-modal-body');
+                body.innerHTML = content ? content.innerHTML : 'Nothing to show.';
+            })
+            .catch(function () {
+                const body = modal.querySelector('.nui-godori-modal-body');
+                body.innerHTML = '<div class="nui-godori-modal-error">Couldn\u2019t load this — ' +
+                    '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--nui-accent);font-weight:700;">open in a new tab</a> instead.</div>';
+            });
+    }
+
+    function wireHelpLinksToModal() {
+        const links = Array.from(document.querySelectorAll('a[onclick*="window.open"]'));
+        if (!links.length) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'nui-godori-links';
+
+        links.forEach(function (a) {
+            const raw = a.getAttribute('onclick') || '';
+            const m = raw.match(/window\.open\(\s*["']([^"']+)["']/);
+            if (!m) return;
+            const url = m[1];
+            const label = a.textContent.trim();
+            a.removeAttribute('onclick');
+            a.setAttribute('href', 'javascript:void(0)');
+            a.addEventListener('click', function (e) {
+                e.preventDefault();
+                openGodoriModal(url, label);
+            });
+            wrap.appendChild(a); // moves the live link into the tidy row below the board
+        });
+
+        if (!wrap.children.length) return;
+        const board = document.querySelector('.nui-godori-stage') || document.querySelector('table.g_container_table');
+        if (board && board.parentNode) {
+            board.parentNode.insertBefore(wrap, board.nextSibling);
+        }
+    }
+
+    // ── 5. One-click play, card counting, set highlighting, speedrun clock ──
+    // Folded in from Better Faster Godori. All of it is jQuery-based in the
+    // original and left that way here rather than rewritten, since it leans
+    // on jQuery's chained filtering throughout — guarded on window.jQuery
+    // being present (classic Neopets game pages load it globally).
+    const $bfg = window.jQuery;
+
+    function bfgSetGameSpeed(ms) {
+        if (!$bfg('#fast').length) return;
+        $bfg('#fast')[0].value = ms; // delay in ms between moves
+        $bfg('#fast')[0].click(); // updates internal delay variable
+    }
+
+    // Clicking a card in hand auto-clicks its matching stack (or an empty
+    // one) instead of requiring a second click — this is the "one-click
+    // play" the third-party script is named for. It never picks *which*
+    // card to play; that's still entirely the person's own click.
+    function bfgAddHandListeners() {
+        const cards = Array.from($bfg('#player_hand > tbody > tr > td > div.g_container'));
+        cards.forEach(function (card) {
+            card.addEventListener('click', function () {
+                if (BFG_SPEEDRUN_CLOCK && bfgFreshHand) bfgStartTimer();
+                bfgFreshHand = false;
+
+                const img = card.querySelector('img');
+                if (!img) return;
+                const m = img.getAttribute('src').match(BFG_IMG_REGEX);
+                if (!m) return;
+                const stack = bfgGetSetStack(m[1]);
+                if (stack) stack.click();
+                bfgSortHand();
+            });
+        });
+    }
+
+    // Clicking a stack card (while one of your cards is highlighted as a
+    // match) auto-clicks that highlighted hand card for you.
+    function bfgAddStackListeners() {
+        $bfg('.g_container').on('click', function (event) {
+            event.stopPropagation();
+            if (!this.querySelector('dull')) {
+                const sel = $bfg('.hl-selected');
+                if (sel && sel[0] && sel[0].parentElement) sel[0].parentElement.click();
+            }
+        });
+    }
+
+    function bfgGetSetStack(set) {
+        const stacks = Array.from($bfg('#top_row > td.g_table_cell > div.g_container'))
+            .concat(Array.from($bfg('#bottom_row > td.g_table_cell > div.g_container')));
+        let emptyStack = null;
+        for (const stack of stacks) {
+            const img = stack.querySelector('img.g_card');
+            const stackSet = img && img.getAttribute('src') && img.getAttribute('src').match(BFG_IMG_REGEX);
+            if (set === (stackSet && stackSet[1])) return stack;
+            else if (!stackSet && !emptyStack) emptyStack = stack;
+        }
+        return emptyStack;
+    }
+
+    // ── 6. Game state (deck/card counting across the round) ────────────────
+    function bfgResetData() {
+        bfgDelete('cardcount');
+        bfgDelete('starttime');
+    }
+
+    function bfgCountCards(cards) {
+        const cardcount = bfgGet('cardcount', {});
+        for (const card of cards) {
+            if (!(card.set in cardcount)) cardcount[card.set] = [];
+            if (cardcount[card.set].indexOf(card.type) === -1) cardcount[card.set].push(card.type);
+        }
+        bfgSet('cardcount', cardcount);
+    }
+
+    function bfgStartGameObserver() {
+        const statusEl = $bfg('#game_status')[0];
+        if (!statusEl) return;
+        bfgCanAction = statusEl.innerHTML.includes('Your move');
+
+        // Watches each table stack for new cards, to track what's been seen.
+        Array.from($bfg('#table_cards div.g_container')).forEach(function (stack) {
+            const stackObs = new MutationObserver(function () { bfgCountCards(bfgGetStackCards(stack)); });
+            stackObs.observe(stack, { subtree: true, childList: true, attributes: true });
+        });
+
+        // Watches turn status to track draws, re-sort the hand, and toggle
+        // whether hover-highlighting/one-click-stack-play should be active.
+        const statusObs = new MutationObserver(function () {
+            if (statusEl.innerHTML === 'You draw a card and play' || statusEl.innerHTML.includes(' draws')) {
+                const deck = bfgGet('deckcount', 20) - 1;
+                if (deck <= 0) bfgDelete('deckcount'); else bfgSet('deckcount', deck);
+                if (statusEl.innerHTML.includes(' draws')) bfgSortHand();
+            }
+
+            bfgUpdateHandPoints();
+            bfgUpdateLabelDivs();
+            bfgAddHighlightHover();
+            bfgHighlightSetColor();
+
+            if (statusEl.innerHTML.includes('Your turn')) {
+                bfgCanAction = true;
+                bfgAddStackListeners();
+            } else {
+                bfgCanAction = false;
+                bfgRemoveHighlights();
+            }
+        });
+        statusObs.observe(statusEl, { subtree: true, childList: true, characterData: true });
+    }
+
+    function bfgStartGameStats() {
+        if (BFG_COUNT_CARDS && bfgFreshHand) {
+            bfgCountCards(bfgGetHandCards());
+            Array.from($bfg('#table_cards div.g_container')).forEach(function (stack) {
+                bfgCountCards(bfgGetStackCards(stack));
+            });
+        }
+        if (!bfgGet('deckcount')) bfgSet('deckcount', 20);
+        if (bfgGet('starttime')) bfgStartTimer(); // continues speedrun timer across a refresh
+
+        if (bfgGet('deckcount') === 20) {
+            const userEl = $bfg('#user_score > span > a')[0];
+            const compEl = $bfg('#comp_score > span > a')[0];
+            if (userEl && compEl) {
+                bfgSet('startpts', [userEl.innerHTML.split(' ')[1], compEl.innerHTML.split(' ')[1]]);
+            }
+        }
+        bfgUpdateHandPoints();
+    }
+
+    function bfgUpdateHandPoints() {
+        const startpts = bfgGet('startpts');
+        const user = $bfg('#user_score > span > a')[0];
+        const opp = $bfg('#comp_score > span > a')[0];
+        if (!startpts || !user || !opp) return;
+        user.innerHTML = user.innerHTML.split(':')[0] + ': ' + (user.innerHTML.split(' ')[1] - startpts[0]) + ' <small>(' + user.innerHTML.split(' ')[1] + ')</small>';
+        opp.innerHTML = opp.innerHTML.split(':')[0] + ': ' + (opp.innerHTML.split(' ')[1] - startpts[1]) + ' <small>(' + opp.innerHTML.split(' ')[1] + ')</small>';
+    }
+
+    // ── 7. Display / UI (set highlighting, counters, hand sorting) ─────────
+    function bfgRemoveHighlights() {
+        Array.from($bfg('.highlighted')).forEach(function (c) { c.classList.remove('highlighted'); });
+        Array.from($bfg('.dull')).forEach(function (c) { c.classList.remove('dull'); });
+        Array.from($bfg('.hl-selected')).forEach(function (c) { c.classList.remove('hl-selected'); });
+    }
+
+    function bfgHighlightSetColor() {
+        Array.from($bfg('#table_cards .g_table_cell .g_container')).forEach(function (stack) {
+            const cards = Array.from(stack.querySelectorAll('img.g_card'));
+            cards.forEach(function (card) { card.style.zIndex = 200 + (100 * cards.indexOf(card)); });
+        });
+
+        Array.from($bfg('#player_hand .g_card, #table_cards .g_table_cell .g_card')).forEach(function (card) {
+            if (card.nextSibling && card.nextSibling.classList && card.nextSibling.classList.contains('sethighlight')) return;
+            const m = card.src.match(BFG_IMG_REGEX);
+            if (!m) return;
+            const z = parseInt(card.style.zIndex, 10) + 1;
+            const color = BFG_CAPTURE_SET_COLORS[m[1]];
+            const prect = card.parentElement.getBoundingClientRect();
+            const rect = card.getBoundingClientRect();
+            $bfg(card).after('<div class="sethighlight" style="border-color:' + color + '; z-index:' + z + '; top:' + (rect.top - prect.top) + 'px; left:' + (rect.left - prect.left) + 'px;"></div>');
+        });
+    }
+
+    function bfgAddHighlightHover() {
+        $bfg('#player_hand .g_container').off('mouseover.bfg mouseleave.bfg').on('mouseover.bfg', function () {
+            if (!bfgCanAction) return;
+            const img = this.querySelector('img.g_card');
+            if (!img) return;
+            const m = img.src.match(BFG_IMG_REGEX);
+            if (!m) return;
+            const stackCards = Array.from($bfg('#table_cards .g_container .g_card')).filter(function (card) { return card.src.includes(m[1]); });
+            if (stackCards.length > 0) stackCards.slice(-1)[0].classList.add('highlighted');
+            else {
+                const empty = $bfg('#table_cards .g_container:not(:has(.g_card)) .g_empty_card')[0];
+                if (empty) empty.classList.add('highlighted');
+            }
+        }).on('mouseleave.bfg', function () {
+            if (!bfgCanAction) return;
+            Array.from($bfg('.highlighted')).forEach(function (c) { c.classList.remove('highlighted'); });
+        });
+
+        $bfg('#table_cards .g_container').off('mouseover.bfg mouseleave.bfg').on('mouseover.bfg', function () {
+            if (this.querySelector('.sethighlight:hover')) {
+                const img = this.querySelector('img.g_card');
+                const m = img && img.src.match(BFG_IMG_REGEX);
+                if (!m) { bfgRemoveHighlights(); return; }
+                const handCards = Array.from($bfg('#player_hand .g_container .g_card')).filter(function (card) { return card.src.includes(m[1]); });
+                if (handCards.length > 0) {
+                    let select = true;
+                    handCards.forEach(function (card) {
+                        if (select) { card.classList.add('hl-selected'); select = false; }
+                        card.classList.add('highlighted');
+                    });
+                } else {
+                    Array.from(this.querySelectorAll('.sethighlight')).forEach(function (hl) { hl.classList.add('dull'); });
+                }
+            } else {
+                bfgRemoveHighlights();
+            }
+        }).on('mouseleave.bfg', bfgRemoveHighlights);
+    }
+
+    function bfgSortHand() {
+        const hand = $bfg('#player_hand > tbody > tr')[0];
+        if (!hand) return;
+        const cards = Array.from(hand.children).filter(function (td) { return td.querySelector('div.g_container > img'); });
+        const emptySlots = Array.from(hand.children).filter(function (td) { return !td.querySelector('div.g_container > img'); });
+        hand.parentElement.parentElement.style.cssText = 'width:' + (cards.length * 70) + 'px;';
+        cards.sort(bfgCompareCards);
+
+        hand.innerHTML = '';
+        cards.forEach(function (card) { hand.appendChild(card); });
+        emptySlots.forEach(function (card) { card.style.display = 'none'; hand.appendChild(card); });
+
+        // "Sorting" the opponent's (already-hidden-card-back) hand just
+        // recenters it by trimming the same empty slots.
+        const oppHand = $bfg('#computer_hand > tbody > tr')[0];
+        if (oppHand) {
+            const emptyOpp = Array.from(oppHand.children).filter(function (td) { return !td.querySelector('div.g_container > img'); });
+            oppHand.parentElement.parentElement.style.cssText = 'width:' + ((10 - emptyOpp.length) * 70) + 'px;';
+            emptyOpp.forEach(function (card) { card.style.display = 'none'; });
+        }
+    }
+
+    function bfgUpdateLabelDivs() {
+        // Deck counter
+        if ($bfg('.countlabel').length === 0) {
+            const stock = $bfg('#stock')[0];
+            if (stock) {
+                const label = document.createElement('div');
+                label.className = 'countlabel';
+                stock.appendChild(label);
+                stock.style.cssText = 'top:-70px; right:-20px; pointer-events:none; cursor:default;';
+            }
+        }
+        if ($bfg('.countlabel')[0]) $bfg('.countlabel')[0].innerHTML = bfgGet('deckcount', 20);
+
+        // Capture-pile counters (x/minimum needed for that set)
+        Array.from($bfg('#player_capture > tbody > tr > td > div')).concat(Array.from($bfg('#computer_capture > tbody > tr > td > div'))).forEach(function (div) {
+            if (!div.querySelector('.caplabel')) {
+                const label = document.createElement('div');
+                label.className = 'caplabel';
+                div.appendChild(label);
+            }
+            const label = div.querySelector('.caplabel');
+            const cards = div.querySelectorAll('img.g_card_back').length;
+            const min = BFG_SET_MINS[div.id.split('_')[1]];
+            label.innerHTML = cards + '<small><small><small>/' + min + '</small></small></small>';
+            label.style.display = cards === 0 ? 'none' : 'flex';
+        });
+
+        // "Cards in hand" label for both hands
+        Array.from($bfg('table.g_hand')).forEach(function (hand) {
+            if (!hand.querySelector('.handlabel')) {
+                const label = document.createElement('div');
+                label.className = 'handlabel';
+                if (hand.id.includes('player')) label.style.bottom = '-12px'; else label.style.top = '4px';
+                hand.appendChild(label);
+            }
+            const cards = Array.from(hand.querySelectorAll('td.g_card_cell')).filter(function (td) { return td.querySelector('div.g_container > img'); }).length;
+            hand.querySelector('.handlabel').innerHTML = 'Cards in Hand: ' + cards;
+        });
+    }
+
+    // ── 8. Speedrun clock ────────────────────────────────────────────────────
+    function bfgSpeedrunDisplay() {
+        const introRow = $bfg('#intro > tbody > tr')[0];
+        const rightCell = $bfg('#intro > tbody > tr > td[align="right"]')[0];
+        if (!introRow || !rightCell || document.getElementById('speedruntimer')) return;
+        const timer = document.createElement('td');
+        timer.id = 'speedruntimer';
+        timer.innerHTML = '00:00<small>.000</small>';
+        introRow.insertBefore(timer, rightCell);
+    }
+
+    function bfgStartTimer() {
+        const stored = bfgGet('starttime') || { time: Date.now() }; // keeps previous start time across a refresh
+        if (stored.id) { try { clearInterval(stored.id); } catch (e) {} } // stale interval id from a prior page load
+        const id = setInterval(function () {
+            const el = document.getElementById('speedruntimer');
+            if (el) el.innerHTML = bfgFormatTime(Date.now() - stored.time);
+        }, 100);
+        bfgSet('starttime', { time: stored.time, id: id });
+    }
+
+    // ── 9. Card / formatting helpers ────────────────────────────────────────
+    function bfgCompareCards(a, b) {
+        const imgA = a.querySelector('div.g_container > img');
+        const imgB = b.querySelector('div.g_container > img');
+        return bfgGetCardValue(imgB.getAttribute('src')) - bfgGetCardValue(imgA.getAttribute('src'));
+    }
+
+    function bfgGetCardValue(url) {
+        const m = url.match(BFG_IMG_REGEX);
+        if (!m) return 0;
+        return BFG_CARD_SORT === 'SCORE'
+            ? BFG_CAPTURE_SETS[m[1]] + BFG_CARD_TYPE[m[2]] * 10
+            : BFG_CAPTURE_SETS[m[1]] * 10 + BFG_CARD_TYPE[m[2]];
+    }
+
+    function bfgGetStackCards(stack) {
+        const cardList = [];
+        Array.from(stack.querySelectorAll('img.g_card')).forEach(function (card) {
+            const src = card.getAttribute('src');
+            const m = src.match(BFG_IMG_REGEX);
+            if (m && !src.includes('back.gif')) cardList.push({ set: m[1], type: m[2] });
+        });
+        return cardList;
+    }
+
+    function bfgGetHandCards() {
+        return Array.from($bfg('#player_hand > tbody > tr > td').filter(function () { return $bfg(this).css('display') !== 'none'; }))
+            .map(function (td) {
+                const m = td.querySelector('img.g_card').getAttribute('src').match(BFG_IMG_REGEX);
+                return { set: m[1], type: m[2] };
+            });
+    }
+
+    function bfgPadNum(num, n) {
+        let str = String(num);
+        while (str.length < n) str = '0' + str;
+        return str;
+    }
+
+    function bfgFormatTime(t) {
+        let ms = t;
+        const min = Math.floor(ms / 60000); ms -= min * 60000;
+        const sec = Math.floor(ms / 1000); ms -= sec * 1000;
+        return bfgPadNum(min, 2) + ':' + bfgPadNum(sec, 2) + '<small>.' + bfgPadNum(ms, 3) + '</small>';
+    }
+
+    function run() {
+        injectStyles();
+        wireGameSpeed();
+        collapseIntro();
+        wrapBoardForScaling();
+        wireHelpLinksToModal();
+
+        // One-click play, card counting, highlighting, speedrun clock —
+        // needs jQuery, which classic Neopets game pages load globally.
+        if ($bfg) {
+            bfgSetGameSpeed(BFG_ACTION_DELAY_MS);
+            bfgSortHand();
+            bfgAddHandListeners();
+            bfgAddStackListeners();
+
+            bfgFreshHand = $bfg('#player_hand > tbody > tr > td').filter(function () { return $bfg(this).css('display') !== 'none'; }).length === 10;
+            if (bfgFreshHand) bfgResetData();
+
+            bfgStartGameStats();
+            bfgStartGameObserver();
+
+            if (BFG_SPEEDRUN_CLOCK) bfgSpeedrunDisplay();
+            bfgUpdateLabelDivs();
+            bfgAddHighlightHover();
+            bfgHighlightSetColor();
+        }
+    }
+
+    let booted = false;
+    function boot() {
+        if (booted) return;
+        booted = true;
+        try { run(); } catch (err) { showFatalError(err); }
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        boot();
+    } else {
+        document.addEventListener('DOMContentLoaded', boot);
+    }
+
+})();
+
+/* ============================================================
+   MODULE: Oracle Boon Card
+   ------------------------------------------------------------
+   Battleground of the Obelisk boons render two pieces of raw,
+   unthemed Neopets markup wherever they're active:
+     1. `.perkBar` — an 800px fixed-width sprite banner (bar
+        background image + "Oracle granted you" label image +
+        per-boon title image + "remaining time" label image +
+        a digit-sprite countdown clock + a per-boon thumb image).
+        None of it adapts to theme, viewport width, or a mobile
+        layout, and at 800px it overflows every mobile viewport.
+     2. A boon-specific in-page message box built from
+        message_hdr_bg.jpg / message_ftr_bg.png (e.g. the
+        Cartogriphication "...compelled to go right" hint on
+        Faerie Caverns) — its dark-mode text-legibility gap is
+        already patched elsewhere in this file (search
+        "message_hdr_bg"), but it's still unthemed native art.
+   This module rebuilds both as one small NeoUI card — icon,
+   boon name, live countdown, and (if present) the native
+   message text — then hides the native sprite markup entirely.
+   ============================================================ */
+(function () {
+    'use strict';
+
+    // Neopets' own boon list (https://www.jellyneo.net/?go=battleground_of_the_obelisk),
+    // keyed by the slug Neopets uses in the perk image folder path:
+    // …/obelisk/<slug>_<random8charhash>/title.png. Unknown/future
+    // slugs (a new boon added after this list was written) fall back
+    // to a humanized version of the slug itself rather than breaking.
+    const BOON_MAP = {
+        bankbribery:            { icon: '🏦', label: 'Bank Bribery' },
+        blackmarketgoods:       { icon: '🕵️', label: 'Black Market Goods' },
+        booksmarts:             { icon: '📚', label: 'Book Smarts' },
+        cartogriphication:      { icon: '🗺️', label: 'Cartogriphication' },
+        cheaperbythedozen:      { icon: '📉', label: 'Cheaper by the Dozen' },
+        doctorwho:              { icon: '💧', label: 'Doctor Who?' },
+        doppelgaenger:          { icon: '👥', label: 'Doppelgänger' },
+        doublebubble:           { icon: '🧪', label: 'Double Bubble' },
+        equipallthethings:      { icon: '⚔️', label: 'Equip ALL THE THINGS' },
+        fivefingerdiscount:     { icon: '💰', label: 'Five-Finger Discount' },
+        grrraaaahhhhhh:         { icon: '💥', label: 'GRRRAAAAHHHHHH!' },
+        lolavies:               { icon: '🎭', label: 'LOL AVIES' },
+        refreshedquestrequest:  { icon: '🔄', label: 'Refreshed Quest Request' },
+        rightroundroundround:   { icon: '🎡', label: 'Right Round Round Round' },
+        scratchmaster:          { icon: '🎟️', label: 'Scratch Master' },
+        strengthofmind:         { icon: '🧠', label: 'Strength of Mind' },
+        thatmillionairefeeling: { icon: '💵', label: 'That Millionaire Feeling' },
+        fullpockets:            { icon: '🎰', label: 'Full Pockets' },
+        premiumdreamium:        { icon: '⭐', label: 'Premium Dreamium' }
+    };
+
+    function humanize(slug) {
+        return slug.replace(/[_-]+/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    }
+
+    function extractSlug(styleAttr) {
+        if (!styleAttr) return null;
+        const m = styleAttr.match(/obelisk\/([a-z0-9]+)_[a-z0-9]{4,12}\//i);
+        return m ? m[1].toLowerCase() : null;
+    }
+
+    // The native script names its per-instance countdown object
+    // window.countdownClock_perk<N> and keeps it ticking via its own
+    // setInterval regardless of whether we hide its markup — we just
+    // read the live numbers off of it every second rather than
+    // re-implementing the countdown ourselves.
+    function findCountdownSource(clockEl) {
+        if (clockEl) {
+            const ul = clockEl.querySelector('ul[id^="countdownClock_perk"]');
+            const id = ul && ul.id;
+            if (id && window[id] && typeof window[id].hours === 'number') {
+                return window[id];
+            }
+        }
+        for (const key in window) {
+            if (/^countdownClock_perk\d+$/.test(key) && window[key] && typeof window[key].hours === 'number') {
+                return window[key];
+            }
+        }
+        return null;
+    }
+
+    function formatRemaining(src) {
+        const h = src.hours || 0, m = src.minutes || 0, s = src.seconds || 0;
+        const parts = [];
+        if (h) parts.push(h + 'h');
+        parts.push(String(m).padStart(2, '0') + 'm');
+        parts.push(String(s).padStart(2, '0') + 's');
+        return parts.join(' ') + ' remaining';
+    }
+
+    function buildCard(boon, messageText) {
+        const card = document.createElement('div');
+        card.id = 'nui-oracle-boon-card';
+        card.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 14px;margin:10px auto;max-width:520px;width:100%;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);box-sizing:border-box;';
+        const escapedName = boon.label.replace(/</g, '&lt;');
+        const escapedMsg = messageText ? messageText.replace(/</g, '&lt;') : '';
+        card.innerHTML =
+            '<div style="font-size:28px;line-height:1;flex-shrink:0;">' + boon.icon + '</div>' +
+            '<div style="min-width:0;flex:1;">' +
+                '<div style="font-size:10px;letter-spacing:0.04em;text-transform:uppercase;color:var(--nui-text-muted);font-weight:700;">Oracle Boon Active</div>' +
+                '<div style="font-size:15px;font-weight:800;color:var(--nui-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapedName + '</div>' +
+                (escapedMsg ? '<div style="font-size:12.5px;color:var(--nui-text);margin-top:3px;">' + escapedMsg + '</div>' : '') +
+                '<div id="nui-oracle-boon-timer" style="font-size:11.5px;color:var(--nui-text-muted);margin-top:3px;"></div>' +
+            '</div>';
+        return card;
+    }
+
+    function run() {
+        const perkBar = document.querySelector('.perkBar');
+        if (!perkBar || document.getElementById('nui-oracle-boon-card')) return;
+
+        const nameEl = perkBar.querySelector('.perkBarName');
+        const slug = extractSlug(nameEl && nameEl.getAttribute('style'));
+        const boon = (slug && BOON_MAP[slug]) || { icon: '🔮', label: slug ? humanize(slug) : 'Oracle Boon' };
+
+        // Fold in the boon-specific in-page message box (e.g.
+        // Cartogriphication's "...compelled to go right" hint) if one
+        // is present on this page, then hide its native markup — it's
+        // shown inside the card below instead.
+        let messageText = '';
+        const msgBox = document.querySelector('#container__2020 div[style*="message_hdr_bg"]');
+        if (msgBox) {
+            messageText = (msgBox.textContent || '').replace(/\s+/g, ' ').trim();
+            msgBox.style.display = 'none';
+        }
+
+        const card = buildCard(boon, messageText);
+        perkBar.parentNode.insertBefore(card, perkBar);
+        perkBar.style.display = 'none';
+
+        const clockEl = perkBar.querySelector('.perkBarClock');
+        const countdownSrc = findCountdownSource(clockEl);
+        const timerEl = card.querySelector('#nui-oracle-boon-timer');
+        if (countdownSrc && timerEl) {
+            const iv = setInterval(function tick() {
+                if (!document.body.contains(timerEl)) { clearInterval(iv); return; }
+                timerEl.textContent = formatRemaining(countdownSrc);
+            }, 1000);
+            timerEl.textContent = formatRemaining(countdownSrc);
+        } else if (timerEl) {
+            timerEl.remove();
+        }
+    }
+
+    function boot() {
+        run();
+        // The perk bar (and any boon message box) can be injected after
+        // initial page load on some pages, so keep watching briefly for
+        // it rather than only checking once at DOMContentLoaded.
+        const obs = new MutationObserver(function () { run(); });
+        obs.observe(document.body, { childList: true, subtree: true });
+        setTimeout(function () { obs.disconnect(); }, 15000);
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        boot();
+    } else {
+        document.addEventListener('DOMContentLoaded', boot);
     }
 })();
