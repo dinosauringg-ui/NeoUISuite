@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeoUI: Unified Suite
 // @namespace    https://github.com/dinosauringg-ui/NeoUISuite
-// @version      2.1.0
+// @version      2.1.1
 // @description  NeoUI Unified Suite: polished theme system, global search, and a daily timer hub for timed Neopets activities, bundled into one mobile-forward userscript.
 // @author       ext1nct
 // @match        *://*.neopets.com/*
@@ -69,7 +69,6 @@
  *   56. Shop Wizard
  *   --- QUESTS ---
  *   27. Faerie Quest Watcher
- *   28. Faerie Quests
  *   29. Quest Ledger
  *   30. Quest Log
  *   50. Jhudora's Bluff & Illusen's Glade
@@ -103,8 +102,96 @@
  *   69. Godori (responsive scale-to-fit board, in-page rules/score modals)
  *   70. Pick Your Own (full NeoUI SPA redesign — Meri Acres Farm)
  *   59. Neolodge
+ *   72. Haunted Woods Hunt (AJAX picks, mobile scale-to-fit, collapsible lore)
+ *   73. Faerie Festival (topbar + theming; native AJAX flows kept)
  *
  * CHANGELOG  (last 5 versions)
+ *
+ * v2.2.4
+ *   - Removed Faerie Quests (Module 28), the full /quests.phtml SPA
+ *     rebuild: Neopets revamped that page to a mobile-friendly native
+ *     layout, which the rebuild's DOM extraction didn't expect, so it no
+ *     longer applied cleanly. Pulled the module until it can be rebuilt
+ *     against the new layout. The 'faerie-quests' toggle is unaffected and
+ *     still gates the sitewide quest watcher (Module 27), which doesn't
+ *     touch the page's markup and is unrelated to the revamp.
+ *
+ * v2.2.3
+ *   - Games Room (36): some games had their bottom cropped off. The
+ *     player box's aspect-ratio is set from the embed URL's width/height
+ *     params, then corrected once Ruffle's real canvas size is known — but
+ *     the correction trusted whatever the canvas reported the moment the
+ *     Ruffle host element first appeared, even when that was still
+ *     Ruffle's own placeholder canvas (Adobe Flash's classic 550x400
+ *     default stage), before the actual .swf had finished loading and
+ *     reporting its real dimensions. For a game whose real stage isn't
+ *     4:3 (e.g. a square 435x435 title), that placeholder overwrote the
+ *     correct URL-derived aspect ratio with the wrong box shape, and the
+ *     content — forced to fill it — got cropped. Now treats exactly that
+ *     550x400 sentinel as "not real yet" and keeps polling instead of
+ *     accepting it.
+ *
+ * v2.2.2
+ *   - Quest Log (30): the native "Claim Reward"/streak buttons hub.js
+ *     renders (.ql-claim etc.) are normally sized by hub.css, which never
+ *     gets a chance to load into this module's rebuilt page — with nothing
+ *     constraining them they rendered at raw, oversized native dimensions.
+ *     Forced the same compact pill sizing every other button here uses,
+ *     with !important to beat any inline size hub.js sets directly.
+ *   - Jhudora's Bluff & Illusen's Glade (50): the Accept-Quest button and
+ *     the primary search-strip button (SSW) both key their background off
+ *     NPC_COLOR — --nui-accent for Jhudora, --nui-success for Illusen —
+ *     but their text color was hardcoded to --nui-accent-ink regardless.
+ *     No theme defines a --nui-success-ink counterpart, so Illusen's
+ *     buttons were using text contrast calibrated for a completely
+ *     different background color than the green actually drawn behind it.
+ *     Now computes real contrast against whichever color NPC_COLOR
+ *     resolves to and picks light/dark text accordingly.
+ *   - Jhudora's Bluff & Illusen's Glade (50): the SW/SSW/TP/SDB search
+ *     strip had no justify-content, so it packed to the left instead of
+ *     centering under the item name field like the rest of the card. Added
+ *     justify-content: center.
+ *
+ * v2.2.1
+ *   - Global: buttons sitewide were losing NeoUI colors/shaping in three
+ *     distinct spots. (1) '.nui-btn-success' and '.nui-btn-red' were used
+ *     at several call sites (Kadoatery collect flow, remove/delete icon
+ *     buttons) but never actually defined, so those buttons fell through
+ *     to the bare '.nui-btn' fallback and lost their intended green/red
+ *     color. Defined both. (2) The a.nui-btn-* link-color carve-out (fixed
+ *     for primary/secondary/danger/warning back in v2.0.2) never got the
+ *     same fix for the ghost/success variants, leaving them exposed to the
+ *     same link-color-bleeds-through-onto-button-text bug if ever used on
+ *     an anchor. Added the missing color declarations. (3) Sitewide
+ *     Chrome's replaceNativeButtons() only ever ran once, against whatever
+ *     was in the DOM at that moment — any button/submit/reset input that
+ *     appeared afterward (AJAX results, delayed scripts) never got swapped
+ *     into a real .nui-btn proxy and fell through to the aggressive
+ *     recoloring pass instead, which strips background-color to
+ *     transparent without setting a replacement color, padding, or
+ *     radius — native default-colored text on a stripped, unshaped
+ *     background. Added a MutationObserver so late-appearing native
+ *     buttons on unclaimed pages get the same proxy treatment.
+ *
+ * v2.2.0
+ *   - New module: Haunted Woods Hunt (72). Two problems with the native
+ *     page on mobile: (1) every click on the hunt canvas is a full-page
+ *     `window.open(url, '_self')`, so finding all five items means five
+ *     full reloads of chrome/nav/etc.; (2) the lore paragraph, the
+ *     multi-account warning note, and an unscaled canvas together push the
+ *     actual game below the fold on most phones. Fixed both: picks are
+ *     now caught via a targeted `window.open` intercept (matches only the
+ *     `?spot=N&key=...` pick URLs — everything else passes through
+ *     untouched) and replayed as a `fetch()`, with the returned
+ *     `#haunted_hunt` fragment swapped into the live DOM and its canvas
+ *     re-initialized in place (config/overlays re-parsed, images
+ *     reloaded, click/hit-test rebound) instead of navigating; and the
+ *     canvas is now scale-to-fit on both axes (same technique as Module
+ *     71's Lair of the Beast) while the lore intro and the fair-play note
+ *     collapse into tap-to-expand `<details>` (open on first-ever visit,
+ *     collapsed after via a localStorage flag, same convention as the
+ *     rest of the suite). Falls back to a real navigation if the fetch
+ *     itself fails, so a network hiccup can't strand anyone mid-hunt.
  *
  * v2.0.19
  *   - Pick Your Own: found the actual root cause of the persistent blank
@@ -2207,17 +2294,50 @@
             position: relative;
             isolation: isolate;
             overflow: hidden;
+            /* Fallback so a bare '.nui-btn' with no color modifier (or one
+               that was never given one — see .nui-btn-ghost below) never
+               renders as a blank, colorless button. Any modifier class
+               declared below wins on cascade order since it matches with
+               equal specificity and comes later. */
+            background: var(--nui-surface-2);
+            color: var(--nui-text);
+            border: 1px solid var(--nui-border);
         }
         .nui-btn:active { transform: scale(0.97); }
         .nui-btn:disabled { opacity: 0.55; cursor: default; transform: none; }
 
-        .nui-btn-primary { background: var(--nui-accent); color: var(--nui-accent-ink); }
+        .nui-btn-primary { background: var(--nui-accent); color: var(--nui-accent-ink); border-color: var(--nui-accent); }
         .nui-btn-primary:active { filter: brightness(0.94); }
 
         .nui-btn-secondary { background: var(--nui-surface-2); color: var(--nui-text); border: 1px solid var(--nui-border); }
 
         .nui-btn-warning { background: var(--nui-warning-soft); color: var(--nui-warning); border: 1px solid var(--nui-warning-soft); }
         .nui-btn-danger  { background: var(--nui-danger-soft);  color: var(--nui-danger);  border: 1px solid var(--nui-danger-soft); }
+
+        /* Referenced at several call sites (Kadoatery trophy-run collect
+           flow, emergency-collect fallback) but never actually defined —
+           those buttons fell through to bare '.nui-btn', losing the
+           intended green "success" color and reading as a plain gray
+           secondary button instead. */
+        .nui-btn-success { background: var(--nui-success-soft, rgba(16,185,129,.15)); color: var(--nui-success); border: 1px solid var(--nui-success-soft, rgba(16,185,129,.15)); }
+
+        /* Referenced by inline-styled delete/remove icon buttons that
+           already override color via style="" — defined here too so the
+           class itself is never the sole source of an unstyled button if
+           a future call site uses it without the inline override. */
+        .nui-btn-red { background: var(--nui-danger-soft); color: var(--nui-danger); border: 1px solid var(--nui-danger-soft); }
+
+        /* Was referenced at several call sites (Stock Market refresh,
+           Auction House refresh/close, etc.) but never actually defined —
+           those buttons fell through to bare '.nui-btn' with no border to
+           distinguish them, which (before the fallback above) meant no
+           color at all: a properly blank/invisible button. */
+        .nui-btn-ghost {
+            background: transparent;
+            color: var(--nui-text-muted);
+            border: 1px solid var(--nui-border);
+        }
+        .nui-btn-ghost:hover { background: var(--nui-surface-2); color: var(--nui-text); }
 
         .nui-btn-block { width: 100%; display: block; }
         .nui-btn-sm { padding: 9px 14px; font-size: 13px; border-radius: 12px 6px 12px 6px; }
@@ -2623,30 +2743,163 @@
         .nui-theme-emoji { font-size: 14px; line-height: 1; }
         .nui-theme-label { line-height: 1.15; }
 
-        /* ── Neopets popup body text ─────────────────────────────────────────
-           .popup-body__2020 is a native Neopets class used on all sitewide
-           popups (quest rewards, skip confirmations, streak reroll, etc.).
-           It's an unstyled white-background box in the native template.css,
-           so its text inherits from whatever ancestor has a color set — which
-           under NeoUI's theme system can be anything from near-black to
-           near-white depending on the active theme's --nui-text value.
-           Locking it to a neutral dark ensures the body text (item names, NP
-           amounts, confirmation copy) is always legible regardless of theme,
-           without touching the popup header/footer which have their own
-           background colors and are already readable.
+        /* ── Generic native popup theming (ANY .togglePopup__2020 popup) ─────
+           Every native 2020-template popup — quest rewards, skip
+           confirmations, streak reroll, leave-beta, the Haunted Woods Hunt's
+           prize reveal, and anything else the site throws up later — shares
+           the same togglePopup__2020 wrapper plus popup-header__2020/
+           popup-body__2020/popup-footer__2020 structure. Previously only the
+           body TEXT was locked to a hardcoded dark color here (a workaround
+           for the native unstyled white background), while everything else
+           — background, header, footer, buttons, the exit control — was
+           either left fully native or had to be re-fixed one popup at a
+           time by ID (Battledome, Closet, Grave Danger, Trudy's Surprise,
+           QuestLog reroll, Jhudora/Illusen, the Haunted Woods Hunt prize
+           popup, etc. — see those modules' own comments for the bugs found
+           along the way). This rule themes the whole shell generically
+           instead, so any NEW popup gets legible, on-theme colors for free
+           without waiting for its own audit pass. Selectors here are plain
+           classes; any popup that still needs its own layout/positioning/
+           hover-state work (Trudy's centering, Battledome's equip states,
+           etc.) keeps its existing #id-scoped rule, which is more specific
+           and therefore still wins over this baseline. The exit control
+           stays scoped to '.togglePopup__2020' (it's popup-specific
+           markup), but the native buttons below are widened sitewide — see
+           that rule's own comment for why.
         ── */
-        .popup-body__2020,
-        .popup-body__2020 p,
-        .popup-body__2020 span,
-        .popup-body__2020 strong,
-        .popup-body__2020 a {
-            color: #222 !important;
+        .togglePopup__2020 .popup-header__2020 {
+            background: var(--nui-surface-2) !important;
+            background-image: none !important;
+            border-bottom: 1px solid var(--nui-border) !important;
+            box-shadow: none !important;
         }
-        .popup-body__2020 a {
-            color: #0055a5 !important;
+        .togglePopup__2020 .popup-header__2020 h3 {
+            color: var(--nui-text) !important;
+            font-family: var(--nui-font-display) !important;
+            background: none !important;
+            text-shadow: none !important;
+        }
+        .togglePopup__2020 .popup-header-pattern__2020,
+        .togglePopup__2020 .popup-footer-pattern__2020,
+        .togglePopup__2020 .beta-exit-popup-image__2020 { display: none !important; }
+        /* .popup-image__2020 is normally a decorative, empty div (e.g. the
+           leave-beta popup's artwork blob) and is safe to hide sitewide —
+           except the wheel scripts (common.js/wheelgame.js) reuse that same
+           class name on #responseDisplaySuccess/#responseDisplayFail, the
+           containers that actually hold the prize image, item name, and
+           spin message inside #wheelPrizePopup. Hiding it there wipes out
+           the whole reward display. Every wheel popup (clickToSpin,
+           clickToShowPrize, wheelDonePopup, wheelPrizePopup, and each
+           wheel's spin-confirm dialog) carries .wheelPopup alongside
+           .togglePopup__2020 on the same element, so excluding that class
+           here is enough to spare all of them without needing an ID list
+           that would have to be kept in sync with every individual wheel
+           page. */
+        .togglePopup__2020:not(.wheelPopup) .popup-image__2020 { display: none !important; }
+
+        .togglePopup__2020 .popup-body__2020 {
+            background: var(--nui-surface) !important;
+            background-image: none !important;
+            color: var(--nui-text) !important;
+        }
+        .togglePopup__2020 .popup-body__2020 p,
+        .togglePopup__2020 .popup-body__2020 span,
+        .togglePopup__2020 .popup-body__2020 strong {
+            color: var(--nui-text) !important;
+        }
+        .togglePopup__2020 .popup-body__2020 a { color: var(--nui-accent) !important; }
+
+        .togglePopup__2020 .popup-footer__2020 {
+            background: var(--nui-surface-2) !important;
+            background-image: none !important;
+            border-top: 1px solid var(--nui-border) !important;
         }
 
+        .togglePopup__2020 .popup-exit.button-default__2020 {
+            background: var(--nui-surface-2) !important;
+            background-image: none !important;
+            border: 1px solid var(--nui-border) !important;
+            box-shadow: none !important;
+        }
+        .togglePopup__2020 .popup-exit-icon {
+            background-image: none !important;
+            width: auto !important;
+            height: auto !important;
+        }
+        .togglePopup__2020 .popup-exit-icon::after {
+            content: '✕';
+            color: var(--nui-text-muted);
+            font-weight: bold;
+            font-size: 12px;
+        }
 
+        /* ── Sitewide native buttons (ANY .button-*__2020, not just popups) ──
+           Originally scoped to '.togglePopup__2020 .button-*__2020' only,
+           out of caution about reaching non-popup UI. Widened sitewide on
+           request — these classes appear on plain page buttons too (Shop
+           Wizard search, form submits, etc.) and looked the same
+           half-native way there. Same flat-pill treatment as before: strip
+           the native background-image sprite and appearance chrome, give it
+           a real background instead of relying on that sprite for contrast.
+           This actually removes a whole class of past bugs rather than
+           risking new ones — several fixes elsewhere in the suite (Games
+           Room screens, Closet, Battledome) existed only because something
+           stripped background-image off a sprite-dependent button and left
+           its native text with nothing to sit on; giving every button its
+           own real background here means that can't happen again, sitewide,
+           without a page-by-page audit. Any page/module with its own more
+           specific button rule (Closet's '.closet-container', Neolodge's
+           '#neolodge-app', Trudy's '.trudyPopup', Jhudora/Illusen's
+           page-local override, etc.) still wins via specificity. */
+        .button-default__2020,
+        .button-yellow__2020,
+        .button-green__2020,
+        .button-red__2020,
+        .button-blue__2020,
+        .button-purple__2020 {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            background: var(--nui-surface-2) !important;
+            background-image: none !important;
+            border: 1px solid var(--nui-border) !important;
+            color: var(--nui-text) !important;
+            border-radius: var(--nui-radius-pill) !important;
+            font-family: var(--nui-font-body) !important;
+            font-weight: 700 !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+        }
+        .button-default__2020:not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020):not(.button-blue__2020):not(.button-purple__2020) {
+            background: var(--nui-accent) !important;
+            color: var(--nui-accent-ink, #fff) !important;
+            border-color: var(--nui-accent) !important;
+        }
+        .button-yellow__2020,
+        .button-green__2020,
+        .button-purple__2020 {
+            background: var(--nui-accent) !important;
+            color: var(--nui-accent-ink, #fff) !important;
+            border-color: var(--nui-accent) !important;
+        }
+        .button-red__2020 {
+            background: var(--nui-danger-soft, rgba(220,38,38,.12)) !important;
+            color: var(--nui-danger, #dc2626) !important;
+            border-color: var(--nui-danger, #dc2626) !important;
+        }
+        .button-blue__2020 {
+            background: var(--nui-surface-2) !important;
+            color: var(--nui-accent) !important;
+            border-color: var(--nui-accent) !important;
+        }
+        .button-default__2020:hover,
+        .button-yellow__2020:hover,
+        .button-green__2020:hover,
+        .button-red__2020:hover,
+        .button-blue__2020:hover,
+        .button-purple__2020:hover {
+            filter: brightness(1.08) !important;
+        }
 
         /* ── Inventory item popup (#invDesc) ─────────────────────────────────
            Scoped strictly to #invDesc so the other native popups sharing
@@ -2834,6 +3087,10 @@
         [data-neoui-theme] a.nui-btn-danger { color: var(--nui-danger) !important; }
         body[data-neoui-theme] a.nui-btn-warning,
         [data-neoui-theme] a.nui-btn-warning { color: var(--nui-warning) !important; }
+        body[data-neoui-theme] a.nui-btn-success,
+        [data-neoui-theme] a.nui-btn-success { color: var(--nui-success) !important; }
+        body[data-neoui-theme] a.nui-btn-ghost,
+        [data-neoui-theme] a.nui-btn-ghost { color: var(--nui-text-muted) !important; }
 
 
         /* ── Native profile dropdown (#navprofiledropdown__2020) ──────────────
@@ -4155,7 +4412,7 @@
         { id: 'shop-wizard',    label: 'Shop Wizard',                desc: 'Full page rebuild — additive multi-search results, sorted by price', group: 'Economy & Banking' },
         { id: 'shop-pricing-helper', label: 'Your Shop — Card Rebuild',   desc: 'Card-based restyle of the Your Shop stock page (SDB-style) and the Shop Till withdraw page, with per-item SW/SSW price lookup (reference only) + unpriced highlighting', group: 'Economy & Banking' },
 
-        { id: 'faerie-quests',  label: 'Faerie Quests',              desc: 'Quest watcher + full page SPA',                  group: 'Quests' },
+        { id: 'faerie-quests',  label: 'Faerie Quests',              desc: 'Sitewide quest watcher (page rebuild pending revamp)', group: 'Quests' },
         { id: 'faerie-bluffs',  label: "Jhudora's Bluff & Illusen's Glade", desc: "Level/score summary, 12h cooldown synced to Home timers, Level 26 avatar tip", group: 'Quests' },
         { id: 'quest-ledger',   label: 'Quest Ledger',               desc: 'Taelia/Edna/Kitchen Quest tracker + analytics', group: 'Quests' },
         { id: 'quest-log',      label: 'Quest Log',                  desc: 'Reskinned /questlog/ hub — NeoUI tokens, toasts, quicklinks', group: 'Quests' },
@@ -4170,6 +4427,7 @@
         { id: 'lab-ray',        label: 'Lab Ray',                    desc: 'Full SPA — pet grid with per-pet protect locks', group: 'Games & Daily Activities' },
         { id: 'buried-treasure',label: 'Buried Treasure',            desc: 'Map SPA',                                        group: 'Games & Daily Activities' },
         { id: 'lairbeast-mobile', label: 'Lair of the Beast',        desc: 'Trims the walkthrough padding and scale-to-fits the lyre-scare canvas so the whole thing plays without side-scrolling on mobile', group: 'Games & Daily Activities' },
+        { id: 'haunted-woods-hunt', label: 'Haunted Woods Hunt',    desc: 'AJAX picks (no full reload per click), scale-to-fit canvas, collapsible lore/note', group: 'Games & Daily Activities' },
         { id: 'games',          label: 'Games Room',                 desc: 'Games list + Ruffle wrapper',                    group: 'Games & Daily Activities' },
         { id: 'dice-a-roo',     label: 'Dice-A-Roo',                 desc: 'Fetch-based play SPA with session stats',        group: 'Games & Daily Activities' },
         { id: 'kadoatery',      label: 'Kadoatery',                  desc: 'Mobile grid + tap-to-copy items',                group: 'Games & Daily Activities' },
@@ -4194,6 +4452,7 @@
         { id: 'lottery',        label: 'Neopian Lottery',            desc: 'Quick Pick generator + ticket purchasing SPA',   group: 'Games & Daily Activities' },
         { id: 'abandoned-attic',label: 'Almost Abandoned Attic',     desc: 'Clean item grid with larger hitboxes',           group: 'Games & Daily Activities' },
         { id: 'concert-hall',   label: 'Tyrannian Concert Hall',     desc: 'Tabbed ticket booth + concert hall card',        group: 'Games & Daily Activities' },
+        { id: 'faerie-festival',label: 'Faerie Festival',            desc: 'NeoUI topbar + theming for donate/prize shop/voting/Faerie Pass (native AJAX flows kept as-is, no full reloads)', group: 'Games & Daily Activities' },
         { id: 'bank',           label: 'Bank',                       desc: 'Restyled deposit/withdraw/interest screens',     group: 'Economy & Banking' },
         { id: 'tradingpost',    label: 'Trading Post',               desc: 'Full SPA — lot browser + instant-buy/offer flows', group: 'Economy & Banking' },
         { id: 'vending-machine',label: 'Alien Aisha Vending Machine',desc: 'Full SPA for the vending machine minigame/shop', group: 'Economy & Banking' },
@@ -6713,10 +6972,12 @@
             (itemName ? ' <span style="font-weight:400;font-size:13px;color:var(--nui-text-muted);">— ' + itemName.replace(/</g, '&lt;') + '</span>' : '') +
             '</span>' +
             '<button id="nui-sdb-bulk-shortcut" style="font-size:11px;color:var(--nui-accent);background:none;text-decoration:none;padding:4px 8px;border:1px solid var(--nui-accent);border-radius:var(--nui-radius-sm);white-space:nowrap;cursor:pointer;" title="Send several items or gift to several people at once">⚡ Bulk Sender</button>' +
+            '<button id="nui-sdb-history-shortcut" style="font-size:11px;color:var(--nui-text-muted);background:none;text-decoration:none;padding:4px 8px;border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);white-space:nowrap;cursor:pointer;" title="See everything you\'ve sent or received">📦 History</button>' +
             '<a href="' + buildSDBUrl(itemName) + '" target="_blank" rel="noopener" style="font-size:11px;color:var(--nui-text-muted);text-decoration:none;padding:4px 8px;border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);white-space:nowrap;" title="Open in new tab">↗ New tab</a>' +
             '<button id="nui-sdb-modal-close" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--nui-text-muted);line-height:1;padding:0;">×</button>';
         header.querySelector('#nui-sdb-modal-close').addEventListener('click', closeModal);
         header.querySelector('#nui-sdb-bulk-shortcut').addEventListener('click', function () { openSDBBulkSender(); });
+        header.querySelector('#nui-sdb-history-shortcut').addEventListener('click', function () { global.NeoUI.transferHistory.openModal(); });
 
         const spaContainer = document.createElement('div');
         spaContainer.style.cssText = 'flex:1;overflow-y:auto;position:relative;background:var(--nui-bg);';
@@ -6997,6 +7258,16 @@
                             okCount++;
                             statusEl.textContent = '✓ Sent';
                             statusEl.style.color = 'var(--nui-success)';
+                            if (window.NeoUI && window.NeoUI.transferHistory) {
+                                window.NeoUI.transferHistory.add([{
+                                    direction: 'out',
+                                    counterparty: job.recipient || '',
+                                    item: job.itemName || job.label,
+                                    date: new Date().toLocaleString(),
+                                    action: 'Sent (Bulk Sender)',
+                                    loggedAt: Date.now()
+                                }]);
+                            }
                         } else {
                             failCount++;
                             statusEl.textContent = '✗ ' + (res.message || 'Failed');
@@ -7032,13 +7303,15 @@
         // pass/fail — mirrors sendBulkGifts() in the Helper script, which
         // loops `for (let q = 0; q < qty; q++)` rather than trusting the
         // server to honor a batched quantity.
-        function buildQtyJobs(labelBase, objInfoId, qty, recipient, boot) {
+        function buildQtyJobs(labelBase, objInfoId, qty, recipient, boot, itemName) {
             var jobs = [];
             var n = Math.max(1, qty | 0);
             for (var i = 0; i < n; i++) {
                 jobs.push({
                     label: n > 1 ? (labelBase + ' (' + (i + 1) + '/' + n + ')') : labelBase,
                     send: function (pin) { return sdbBulkGive(boot, objInfoId, recipient, pin); },
+                    itemName: itemName,
+                    recipient: recipient,
                 });
             }
             return jobs;
@@ -7116,7 +7389,7 @@
                 if (totalSends > 30 && !confirm('You\'re about to send ' + totalSends + ' separate gifts to ' + recipient + ' (' + cart.length + ' item type' + (cart.length === 1 ? '' : 's') + '). This will take a while and can\'t be undone once each send goes through — continue?')) return;
                 var jobs = [];
                 cart.forEach(function (entry) {
-                    jobs = jobs.concat(buildQtyJobs(entry.item.obj_name + ' → ' + recipient, entry.item.obj_info_id, entry.qty, recipient, boot));
+                    jobs = jobs.concat(buildQtyJobs(entry.item.obj_name + ' → ' + recipient, entry.item.obj_info_id, entry.qty, recipient, boot, entry.item.obj_name));
                 });
                 runBatch(batchArea, boot, jobs);
             });
@@ -7226,7 +7499,7 @@
                 var jobs = [];
                 recipients.forEach(function (r) {
                     cart.forEach(function (entry) {
-                        jobs = jobs.concat(buildQtyJobs(entry.item.obj_name + ' → ' + r, entry.item.obj_info_id, entry.qty, r, boot));
+                        jobs = jobs.concat(buildQtyJobs(entry.item.obj_name + ' → ' + r, entry.item.obj_info_id, entry.qty, r, boot, entry.item.obj_name));
                     });
                 });
                 runBatch(batchArea, boot, jobs);
@@ -11474,6 +11747,181 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         return global.NeoUI;
     }
 
+    // ---- Shared Transfer History ----------------------------------------
+    // A single localStorage-backed log used by every place items change
+    // hands: incoming decisions made on the Item Transfer Log (Module 17)
+    // and outgoing sends from the Safety Deposit Box / SDB Bulk Sender
+    // (Module 23). One shared store means "View History" from any of those
+    // surfaces shows the full picture instead of separate, disconnected
+    // logs. Entry shape: { direction: 'in'|'out', counterparty, item, date,
+    // action, loggedAt }.
+    const TRANSFER_HISTORY_KEY = 'neoui-transfer-history';
+    const TRANSFER_HISTORY_MAX = 5000;
+
+    function getTransferHistory() {
+        try {
+            const raw = localStorage.getItem(TRANSFER_HISTORY_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) { return []; }
+    }
+
+    function saveTransferHistory(entries) {
+        try {
+            localStorage.setItem(TRANSFER_HISTORY_KEY, JSON.stringify(entries.slice(-TRANSFER_HISTORY_MAX)));
+        } catch (e) { /* storage unavailable/full — fail silently, don't block the page */ }
+    }
+
+    function addTransferHistoryEntries(newEntries) {
+        if (!newEntries || !newEntries.length) return;
+        saveTransferHistory(getTransferHistory().concat(newEntries));
+    }
+
+    function clearTransferHistory() { saveTransferHistory([]); }
+
+    function parseTransferHistoryDate(dateText) {
+        if (!dateText) return 0;
+        const t = Date.parse(String(dateText).replace(/NST/i, '').trim());
+        return isNaN(t) ? 0 : t;
+    }
+
+    const TRANSFER_HISTORY_COLUMNS = [
+        { key: 'direction', label: 'Dir' },
+        { key: 'counterparty', label: 'With' },
+        { key: 'item', label: 'Item' },
+        { key: 'action', label: 'Action' },
+        { key: 'date', label: 'Date' }
+    ];
+
+    let transferHistorySort = { key: 'loggedAt', dir: 'desc' };
+
+    function sortTransferHistory(entries, key, dir) {
+        return entries.slice().sort(function (a, b) {
+            let av, bv;
+            if (key === 'date') {
+                av = parseTransferHistoryDate(a.date) || a.loggedAt || 0;
+                bv = parseTransferHistoryDate(b.date) || b.loggedAt || 0;
+            } else {
+                av = (a[key] || '').toString().toLowerCase();
+                bv = (b[key] || '').toString().toLowerCase();
+            }
+            if (av < bv) return dir === 'asc' ? -1 : 1;
+            if (av > bv) return dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    function csvEscapeTH(value) {
+        const str = (value === undefined || value === null) ? '' : String(value);
+        return /[",\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+    }
+
+    function exportTransferHistoryCSV() {
+        const entries = sortTransferHistory(getTransferHistory(), transferHistorySort.key, transferHistorySort.dir);
+        const headers = TRANSFER_HISTORY_COLUMNS.map(function (c) { return c.label; });
+        const lines = [headers.map(csvEscapeTH).join(',')];
+        entries.forEach(function (e) {
+            lines.push(TRANSFER_HISTORY_COLUMNS.map(function (c) { return csvEscapeTH(e[c.key]); }).join(','));
+        });
+        const csvContent = '\uFEFF' + lines.join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'neopets-transfer-history-' + new Date().toISOString().slice(0, 10) + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function openTransferHistoryModal() {
+        const existing = document.querySelector('.nui-th-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'nui-drawer-backdrop nui-reset is-open nui-th-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:var(--nui-overlay);display:flex;align-items:center;justify-content:center;padding:var(--nui-space-4);';
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+
+        const modal = document.createElement('div');
+        modal.className = 'nui-surface';
+        modal.style.cssText = 'width:100%;max-width:720px;max-height:82vh;border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);box-shadow:0 10px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;';
+
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;gap:var(--nui-space-3);padding:var(--nui-space-3) var(--nui-space-4);border-bottom:1px solid var(--nui-border);flex-shrink:0;';
+        header.innerHTML = '<span style="font-family:var(--nui-font-display);font-size:16px;font-weight:800;color:var(--nui-text);flex:1;">📦 Transfer History</span><button id="nui-th-close" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--nui-text-muted);line-height:1;padding:0;">×</button>';
+        header.querySelector('#nui-th-close').addEventListener('click', function () { overlay.remove(); });
+
+        const tableWrap = document.createElement('div');
+        tableWrap.style.cssText = 'flex:1;overflow:auto;padding:0 var(--nui-space-4);';
+
+        const footer = document.createElement('div');
+        footer.style.cssText = 'display:flex;gap:var(--nui-space-2);justify-content:flex-end;padding:var(--nui-space-3) var(--nui-space-4);border-top:1px solid var(--nui-border);flex-shrink:0;';
+        const exportBtn = h('button', { class: 'nui-btn nui-btn-primary nui-btn-sm', type: 'button' }, 'Export CSV');
+        exportBtn.addEventListener('click', exportTransferHistoryCSV);
+        const clearBtn = h('button', { class: 'nui-btn nui-btn-danger nui-btn-sm', type: 'button' }, 'Clear History');
+        clearBtn.addEventListener('click', function () {
+            if (!confirm('Clear all locally logged transfer history? This cannot be undone.')) return;
+            clearTransferHistory();
+            renderTable();
+        });
+        footer.appendChild(exportBtn);
+        footer.appendChild(clearBtn);
+
+        function renderTable() {
+            tableWrap.innerHTML = '';
+            const entries = sortTransferHistory(getTransferHistory(), transferHistorySort.key, transferHistorySort.dir);
+            if (!entries.length) {
+                tableWrap.innerHTML = '<div style="padding:40px 0;text-align:center;color:var(--nui-text-muted);font-size:13px;">No transfer history logged yet. Entries appear here whenever you accept/return/discard an incoming transfer, or send an item via the Safety Deposit Box.</div>';
+                return;
+            }
+            const table = document.createElement('table');
+            table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12.5px;color:var(--nui-text);';
+            const thead = document.createElement('thead');
+            const headRow = document.createElement('tr');
+            TRANSFER_HISTORY_COLUMNS.forEach(function (col) {
+                const th = document.createElement('th');
+                th.textContent = col.label + (transferHistorySort.key === col.key ? (transferHistorySort.dir === 'asc' ? ' \u25B2' : ' \u25BC') : '');
+                th.style.cssText = 'position:sticky;top:0;background:var(--nui-surface);text-align:left;padding:8px 10px;cursor:pointer;user-select:none;border-bottom:2px solid var(--nui-border);white-space:nowrap;';
+                th.addEventListener('click', function () {
+                    if (transferHistorySort.key === col.key) transferHistorySort.dir = transferHistorySort.dir === 'asc' ? 'desc' : 'asc';
+                    else transferHistorySort = { key: col.key, dir: 'asc' };
+                    renderTable();
+                });
+                headRow.appendChild(th);
+            });
+            thead.appendChild(headRow);
+            table.appendChild(thead);
+            const tbody = document.createElement('tbody');
+            entries.forEach(function (entry) {
+                const tr = document.createElement('tr');
+                TRANSFER_HISTORY_COLUMNS.forEach(function (col) {
+                    const td = document.createElement('td');
+                    let val = entry[col.key] || '';
+                    if (col.key === 'direction') val = val === 'out' ? '\u2191 Sent' : '\u2193 Received';
+                    td.textContent = val;
+                    td.style.cssText = 'padding:7px 10px;border-bottom:1px solid var(--nui-border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;';
+                    if (col.key === 'action') {
+                        td.style.fontWeight = '700';
+                        td.style.color = entry.action === 'Accept' ? 'var(--nui-success)' : entry.action === 'Return' ? 'var(--nui-danger)' : entry.action === 'Discard' ? 'var(--nui-text-muted)' : 'var(--nui-accent)';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            tableWrap.appendChild(table);
+        }
+        renderTable();
+
+        modal.appendChild(header);
+        modal.appendChild(tableWrap);
+        modal.appendChild(footer);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    }
+
     global.NeoUI = {
         __ready: true,
         __inFrame: NUI_IN_IFRAME,
@@ -11512,6 +11960,12 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         openSDBBulk: openSDBBulkSender,
         openQuickStock: openGlobalQuickStock,
         ensureCoreStyles: ensureCoreStyles,
+        transferHistory: {
+            add: addTransferHistoryEntries,
+            getAll: getTransferHistory,
+            clear: clearTransferHistory,
+            openModal: openTransferHistoryModal
+        },
         popup: {
             show: function (title, msg, cb) { return getPopup().show(title, msg, cb); },
             confirm: function (title, msg, cb, label, cancelLabel) { return getPopup().confirm(title, msg, cb, label, cancelLabel); },
@@ -26276,6 +26730,78 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         } catch (e2) { }
     }
 
+    // Shared row parser — used both for the initial page scrape (run()) and
+    // for logging what "Accept All (All Pages)" silently accepts in the
+    // background (runAutoAcceptInIframe()). Locates cells by which radio
+    // they hold rather than by a fixed column index: NC gift rows don't
+    // always carry a "Return" option (some Neocash items can only be
+    // Accepted or Discarded), which shifts every later column by one — a
+    // fixed `[a, b, c, d, e] = cells` destructure silently mis-mapped
+    // columns (or a `cells.length < 5` guard dropped the row entirely)
+    // whenever that happened.
+    function parseTransferRow(row) {
+        const allRadios = Array.from(row.querySelectorAll('input[type="radio"]'));
+        const acceptRadioEl = allRadios.find(r => r.classList.contains('np_sel_radio') || r.classList.contains('nc_gift_sel_radio'));
+        if (!acceptRadioEl) return null; // not a data row
+
+        const isNC = acceptRadioEl.classList.contains('nc_gift_sel_radio');
+        const rejectRadioEl = allRadios.find(r => r.classList.contains('np_reject_all') || r.classList.contains('nc_gift_rej_radio'));
+        // Discard's actual class name isn't consistent across NC layouts,
+        // so treat "whichever radio is left over" as discard instead of
+        // guessing a class to match.
+        const discardRadioEl = allRadios.find(r => r !== acceptRadioEl && r !== rejectRadioEl);
+
+        const acceptCell = acceptRadioEl.closest('td');
+        const rejectCell = rejectRadioEl ? rejectRadioEl.closest('td') : null;
+        const discardCell = discardRadioEl ? discardRadioEl.closest('td') : null;
+        const radioCells = [acceptCell, rejectCell, discardCell];
+        const nonRadioCells = Array.from(row.querySelectorAll('td')).filter(c => radioCells.indexOf(c) === -1);
+
+        let itemCell, dateText, fromName, fromHref, itemName;
+
+        if (isNC) {
+            // NC layout: [sender/message cell, item cell, radios...] — but
+            // some NC rows fold both into a single cell, so fall back to
+            // that one cell for both if a second non-radio cell isn't
+            // present.
+            const textCell = nonRadioCells[0] || null;
+            itemCell = nonRadioCells[1] || nonRadioCells[0] || null;
+
+            // Prefer the item cell's own <b> (same place every other row
+            // type keeps its item name); only fall back to the
+            // sender-message cell, then the image's alt/title, then a
+            // generic label.
+            const itemImg = itemCell ? itemCell.querySelector('img') : null;
+            const itemNameEl = (itemCell && itemCell.querySelector('b')) || (textCell && textCell.querySelector('b'));
+            itemName = itemNameEl ? itemNameEl.textContent.trim()
+                : (itemImg && (itemImg.alt || itemImg.title)) ? (itemImg.alt || itemImg.title)
+                : 'Neocash Item';
+
+            // Some NC gift rows do name the sender — grab a real profile
+            // link if one is there instead of always showing the generic
+            // "NC Gift" placeholder.
+            const senderLink = textCell ? textCell.querySelector('a[href*="userlookup.phtml"]') : null;
+            fromName = senderLink ? senderLink.textContent.trim() : 'NC Gift';
+            fromHref = senderLink ? senderLink.getAttribute('href') : null;
+            dateText = 'Pending';
+        } else {
+            const dateCellRef = nonRadioCells[0] || null;
+            const fromCellRef = nonRadioCells[1] || null;
+            itemCell = nonRadioCells[2] || null;
+
+            dateText = dateCellRef ? dateCellRef.textContent.trim() : '';
+            const fromLink = fromCellRef ? fromCellRef.querySelector('a') : null;
+            fromName = fromLink ? fromLink.textContent.trim() : (fromCellRef ? fromCellRef.textContent.trim() : '');
+            fromHref = fromLink ? fromLink.getAttribute('href') : null;
+            const itemNameEl = itemCell ? itemCell.querySelector('b') : null;
+            itemName = itemNameEl ? itemNameEl.textContent.trim() : (itemCell ? itemCell.textContent.trim() : 'Item');
+        }
+
+        if (!itemCell) return null;
+
+        return { itemCell, dateText, fromName, fromHref, itemName, acceptRadioEl, rejectRadioEl, discardRadioEl };
+    }
+
     function run() {
         const NeoUI = window.NeoUI;
         if (!NeoUI || !NeoUI.__ready) { throw new Error('NeoUI Core Framework was not found.'); }
@@ -26298,53 +26824,31 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             const table = form.querySelector('table.itemTable');
             if (!table) return;
 
-            const isNC = table.querySelector('.nc_gift_sel_radio') !== null;
             const hiddenInputs = Array.from(form.querySelectorAll('input[type="hidden"]')).map(inp => ({ name: inp.name, value: inp.value }));
             const action = form.getAttribute('action') || '';
             const method = form.getAttribute('method') || 'POST';
 
             const items = [];
             Array.from(table.querySelectorAll('tr')).slice(1).forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length < 5) return;
-
-                let itemCell, acceptCell, rejectCell, discardCell, dateText, fromName, fromHref, itemName;
-
-                if (isNC) {
-                    const [textCell, itemCellRef, acceptCellRef, rejectCellRef, discardCellRef] = cells;
-                    itemCell = itemCellRef; acceptCell = acceptCellRef; rejectCell = rejectCellRef; discardCell = discardCellRef;
-                    const bTag = textCell.querySelector('b');
-                    itemName = bTag ? bTag.textContent.trim() : "Neocash Item";
-                    fromName = "NC Gift"; dateText = "Pending"; fromHref = null;
-                } else {
-                    const [dateCellRef, fromCellRef, itemCellRef, acceptCellRef, rejectCellRef] = cells;
-                    itemCell = itemCellRef; acceptCell = acceptCellRef; rejectCell = rejectCellRef; discardCell = null;
-                    dateText = dateCellRef.textContent.trim();
-                    const fromLink = fromCellRef.querySelector('a');
-                    fromName = fromLink ? fromLink.textContent.trim() : fromCellRef.textContent.trim();
-                    fromHref = fromLink ? fromLink.getAttribute('href') : null;
-                    const itemNameEl = itemCell.querySelector('b');
-                    itemName = itemNameEl ? itemNameEl.textContent.trim() : itemCell.textContent.trim();
-                }
+                const parsed = parseTransferRow(row);
+                if (!parsed) return;
+                const { itemCell, dateText, fromName, fromHref, itemName, acceptRadioEl, rejectRadioEl, discardRadioEl } = parsed;
 
                 const img = itemCell.querySelector('img');
                 const imgSrc = img ? img.src : 'https://images.neopets.com/items/default.gif';
 
-                const extractRadio = (cell) => {
-                    const r = cell ? cell.querySelector('input[type="radio"]') : null;
-                    return r ? { name: r.name, value: r.value, class: r.className } : null;
-                };
+                const extractRadio = (r) => r ? { name: r.name, value: r.value, class: r.className } : null;
 
                 items.push({
                     itemName, fromName, fromHref, dateText, imgSrc,
-                    accept: extractRadio(acceptCell),
-                    reject: extractRadio(rejectCell),
-                    discard: extractRadio(discardCell)
+                    accept: extractRadio(acceptRadioEl),
+                    reject: extractRadio(rejectRadioEl),
+                    discard: extractRadio(discardRadioEl)
                 });
             });
 
             if (items.length > 0) {
-                scrapedForms.push({ action, method, hiddenInputs, items, isNC });
+                scrapedForms.push({ action, method, hiddenInputs, items });
             }
         });
 
@@ -26393,17 +26897,28 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             container.appendChild(pager);
         }
 
-        // Toolbar
+        // Toolbar — "View History" shows regardless of whether anything is
+        // currently pending, since it's a log of past decisions, not the
+        // current queue.
+        const toolbar = document.createElement('div');
+        toolbar.style.cssText = 'display: flex; gap: var(--nui-space-2); flex-wrap: wrap; justify-content: center; margin-bottom: var(--nui-space-3);';
         if (scrapedForms.length > 0) {
-            const toolbar = document.createElement('div');
-            toolbar.style.cssText = 'display: flex; gap: var(--nui-space-2); flex-wrap: wrap; justify-content: center; margin-bottom: var(--nui-space-3);';
             toolbar.innerHTML = `
                 <button type="button" class="nui-btn nui-btn-secondary nui-btn-sm" id="btn-accept-all" style="flex: 1 1 auto;">Accept All</button>
                 <button type="button" class="nui-btn nui-btn-secondary nui-btn-sm" id="btn-return-all" style="flex: 1 1 auto;">Return All</button>
                 <button type="button" class="nui-btn nui-btn-danger nui-btn-sm" id="btn-accept-all-pages" style="flex: 1 1 auto; background: var(--nui-danger-soft); border-color: var(--nui-danger-soft); color: var(--nui-danger);">Accept All (All Pages)</button>
             `;
-            container.appendChild(toolbar);
-        } else {
+        }
+        const historyBtn = document.createElement('button');
+        historyBtn.type = 'button';
+        historyBtn.className = 'nui-btn nui-btn-secondary nui-btn-sm';
+        historyBtn.style.flex = '1 1 auto';
+        historyBtn.textContent = 'View History';
+        historyBtn.addEventListener('click', () => NeoUI.transferHistory.openModal());
+        toolbar.appendChild(historyBtn);
+        container.appendChild(toolbar);
+
+        if (scrapedForms.length === 0) {
             container.innerHTML += `<div class="nui-empty"><span class="nui-empty-emoji">📭</span>No pending transfers found.</div>`;
         }
 
@@ -26420,6 +26935,11 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 input.type = 'hidden'; input.name = hi.name; input.value = hi.value;
                 formEl.appendChild(input);
             });
+
+            // Tracks which radio corresponds to which decision per item, so
+            // on submit we can log whatever the user actually chose to the
+            // shared transfer history.
+            const rowRecords = [];
 
             sf.items.forEach((item, iIndex) => {
                 const card = document.createElement('div');
@@ -26460,6 +26980,22 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 `;
                 card.appendChild(actionsWrap);
                 formEl.appendChild(card);
+
+                // Map each rendered radio back to the decision it
+                // represents (built in the same accept/reject/discard
+                // order createLabel just rendered them in), so submit-time
+                // logging knows which one the user picked.
+                const labelOrder = [];
+                if (item.accept) labelOrder.push('Accept');
+                if (item.reject) labelOrder.push('Return');
+                if (item.discard) labelOrder.push('Discard');
+                const radioEls = Array.from(actionsWrap.querySelectorAll('input.hidden-radio'));
+                rowRecords.push({
+                    itemName: item.itemName,
+                    fromName: item.fromName,
+                    dateText: item.dateText,
+                    radios: radioEls.map((el, idx) => ({ el, action: labelOrder[idx] }))
+                });
             });
 
             if (sf.items.length > 0) {
@@ -26469,6 +27005,23 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 submitBtn.textContent = 'Process Transfers';
                 formEl.appendChild(submitBtn);
             }
+
+            formEl.addEventListener('submit', () => {
+                const entries = [];
+                rowRecords.forEach(rec => {
+                    const checked = rec.radios.find(r => r.el.checked);
+                    if (!checked) return;
+                    entries.push({
+                        direction: 'in',
+                        counterparty: rec.fromName,
+                        item: rec.itemName,
+                        date: rec.dateText,
+                        action: checked.action,
+                        loggedAt: Date.now()
+                    });
+                });
+                NeoUI.transferHistory.add(entries);
+            });
 
             container.appendChild(formEl);
         });
@@ -26548,6 +27101,29 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             }
 
             const formToSubmit = acceptRadios[0].closest('form');
+
+            // Log every row in this form as an Accept before checking the
+            // radios — this loop accepts everything it finds, so there's no
+            // separate "which decision did they make" step like the
+            // foreground UI has.
+            const bgTable = formToSubmit.querySelector('table.itemTable');
+            if (bgTable) {
+                const bgEntries = [];
+                Array.from(bgTable.querySelectorAll('tr')).slice(1).forEach(row => {
+                    const parsed = parseTransferRow(row);
+                    if (!parsed) return;
+                    bgEntries.push({
+                        direction: 'in',
+                        counterparty: parsed.fromName,
+                        item: parsed.itemName,
+                        date: parsed.dateText,
+                        action: 'Accept',
+                        loggedAt: Date.now()
+                    });
+                });
+                if (window.NeoUI && window.NeoUI.transferHistory) window.NeoUI.transferHistory.add(bgEntries);
+            }
+
             formToSubmit.querySelectorAll('input.np_sel_radio, input.nc_gift_sel_radio').forEach(r => r.checked = true);
             formsProcessed += 1;
 
@@ -30863,6 +31439,16 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         };
         titleRow.appendChild(bulkSenderBtn);
 
+        var historyBtn = document.createElement('button');
+        historyBtn.className = 'nui-sdb-pill';
+        historyBtn.style.cssText = 'font-size:13px;';
+        historyBtn.textContent = '📦 History';
+        historyBtn.onclick = function (e) {
+            e.preventDefault();
+            if (window.NeoUI && window.NeoUI.transferHistory) window.NeoUI.transferHistory.openModal();
+        };
+        titleRow.appendChild(historyBtn);
+
         // 2. Toolbar, Body, Footer, Bulk Bar
         var toolbar = document.createElement('div'); toolbar.className = 'nui-sdb-toolbar';
         var body    = document.createElement('div'); body.className    = 'nui-sdb-body';
@@ -31633,9 +32219,20 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     renderConfirmPanel('neofriend', 'Give to Neofriend', state.pinRequired, fields, function(panel, pin) {
                         var recipient = panel.querySelector('#nui-sdb-nf-user').value.trim();
                         if (!recipient) { showMsg('Enter a username.', true); return; }
-                        sdbPost('give-neofriend.php', { obj_info_id: item.obj_info_id, quantity: getQty(), recipient: recipient, pin: pin, _ref_ck: state.refCk }).then(function (data) {
+                        var qtySent = getQty();
+                        sdbPost('give-neofriend.php', { obj_info_id: item.obj_info_id, quantity: qtySent, recipient: recipient, pin: pin, _ref_ck: state.refCk }).then(function (data) {
                             if (data.success) {
                                 showMsg('✓ Sent to ' + recipient, false);
+                                if (window.NeoUI && window.NeoUI.transferHistory) {
+                                    window.NeoUI.transferHistory.add([{
+                                        direction: 'out',
+                                        counterparty: recipient,
+                                        item: item.obj_name + (qtySent > 1 ? ' ×' + qtySent : ''),
+                                        date: new Date().toLocaleString(),
+                                        action: 'Sent (SDB)',
+                                        loggedAt: Date.now()
+                                    }]);
+                                }
                                 item.amount -= getQty();
                                 if (item.amount <= 0) {
                                     state.items = state.items.filter(function (i) { return i.obj_info_id !== item.obj_info_id; });
@@ -32264,9 +32861,6 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         { value: 'stockgallery', label: 'Put into Gallery' }
     ];
 
-    window.centerPopup__2020 = window.centerPopup__2020 || function () {};
-    window.togglePopup__2020 = window.togglePopup__2020 || function () {};
-
     function escHtml(s) {
         var d = document.createElement('div');
         d.textContent = String(s == null ? '' : s);
@@ -32821,6 +33415,18 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
     if (location.pathname !== '/inventory.phtml') return;
     if (!window.NeoUI || !window.NeoUI.isModuleEnabled('inventory-restyle')) return;
+
+    // Scoped here (post-guard) rather than at module top: these stubs are
+    // only safe to apply on /inventory.phtml itself, where this module's
+    // own self-built popup replaces the classic popup/shade system. Applied
+    // unconditionally at module load, they raced the *real* native
+    // togglePopup__2020 on every other page this script touches — if this
+    // ran first, it silently won that race and no-op'd the native popup
+    // sitewide (e.g. the Haunted Woods Hunt prize reveal), while any
+    // `typeof window.togglePopup__2020 === 'function'` check elsewhere
+    // still passed, since a stub is still a function.
+    window.centerPopup__2020 = window.centerPopup__2020 || function () {};
+    window.togglePopup__2020 = window.togglePopup__2020 || function () {};
 
     var NeoUI = window.NeoUI;
     var inModal = NeoUI.__inFrame;
@@ -33682,331 +34288,6 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
     if (document.body) start();
     else document.addEventListener('DOMContentLoaded', start);
-})();
-
-
-// ==============================================================================
-// MODULE 28: FAERIE QUESTS
-// ==============================================================================
-// Full /quests.phtml SPA rebuild.
-// ==============================================================================
-
-// Activates on: /quests.phtml
-// Full page rebuild (SDB/Trading Post/Auction lookups, copy-name button, quest
-// state persisted across reloads). Uses the 'faerie-quests' toggle key, the
-// same key the old headless enhancement used before it was retired and
-// removed, so no one's existing on/off preference is orphaned.
-// ==============================================================================
-
-(function () {
-    'use strict';
-
-    if (!/\/quests\.phtml/.test(location.pathname)) return;
-    if (!window.NeoUI || !window.NeoUI.isModuleEnabled('faerie-quests')) return;
-
-    // ── Extraction ────────────────────────────────────────────────────────
-    function extractPageData() {
-        const content = document.querySelector('td.content') || document.querySelector('.content');
-        if (!content) return null;
-
-        // Hidden Forms & Native Scripts (Must preserve in body to keep functionality)
-        const fq2Form = document.getElementById('fq2_form');
-        const fqFade = document.getElementById('fqFade');
-        const fq2 = document.getElementById('fq2');
-        const popups = fq2 ? fq2.querySelectorAll('.popups') : [];
-
-        // Fortune Cookie Element
-        const cookieHeader = document.getElementById('fc-fq-header');
-
-        // Quest Details
-        const scope = fq2 || content;
-        const topDesc = scope.querySelector('.description-top, .description_top');
-        const mainIcon = scope.querySelector('.main_icon img, #main_icon img');
-        const botDesc = scope.querySelector('.description-bottom, .description_bottom');
-
-        // Re-map buttons
-        const questButtons = document.getElementById('quest_buttons');
-
-        let fallback = null;
-        if (!mainIcon) {
-            fallback = scope.cloneNode(true);
-            fallback.querySelectorAll('script, style, iframe, #fc-fq-header, #mainbg, .popups').forEach(e => e.remove());
-        }
-
-        // Detach live nodes to safely nuke the DOM
-        if (cookieHeader) cookieHeader.remove();
-        if (fq2Form) fq2Form.remove();
-        if (fqFade) fqFade.remove();
-        popups.forEach(p => p.remove());
-
-        return {
-            fq2Form, fqFade, popups, cookieHeader, topDesc, mainIcon, botDesc, questButtons, fallback, content
-        };
-    }
-
-    // ── Sanitizer ──────────────────────────────────────────────────────────
-    function cleanLegacyHtml(html) {
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        div.querySelectorAll('font').forEach(f => {
-            while (f.firstChild) f.parentNode.insertBefore(f.firstChild, f);
-            f.remove();
-        });
-        div.querySelectorAll('*').forEach(el => {
-            el.removeAttribute('style');
-            el.removeAttribute('color');
-            el.removeAttribute('size');
-            el.removeAttribute('face');
-            el.removeAttribute('align');
-            el.removeAttribute('bgcolor');
-            el.getAttributeNames().forEach(attr => { if (attr.startsWith('on')) el.removeAttribute(attr); });
-        });
-        div.querySelectorAll('script, style').forEach(e => e.remove());
-        return div.innerHTML.trim();
-    }
-
-    // ── Render ─────────────────────────────────────────────────────────────
-    function buildUI() {
-        const data = extractPageData();
-        if (!data) return;
-
-        if (window.NeoUI && NeoUI.faerieQuestTrack) {
-            if (data.mainIcon) {
-                let item = '';
-                const imgB = data.botDesc ? data.botDesc.querySelector('table.images b') : null;
-                if (imgB) item = imgB.textContent.trim();
-                if (item) {
-                    const combinedText = ((data.topDesc ? data.topDesc.textContent : '') + ' ' + (data.botDesc ? data.botDesc.textContent : '')).replace(/\s+/g, ' ');
-                    const nameMatch = combinedText.match(/"\s*([A-Z][a-zA-Z' -]{1,30}?)\s+says\b/);
-                    NeoUI.faerieQuestTrack.set({ faerie: nameMatch ? nameMatch[1].trim() : 'A faerie', item: item, capturedAt: Date.now() });
-                }
-            } else {
-                NeoUI.faerieQuestTrack.clear();
-            }
-        }
-
-        // Boot NeoUI shell
-        const profile = NeoUI.scrapeLegacyProfile();
-        document.body.innerHTML = '';
-        document.body.className = 'nui-reset nui-spa-active';
-        document.documentElement.style.background = 'var(--nui-bg)';
-        document.body.style.background = 'var(--nui-bg)';
-
-        if (typeof NeoUI.resetDrawer === 'function') NeoUI.resetDrawer();
-        NeoUI.init();
-        NeoUI.setProfileInfo(profile);
-        NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
-
-        const pageWrapper = document.createElement('div');
-        pageWrapper.style.cssText = 'min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:calc(var(--nui-topbar-h) + var(--nui-space-5)) var(--nui-space-4) var(--nui-space-5);box-sizing:border-box; overflow-x: hidden;';
-        document.body.appendChild(pageWrapper);
-
-        // Reattach required functional elements to the body
-        if (data.fq2Form) document.body.appendChild(data.fq2Form);
-        if (data.fqFade) document.body.appendChild(data.fqFade);
-
-        // Reattach popups directly to the body — NOT wrapped in a shared
-        // hidden container. A display:none *ancestor* always wins over
-        // whatever display value the native page script later sets on the
-        // popup element itself, so wrapping them broke the Abandon/Reject
-        // prompt for good (it could never be un-hidden once clicked).
-        // Instead, hide each popup on its own element so the native
-        // toggle logic (which flips that same element's own inline
-        // display) still works normally.
-        if (data.popups && data.popups.length > 0) {
-            data.popups.forEach(p => {
-                p.style.display = 'none';
-                document.body.appendChild(p);
-            });
-        }
-
-        // Format Fortune Cookie Banner (if present)
-        if (data.cookieHeader) {
-            const cookieCard = document.createElement('div');
-            cookieCard.className = 'nui-surface';
-            cookieCard.style.cssText = 'width:100%;max-width:600px;border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);overflow:hidden;display:flex;flex-direction:column;box-shadow: 0 4px 12px var(--nui-shadow); margin-bottom: var(--nui-space-4); align-items: center; background: var(--nui-surface-2);';
-
-            const cStyle = document.createElement('style');
-            // FIX: Force text color and font family for the cookie banner so it doesn't stay dark grey
-            cStyle.textContent = `
-                #fc-fq-header { transform: scale(0.7); transform-origin: top center; margin: -10px 0 -25px 0 !important; }
-                #fc-fq-header, #fc-fq-header * { color: var(--nui-text) !important; font-family: var(--nui-font-body) !important; text-shadow: none !important; }
-                @media (min-width: 600px) { #fc-fq-header { transform: scale(0.9); margin-bottom: -10px !important; } }
-            `;
-            document.head.appendChild(cStyle);
-            cookieCard.appendChild(data.cookieHeader);
-            pageWrapper.appendChild(cookieCard);
-        }
-
-        // Main Card
-        const card = document.createElement('div');
-        card.className = 'nui-surface';
-        card.style.cssText = 'width:100%;max-width:600px;border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);overflow:hidden;display:flex;flex-direction:column;box-shadow: 0 4px 12px var(--nui-shadow);';
-        pageWrapper.appendChild(card);
-
-        // Header
-        const cardHeader = document.createElement('div');
-        cardHeader.style.cssText = 'padding:var(--nui-space-4);border-bottom:1px solid var(--nui-border);display:flex;align-items:center;gap:12px;background:var(--nui-surface-2);';
-        cardHeader.innerHTML = '<a href="/faerieland/faeriecity.phtml" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--nui-surface-3);color:var(--nui-text);text-decoration:none;font-size:18px;font-weight:900;flex-shrink:0;line-height:1;transition:background 0.2s;">‹</a>' +
-            '<div><div style="font-family:var(--nui-font-display);font-size:20px;font-weight:800;color:var(--nui-text);">Faerie Quests</div>' +
-            '<div style="font-size:12px;color:var(--nui-text-muted);margin-top:1px;">Faerieland</div></div>';
-
-        const backBtn = cardHeader.querySelector('a');
-        backBtn.onmouseenter = () => backBtn.style.background = 'var(--nui-border)';
-        backBtn.onmouseleave = () => backBtn.style.background = 'var(--nui-surface-3)';
-        card.appendChild(cardHeader);
-
-        // Content Area
-        const contentArea = document.createElement('div');
-        contentArea.style.cssText = 'padding: var(--nui-space-5) var(--nui-space-4); display: flex; flex-direction: column; align-items: center; text-align: center;';
-        card.appendChild(contentArea);
-
-        const imgSafety = document.createElement('style');
-        contentArea.id = 'nui-fq-content-' + Date.now();
-        imgSafety.textContent = '#' + contentArea.id + ' img { max-width: 100%; height: auto; }';
-        document.head.appendChild(imgSafety);
-
-        if (data.fallback && !data.mainIcon) {
-            const icon = document.createElement('div');
-            icon.style.cssText = 'font-size:40px;line-height:1;margin-bottom:14px;';
-            icon.textContent = '🧚';
-            contentArea.appendChild(icon);
-
-            const body = document.createElement('div');
-            body.style.cssText = 'font-size:14px;line-height:1.7;color:var(--nui-text);display:flex;flex-direction:column;gap:10px;';
-            body.innerHTML = cleanLegacyHtml(data.fallback.innerHTML);
-            body.querySelectorAll('p, div').forEach(el => { if (!el.textContent.trim() && !el.querySelector('img')) el.remove(); });
-            body.querySelectorAll('img').forEach(img => { img.style.maxWidth = '100%'; img.style.height = 'auto'; });
-            body.querySelectorAll('form').forEach(f => f.remove());
-            contentArea.appendChild(body);
-            return;
-        }
-
-        // ── ROUTE: ACTIVE QUEST ───────────────────────────────────────────────
-
-        // Faerie Image
-        // FIX: Removed `object-fit: cover` and `border-radius: 50%`. Converted to a soft rounded rectangle that shrinks to fit.
-        if (data.mainIcon) {
-            data.mainIcon.style.cssText = 'max-width: 180px; height: auto; object-fit: contain; border-radius: var(--nui-radius-lg); border: 3px solid var(--nui-border); box-shadow: 0 4px 12px var(--nui-shadow); margin-bottom: 20px; background: var(--nui-surface-2); padding: 8px;';
-            contentArea.appendChild(data.mainIcon);
-        }
-
-        // Intro Text
-        if (data.topDesc) {
-            const p1 = document.createElement('div');
-            p1.style.cssText = 'font-size: 15px; color: var(--nui-text); font-weight: 600; margin-bottom: 12px; max-width: 90%;';
-            p1.innerHTML = cleanLegacyHtml(data.topDesc.innerHTML);
-            contentArea.appendChild(p1);
-        }
-
-        // Dialogue & Requested Item
-        if (data.botDesc) {
-            const botClone = data.botDesc.cloneNode(true);
-            const itemTable = botClone.querySelector('table.images');
-
-            let itemHtml = '';
-            if (itemTable) {
-                const img = itemTable.querySelector('img');
-                const b = itemTable.querySelector('b');
-                if (img && b) {
-                    itemHtml = `
-                        <div style="background: var(--nui-surface-2); border: 1px solid var(--nui-border); border-radius: var(--nui-radius-lg); padding: 16px; margin: 20px auto; display: inline-flex; flex-direction: column; align-items: center; gap: 12px; box-shadow: inset 0 2px 8px var(--nui-shadow); min-width: 200px;">
-                            <img src="${img.src}" style="width: 80px; height: 80px; border-radius: var(--nui-radius-md); border: 2px solid var(--nui-border); box-shadow: 0 2px 8px var(--nui-shadow); background: var(--nui-surface);">
-                            <div style="font-weight: 800; font-size: 16px; color: var(--nui-text);">${b.textContent}</div>
-                        </div>
-                    `;
-                }
-                itemTable.remove();
-            }
-
-            botClone.querySelectorAll('table, br, #quest_buttons').forEach(e => e.remove());
-            const dialogueText = cleanLegacyHtml(botClone.innerHTML.trim());
-
-            if (dialogueText) {
-                const p2 = document.createElement('div');
-                p2.style.cssText = 'font-size: 14px; color: var(--nui-text-muted); font-style: italic; max-width: 90%; line-height: 1.6; margin-bottom: 16px;';
-                p2.innerHTML = `"${dialogueText}"`;
-                contentArea.appendChild(p2);
-            }
-
-            if (itemHtml) {
-                const itemWrap = document.createElement('div');
-                itemWrap.innerHTML = itemHtml;
-                contentArea.appendChild(itemWrap);
-            }
-        }
-
-        // Action Buttons
-        const btnWrap = document.createElement('div');
-        btnWrap.style.cssText = 'display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 300px; margin-top: 10px;';
-
-        const completeBtnRaw = data.questButtons ? data.questButtons.querySelector('#complete_faerie_quest') : null;
-        const abandonBtnRaw = data.questButtons ? data.questButtons.querySelector('#abandon_faerie_quest') : null;
-
-        if (completeBtnRaw) {
-            const compBtn = completeBtnRaw;
-            compBtn.textContent = 'Give Item';
-            compBtn.style.cssText = 'padding: 14px 24px; border: none; border-radius: var(--nui-radius-pill); background: var(--nui-success); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 12px var(--nui-shadow); transition: filter 0.2s, transform 0.1s;';
-            compBtn.onmouseenter = () => compBtn.style.filter = 'brightness(1.1)';
-            compBtn.onmouseleave = () => compBtn.style.filter = 'brightness(1)';
-            compBtn.onmousedown = () => compBtn.style.transform = 'scale(0.98)';
-            compBtn.onmouseup = () => compBtn.style.transform = 'scale(1)';
-            btnWrap.appendChild(compBtn);
-        }
-
-        if (abandonBtnRaw) {
-            const abBtn = abandonBtnRaw;
-            abBtn.textContent = 'Abandon Quest';
-            abBtn.style.cssText = 'padding: 14px 24px; border: 1px solid var(--nui-border); border-radius: var(--nui-radius-pill); background: var(--nui-surface-2); color: var(--nui-danger); font-weight: 800; font-size: 15px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: filter 0.2s, background 0.2s;';
-            abBtn.onmouseenter = () => abBtn.style.background = 'var(--nui-surface-3)';
-            abBtn.onmouseleave = () => abBtn.style.background = 'var(--nui-surface-2)';
-            btnWrap.appendChild(abBtn);
-        }
-
-        if (btnWrap.children.length > 0) {
-            contentArea.appendChild(btnWrap);
-        }
-
-        const popupStyle = document.createElement('style');
-        popupStyle.textContent = `
-            #abandon_popup {
-                background: var(--nui-surface) !important;
-                border: 1px solid var(--nui-border) !important;
-                border-radius: var(--nui-radius-lg) !important;
-                box-shadow: 0 10px 40px var(--nui-shadow) !important;
-                width: 90vw !important; max-width: 400px !important;
-                height: auto !important; padding: var(--nui-space-5) !important;
-                top: 50% !important; left: 50% !important; margin: 0 !important;
-                transform: translate(-50%, -50%) !important;
-                box-sizing: border-box !important;
-            }
-            #abandon_popup .inner_wrapper { padding: 0 !important; color: var(--nui-text) !important; font-family: var(--nui-font-body) !important; font-size: 15px !important; line-height: 1.6 !important; }
-            #abandon_popup .close_button { display: none !important; }
-
-            #abandon_popup table.buttons { margin-top: 20px !important; width: 100% !important; }
-            #abandon_popup table.buttons td { display: flex !important; flex-direction: column !important; gap: 12px !important; }
-            #abandon_popup .button { width: 100% !important; height: auto !important; padding: 12px !important; border-radius: var(--nui-radius-pill) !important; text-align: center !important; font-weight: 800 !important; text-transform: uppercase !important; background: none !important; box-sizing: border-box !important; }
-            #abandon_popup .button .text_image { display: none !important; }
-
-            #abandon_popup .yes_button::after { content: "Yes, Abandon"; }
-            #abandon_popup .yes_button { background: var(--nui-danger) !important; color: #fff !important; transition: filter 0.2s; }
-            #abandon_popup .yes_button:hover { filter: brightness(1.1); background-position: 0 0 !important; }
-
-            #abandon_popup .no_button::after { content: "No, Keep It"; }
-            #abandon_popup .no_button { background: var(--nui-surface-3) !important; color: var(--nui-text) !important; border: 1px solid var(--nui-border) !important; transition: background 0.2s; }
-            #abandon_popup .no_button:hover { background: var(--nui-border) !important; background-position: 0 0 !important; }
-
-            #colorbox, #cboxOverlay, #cboxWrapper { z-index: 10000 !important; }
-        `;
-        document.head.appendChild(popupStyle);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', buildUI);
-    } else {
-        buildUI();
-    }
-
 })();
 
 // ==============================================================================
@@ -35600,6 +35881,16 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         // Buttons + quicklinks — unified pill row
         '.questlog-quest .ql-quest-buttons{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center;}',
         '.questlog-quest .ql-quest-skipped{width:fit-content;margin:8px auto;color:var(--nui-text-muted);font-size:13px;}',
+
+        // hub.js's own native "Claim Reward" / "Streak" buttons (.ql-claim
+        // etc.) are normally sized by hub.css, which never gets a chance to
+        // load into this rebuilt page (see the module header note) — with
+        // nothing constraining them they were rendering at raw/oversized
+        // native dimensions. Force the same compact pill sizing every other
+        // button in this module uses, with !important so it beats any
+        // inline width/height hub.js sets directly on the element.
+        '.questlog-quest .ql-quest-buttons button,.questlog-quest .ql-quest-buttons input[type="button"],.questlog-quest .ql-quest-buttons input[type="submit"],.questlog-quest .ql-quest-buttons .ql-claim{width:auto!important;height:auto!important;min-width:0!important;max-width:100%!important;padding:7px 16px!important;font-size:12.5px!important;line-height:1.2!important;font-family:var(--nui-font-body,inherit)!important;font-weight:800!important;border-radius:var(--nui-radius-pill,999px)!important;border:none!important;box-shadow:none!important;background-image:none!important;background:var(--nui-accent)!important;color:var(--nui-accent-ink,#fff)!important;cursor:pointer!important;}',
+        '.questlog-quest .ql-quest-buttons button:disabled,.questlog-quest .ql-quest-buttons input:disabled{opacity:.5!important;cursor:not-allowed!important;}',
 
         // Quicklinks match the native button pill style
         '.nui-ql-link{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;font-size:11px;font-weight:700;border-radius:var(--nui-radius-pill,999px);border:1px solid var(--nui-border);background:var(--nui-surface);color:var(--nui-text-muted);text-decoration:none;white-space:nowrap;transition:border-color .15s,color .15s;cursor:pointer;}',
@@ -40382,31 +40673,32 @@ return {
 // ==============================================================================
 // /prehistoric/thebeast.phtml has no dedicated NeoUI module — it falls
 // through to the Sitewide Chrome universal fallback (Module 2), which only
-// adds a topbar and doesn't touch the page's own layout. Two things force
-// scrolling on mobile:
-//   1. The multi-step walkthrough (#LairBeastStep1-4) is native content
-//      stacked with desktop-width padding/margins, so on a narrow phone
-//      viewport it runs several screens tall before you even reach Step 4.
-//   2. Step 4's CreateJS lyre-scare animation renders into a fixed
-//      1080x808px <canvas> inside a .evtH5-wrapper that's built to be
-//      horizontally click-dragged (see the mousedown/mousemove handlers
-//      near the canvas init script) rather than shrunk to fit — on a
-//      ~375-430px phone viewport that alone is 2.5-3x too wide, and the
-//      drag-to-scroll behavior fights with trying to tap the lyre.
+// adds a topbar and doesn't touch the page's own layout. On mobile the
+// walkthrough (#LairBeastStep1-4) is native content sized for a desktop
+// column — full-size 250px story images, roomy paragraph margins, and (once
+// you reach Step 4) an un-shrunk 1080x808px CreateJS canvas — so the whole
+// thing runs several phone-screens tall and the lyre-tapping game itself
+// isn't fully on-screen at once. The fix is vertical, not horizontal: shrink
+// everything enough, height-wise, that each step (and the game) fits in one
+// viewport.
 //
-// Rather than a third approach, this pairs two patterns already used
-// elsewhere in the suite:
-//   - Module 2 (Sitewide Chrome)'s technique of hard-clamping
-//     html/body/container overflow so nothing can force a horizontal
-//     scrollbar regardless of what the page's own CSS does, plus trimming
-//     the native step padding/margins down to a mobile-width column.
+// This pairs two patterns already used elsewhere in the suite:
+//   - Module 2 (Sitewide Chrome)'s technique of hard-clamping overflow and
+//     trimming the native step padding/margins/image sizes down to a
+//     mobile-height column, so Steps 1-3 don't take multiple screens of
+//     scrolling to click through.
 //   - Module 15 (Battledome) / the Neohome & Games Room Ruffle wrappers'
-//     scale-to-fit technique: the canvas keeps its real 1080x808 box (its
-//     internal drawing coordinates, mouse hit-testing, and the CreateJS
-//     Ticker never change) — only a CSS transform: scale() on its wrapper
-//     shrinks it visually to the viewport width, and the wrapper's height
-//     is set to nativeHeight * scaleFactor so there's no blank gap below
-//     it. Recomputed on resize/orientation change.
+//     scale-to-fit technique for Step 4: #LairBeastCave (the lyre hotspot
+//     *and* the canvas together, so they stay visually aligned) keeps its
+//     real 1080x808 geometry — only a CSS transform: scale() on it shrinks
+//     it visually — but unlike the horizontal-only version of this fix, the
+//     scale factor here is capped by *both* available width and available
+//     height, so the whole game fits inside whatever viewport height is
+//     left below the walkthrough text, with no scrolling needed to reach or
+//     play it. A dedicated, unscaled "stage" div reserves exactly that much
+//     layout space (rather than reusing the scaled element as its own
+//     spacer, which would double-apply the shrink). Recomputed on
+//     resize/orientation change.
 //
 // Activates on: /prehistoric/thebeast.phtml
 // ==============================================================================
@@ -40421,6 +40713,7 @@ return {
 
     const NATIVE_W = 1080;
     const NATIVE_H = 808;
+    const BELOW_RESERVE = 92; // "Quick, play the song..." prompt + exit link + margins
 
     const style = document.createElement('style');
     style.id = 'nui-lairbeast-style';
@@ -40431,63 +40724,154 @@ return {
         }
         body { margin: 0 !important; }
 
-        /* Trim the native page's desktop-width padding/margins on the step
-           containers so the walkthrough text doesn't run several screens
-           tall before the game is even reached. */
+        /* Center the walkthrough as a single card sitting in the viewport
+           (vertically centered when it's shorter than the screen) instead
+           of native's bare, unbounded desktop-width column. */
         #LairBeast {
             max-width: 480px !important;
             margin: 0 auto !important;
-            padding: 8px 12px 16px !important;
+            padding: 12px !important;
+            box-sizing: border-box !important;
+            min-height: 100vh !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+        }
+
+        /* Each step (#LairBeastStep1-4) gets real card treatment —
+           background/border/shadow — so it reads as one self-contained
+           panel instead of bare text run directly on the page background.
+           Only ever one step is visible at a time; the native '.hide'
+           class (toggled by the page's own proceedForward()) still
+           controls that, this only styles whichever one is showing.
+           Sizing stays close to native (normal reading size) now that the
+           card gives it room, rather than shrinking text/images down. */
+        .lair-beast-step {
+            background: var(--nui-surface) !important;
+            border: 1px solid var(--nui-border) !important;
+            border-radius: var(--nui-radius-lg) !important;
+            box-shadow: 0 4px 12px var(--nui-shadow) !important;
+            padding: 16px !important;
             box-sizing: border-box !important;
         }
         .lair-beast-step p {
             margin: 6px 0 !important;
-            line-height: 1.35 !important;
+            line-height: 1.4 !important;
+            font-size: 15px !important;
+            color: var(--nui-text) !important;
         }
         .char-img-square {
+            width: 150px !important;
+            height: 150px !important;
+            background-size: contain !important;
             margin: 8px auto !important;
         }
         .lair-beast-pet {
             margin: 6px 0 !important;
         }
+        .h5-dialogue.dialogue-xs {
+            padding: 10px 14px !important;
+            background: var(--nui-surface-2) !important;
+            border-radius: var(--nui-radius-md) !important;
+            color: var(--nui-text) !important;
+        }
         .button-grid2__2020 {
-            margin-top: 10px !important;
+            margin-top: 12px !important;
             gap: 8px !important;
         }
 
-        /* .evtH5-wrapper is built for click-and-drag horizontal scrolling
-           of the oversized canvas — once it's scaled to fit, that behavior
-           is not just unnecessary but actively fights tapping the lyre, so
-           lock it down instead of leaving it draggable. */
+        /* Step 4 — pin it into a tight column so the prompt, the game, and
+           the exit link sit together with nothing pushed below the fold.
+           Scoped to :not(.hide): this previously forced 'display:flex'
+           unconditionally, which (being !important) beat the native
+           '.hide' rule's plain, non-!important 'display:none' regardless
+           of when Step 4 actually became active — leaving its card
+           visible the entire time, layered with Steps 1-3 instead of the
+           walkthrough advancing through them one at a time. That's the
+           "steps not separating" bug: this selector now only takes over
+           once the page itself has removed '.hide' from Step 4. */
+        #LairBeastStep4.lair-beast-step:not(.hide) {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 6px !important;
+        }
+        #LairBeastText, #LairBeastGame {
+            margin: 4px 0 !important;
+            font-size: 14px !important;
+            text-align: center !important;
+        }
+        #LairBeastExit {
+            margin-top: 6px !important;
+        }
+        .lair-beast-anim {
+            width: 100% !important;
+            display: flex !important;
+            justify-content: center !important;
+        }
+
+        /* The unscaled spacer div we insert around #LairBeastCave — sized
+           in JS to the post-scale visual footprint so it reserves exactly
+           that much space, no more. */
+        .nui-lairbeast-stage {
+            margin: 4px auto 0 !important;
+            overflow: hidden !important;
+        }
+        #LairBeastCave {
+            transform-origin: top left;
+            width: ${NATIVE_W}px;
+        }
+
+        /* .evtH5-wrapper (on #animation_container) is built for
+           click-and-drag horizontal scrolling of the oversized canvas —
+           once the whole cave is scaled to fit, that behavior just fights
+           tapping the lyre, so lock it down. */
         .evtH5-wrapper {
             overflow: hidden !important;
             touch-action: manipulation !important;
-            width: 100% !important;
-            max-width: ${NATIVE_W}px !important;
-            margin: 0 auto !important;
-        }
-        #animation_container {
-            transform-origin: top left;
-            width: ${NATIVE_W}px;
-            height: ${NATIVE_H}px;
         }
     `;
     document.head.appendChild(style);
 
-    // ── Scale-to-fit ──────────────────────────────────────────────────────
-    // The canvas keeps its real 1080x808 geometry — only a CSS transform on
-    // its wrapper shrinks it visually — so CreateJS's own pointer-coordinate
-    // math (read against the canvas's un-transformed internal size) stays
-    // correct with no coordinate remapping needed on our end.
+    // ── Scale-to-fit (both axes) ─────────────────────────────────────────
+    // #LairBeastCave holds both the canvas *and* the plain-HTML lyre
+    // hotspot (#LairBeastCalmer/#LairBeastLyre) that overlays it — scaling
+    // their shared ancestor keeps the two visually aligned. Neither
+    // CreateJS's pointer math (which reads the canvas's actual rendered
+    // getBoundingClientRect(), already reflecting the transform) nor plain
+    // DOM click dispatch on the lyre div care that an ancestor was
+    // transformed, so no coordinate remapping is needed on our end.
+    function ensureStage(cave) {
+        if (cave.parentElement && cave.parentElement.classList.contains('nui-lairbeast-stage')) {
+            return cave.parentElement;
+        }
+        const stageDiv = document.createElement('div');
+        stageDiv.className = 'nui-lairbeast-stage';
+        cave.parentNode.insertBefore(stageDiv, cave);
+        stageDiv.appendChild(cave);
+        return stageDiv;
+    }
+
     function applyScale() {
-        const wrapper = document.getElementById('animation_container');
-        const stage = wrapper ? wrapper.closest('.evtH5-wrapper') : null;
-        if (!wrapper || !stage || !stage.parentElement) return;
+        const cave = document.getElementById('LairBeastCave');
+        if (!cave) return;
+        const stage = ensureStage(cave);
+        if (!stage.parentElement) return;
 
-        const availableW = Math.min(stage.parentElement.clientWidth || window.innerWidth, window.innerWidth) - 4;
-        const factor = Math.min(1, availableW / NATIVE_W);
+        const availableW = Math.min(stage.parentElement.clientWidth || window.innerWidth, window.innerWidth) - 8;
 
-        wrapper.style.transform = 'scale(' + factor + ')';
+        // Available height = whatever's left in the viewport below wherever
+        // the stage currently sits (i.e. below the walkthrough text above
+        // it), minus room for the prompt/exit link below it. This is what
+        // actually eliminates the vertical scroll, not just the horizontal
+        // one: the game is capped to fit in one screen, full stop.
+        const stageTop = stage.getBoundingClientRect().top;
+        const availableH = Math.max(160, window.innerHeight - stageTop - BELOW_RESERVE);
+
+        const factor = Math.min(1, availableW / NATIVE_W, availableH / NATIVE_H);
+
+        cave.style.transform = 'scale(' + factor + ')';
+        stage.style.width = Math.round(NATIVE_W * factor) + 'px';
         stage.style.height = Math.round(NATIVE_H * factor) + 'px';
     }
 
@@ -40495,20 +40879,426 @@ return {
     // swaps #LairBeastStep4's .hide class), and the CreateJS composition
     // loads asynchronously after that — poll briefly rather than wrapping
     // proceedForward() itself, since that's the page's own global function
-    // and redefining it risks breaking the sequence it drives.
+    // and redefining it risks breaking the sequence it drives. Keep polling
+    // (not just running once) since the stage's top offset — and therefore
+    // the correct scale — can shift slightly as the CreateJS composition
+    // finishes loading in.
+    // #LairBeastCave is present in the DOM from page load — only its
+    // '.hide' ancestor keeps it invisible until proceedForward('4') runs —
+    // so a plain existence check above was true immediately, well before
+    // Step 4 was ever reached. getBoundingClientRect() on a display:none
+    // ancestor returns an all-zero rect, so that premature call computed
+    // availableH as though nothing but the walkthrough text above it
+    // existed (stageTop read as 0), producing a scale factor with no
+    // relation to the real, much tighter space left once Step 4 actually
+    // opens. Because the loop only allowed itself 6 "successful" ticks
+    // before giving up, it burned the whole budget on that one bogus
+    // pre-Step4 measurement and then stopped polling for good — leaving
+    // the wrong factor in place forever after (the oversized/misaligned
+    // lyre hitbox, and the vertical scroll the real numbers should have
+    // eliminated). A tick now only counts once the element is genuinely
+    // rendered (no hidden ancestor), and a MutationObserver on Step 4's
+    // class list forces an immediate, correctly-timed recompute the
+    // moment '.hide' is removed, instead of waiting on the next tick.
+    function isRendered(el) {
+        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    }
+
     let tries = 0;
     const poll = setInterval(function () {
-        tries++;
-        if (document.getElementById('animation_container')) {
-            applyScale();
-            clearInterval(poll);
-        } else if (tries > 100) { // ~30s, then give up quietly
-            clearInterval(poll);
+        const cave = document.getElementById('LairBeastCave');
+        if (!cave || !isRendered(cave)) {
+            if (++tries > 100) clearInterval(poll); // ~30s, then give up quietly
+            return;
         }
+        applyScale();
+        if (++tries > 6) clearInterval(poll); // a couple extra passes once visible, then stop
     }, 300);
+
+    const step4 = document.getElementById('LairBeastStep4');
+    if (step4) {
+        new MutationObserver(function () {
+            if (!step4.classList.contains('hide')) applyScale();
+        }).observe(step4, { attributes: true, attributeFilter: ['class'] });
+    }
 
     window.addEventListener('resize', applyScale);
     window.addEventListener('orientationchange', applyScale);
+})();
+
+// ==============================================================================
+// MODULE 72: HAUNTED WOODS HUNT — AJAX PICKS + MOBILE SCALE-TO-FIT
+// ==============================================================================
+// /halloween/haunted_woods_hunt.phtml is a "find 5 hidden objects" canvas:
+// each hit-tested click calls the page's own inline script, which does
+// `window.open(overlay.url, '_self')` — i.e. a full page reload for every
+// single pick. On top of that, the lore paragraph, the "watch an ad for
+// more treasure" prompt, and a multi-account warning note all sit above/
+// below an unscaled canvas, so on a phone the game itself is usually
+// below the fold before you've even started.
+//
+// Two independent fixes, following patterns already used elsewhere in the
+// suite:
+//   - Picks stay in-page. Rather than reimplementing the canvas's own
+//     pixel hit-testing (it already works fine natively), we only intercept
+//     the *result* of a successful hit: a targeted `window.open` override
+//     that matches just the `?spot=N&key=...` pick URLs the native script
+//     calls, replays that same URL as a `fetch()`, and swaps the returned
+//     `#haunted_hunt` fragment into the live DOM instead of navigating.
+//     Because the swapped-in HTML carries a brand-new <canvas> + config
+//     <script> that the browser won't auto-execute from an innerHTML
+//     assignment, we re-initialize *that* canvas ourselves (a trimmed
+//     reimplementation of the same load-images/hit-test/click loop) — but
+//     only ever for swapped-in canvases; the very first, natively-
+//     rendered canvas keeps using its own script untouched, since our
+//     `window.open` intercept alone is enough to catch its navigation.
+//     The "watch an ad, then play again" reset link is caught the same
+//     way. A failed fetch falls back to a real navigation rather than
+//     silently doing nothing.
+//   - The canvas scale-to-fits both axes (same technique as Module 71's
+//     Lair of the Beast) so it fits one screen instead of following
+//     `width:100%; height:auto` off the bottom of a tall/narrow viewport.
+//     The lore paragraph and the fair-play note collapse into tap-to-
+//     expand <details> — open on a visitor's first-ever visit, collapsed
+//     on every visit after that (localStorage flag, same convention Module
+//     2 and others use for "seen it already" state).
+//
+// Activates on: /halloween/haunted_woods_hunt.phtml
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!/\/halloween\/haunted_woods_hunt\.phtml/.test(location.pathname)) return;
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('haunted-woods-hunt')) return;
+
+    const LORE_SEEN_KEY = 'neoui_hwh_lore_seen_v1';
+    const NOTE_SEEN_KEY = 'neoui_hwh_note_seen_v1';
+    const BELOW_RESERVE = 130; // treasure-found copy, action buttons, return link, fair-play note
+    let picking = false;
+
+    // ── Styles: compact spacing + scale-to-fit canvas + collapsible copy ──
+    const style = document.createElement('style');
+    style.id = 'nui-hwh-style';
+    style.textContent = `
+        #haunted_hunt p { margin: 6px 0 !important; line-height: 1.35 !important; }
+        #haunted_hunt > div.buttons { margin-top: 10px !important; gap: 10px !important; }
+
+        #hunt-canvas {
+            max-width: none !important;
+            min-width: 0 !important;
+            margin: 0 auto !important;
+            transition: opacity 0.15s ease;
+        }
+        #hunt-canvas.nui-hwh-loading { opacity: 0.45; pointer-events: none; }
+
+        .nui-hwh-collapse { margin: 6px 0 !important; border: none; }
+        .nui-hwh-collapse summary {
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 12.5px;
+            color: var(--nui-accent, #7c3aed);
+            list-style: none;
+            padding: 4px 0;
+        }
+        .nui-hwh-collapse summary::-webkit-details-marker { display: none; }
+        .nui-hwh-collapse summary::before { content: '▸ '; }
+        .nui-hwh-collapse[open] summary::before { content: '▾ '; }
+        .nui-hwh-collapse p { margin-top: 4px !important; }
+
+        /* #prize_popup (the "You find..." reward reveal, spliced in by
+           showPopupFromResponse below) needs no styling of its own here —
+           it's a plain .togglePopup__2020 popup, so it's already themed by
+           the generic sitewide popup rule in Module 1 (Core Framework). */
+    `;
+    document.head.appendChild(style);
+
+    // ── Collapse the lore paragraph / fair-play note into <details> ──────
+    // Wraps whichever element `finder()` returns (skips if already
+    // wrapped, or if the finder comes up empty on this particular render
+    // of the fragment). Open on a visitor's first-ever view of that copy,
+    // collapsed on every view after — same "seen it already" convention
+    // used elsewhere in the suite (e.g. the leave-beta popup's opt-out).
+    function collapseCopy(container, finder, storageKey, label) {
+        const el = finder(container);
+        if (!el || el.closest('.nui-hwh-collapse')) return;
+        const seenBefore = localStorage.getItem(storageKey) === '1';
+        const details = document.createElement('details');
+        details.className = 'nui-hwh-collapse';
+        details.open = !seenBefore;
+        const summary = document.createElement('summary');
+        summary.textContent = label;
+        el.parentNode.insertBefore(details, el);
+        details.appendChild(summary);
+        details.appendChild(el);
+        details.addEventListener('toggle', function () {
+            if (!details.open) { try { localStorage.setItem(storageKey, '1'); } catch (e) {} }
+        });
+    }
+
+    function findLoreParagraph(container) {
+        // The lore intro is the first <p> directly under #haunted_hunt,
+        // ahead of the canvas's wrapping .flex.flex-center div.
+        return container.querySelector(':scope > p');
+    }
+
+    function findFairPlayNote(container) {
+        // The only `div[style*="text-align:center"]` at the bottom of the
+        // fragment holding the "one account only" warning.
+        const candidates = container.querySelectorAll('div[style*="text-align:center"]');
+        for (const div of candidates) {
+            if (/one account only/i.test(div.textContent || '')) return div;
+        }
+        return null;
+    }
+
+    function applyCollapsibles(container) {
+        collapseCopy(container, findLoreParagraph, LORE_SEEN_KEY, '📖 The tale so far (tap to read)');
+        collapseCopy(container, findFairPlayNote, NOTE_SEEN_KEY, 'ℹ️ Fair play note (tap to read)');
+    }
+
+    // ── Scale-to-fit (both axes) ──────────────────────────────────────────
+    function applyCanvasFit() {
+        const canvas = document.getElementById('hunt-canvas');
+        if (!canvas || !canvas.width || !canvas.height) return;
+        const wrap = canvas.closest('.flex.flex-center') || canvas.parentElement;
+        if (!wrap) return;
+
+        const availW = Math.min(wrap.clientWidth || window.innerWidth, window.innerWidth) - 16;
+        const top = wrap.getBoundingClientRect().top;
+        const availH = Math.max(200, window.innerHeight - top - BELOW_RESERVE);
+        const scale = Math.min(1, availW / canvas.width, availH / canvas.height);
+
+        canvas.style.width = Math.round(canvas.width * scale) + 'px';
+        canvas.style.height = Math.round(canvas.height * scale) + 'px';
+    }
+
+    // Canvas dimensions aren't set until the base image finishes loading
+    // (native script or our own re-init, below) — poll briefly rather than
+    // hooking either load path directly, since one of them is the page's
+    // own closured code we can't attach a callback to.
+    function pollCanvasFit() {
+        let tries = 0;
+        const iv = setInterval(function () {
+            tries++;
+            const canvas = document.getElementById('hunt-canvas');
+            if (canvas && canvas.width) {
+                applyCanvasFit();
+                if (tries > 6) clearInterval(iv);
+            } else if (tries > 100) {
+                clearInterval(iv);
+            }
+        }, 200);
+    }
+
+    window.addEventListener('resize', applyCanvasFit);
+    window.addEventListener('orientationchange', applyCanvasFit);
+
+    // ── Reimplementation of the native image-load/hit-test/click loop ────
+    // Only ever run against a *swapped-in* canvas (see swapHuntFragment
+    // below) — the natively-rendered canvas on first load keeps using the
+    // page's own script, since the window.open intercept below is already
+    // enough to catch its navigation attempt.
+    function initSwappedCanvas(canvas, config) {
+        const ctx = canvas.getContext('2d');
+        const overlayImages = [];
+        const overlayCanvases = [];
+        let loaded = false;
+        let clicked = false;
+
+        function loadImg(src) {
+            return new Promise(function (resolve) {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = function () { resolve(img); };
+                img.onerror = function () { resolve(null); };
+                img.src = src;
+            });
+        }
+
+        function draw(baseImg) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (baseImg) ctx.drawImage(baseImg, 0, 0);
+            overlayImages.forEach(function (img) { if (img) ctx.drawImage(img, 0, 0); });
+        }
+
+        function coordsOf(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return { x: Math.floor((e.clientX - rect.left) * scaleX), y: Math.floor((e.clientY - rect.top) * scaleY) };
+        }
+
+        function hitTest(x, y) {
+            for (let i = overlayCanvases.length - 1; i >= 0; i--) {
+                const tc = overlayCanvases[i];
+                if (!tc) continue;
+                try {
+                    if (tc.getContext('2d').getImageData(x, y, 1, 1).data[3] > 0) return i;
+                } catch (e) { /* ignore */ }
+            }
+            return -1;
+        }
+
+        canvas.addEventListener('mousemove', function (e) {
+            if (!loaded || clicked) return;
+            canvas.style.cursor = hitTest(coordsOf(e).x, coordsOf(e).y) >= 0 ? 'pointer' : 'default';
+        });
+
+        canvas.addEventListener('click', function (e) {
+            if (!loaded || clicked) return;
+            const c = coordsOf(e);
+            const idx = hitTest(c.x, c.y);
+            if (idx >= 0) {
+                clicked = true;
+                canvas.style.cursor = 'default';
+                handlePick(config.overlays[idx].url);
+            }
+        });
+
+        (async function () {
+            const baseImg = await loadImg(config.baseImage);
+            if (baseImg) { canvas.width = baseImg.width; canvas.height = baseImg.height; }
+            const imgs = await Promise.all(config.overlays.map(function (o) { return loadImg(o.image); }));
+            imgs.forEach(function (img, i) {
+                overlayImages[i] = img;
+                if (img) {
+                    const t = document.createElement('canvas');
+                    t.width = img.width;
+                    t.height = img.height;
+                    t.getContext('2d').drawImage(img, 0, 0);
+                    overlayCanvases[i] = t;
+                }
+            });
+            draw(baseImg);
+            loaded = true;
+            applyCanvasFit();
+        })();
+    }
+
+    // ── Fetch a pick/reset URL and swap the returned fragment in place ───
+    function extractConfig(html) {
+        const overlaysMatch = html.match(/overlays:\s*(\[[\s\S]*?\])\s*\}/);
+        const baseMatch = html.match(/baseImage:\s*'([^']+)'/);
+        if (!overlaysMatch || !baseMatch) return null;
+        try {
+            return { baseImage: baseMatch[1], overlays: JSON.parse(overlaysMatch[1]) };
+        } catch (e) { return null; }
+    }
+
+    function swapHuntFragment(html, url) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const freshFragment = doc.getElementById('haunted_hunt');
+        const liveContainer = document.getElementById('haunted_hunt');
+        if (!freshFragment || !liveContainer) { window.location.href = url; return; }
+
+        liveContainer.innerHTML = freshFragment.innerHTML;
+        try { history.replaceState(null, '', url); } catch (e) { /* ignore */ }
+
+        applyCollapsibles(liveContainer);
+
+        const newCanvas = liveContainer.querySelector('#hunt-canvas');
+        const config = extractConfig(html);
+        if (newCanvas && config) {
+            initSwappedCanvas(newCanvas, config);
+        }
+
+        // Reward popup ("You find...") lives *outside* #haunted_hunt as a
+        // sibling `#prize_popup` fragment, shown by the page's own
+        // `togglePopup__2020()` call in a `$(document).ready()` block in
+        // the response. Since we only ever swap the #haunted_hunt
+        // container's innerHTML, that popup — and the item it reveals —
+        // was silently dropped on every AJAX pick. Pull it out of the
+        // fetched document and splice it into the live page instead.
+        showPopupFromResponse(doc, 'prize_popup');
+    }
+
+    // Extracts a togglePopup__2020-style popup (e.g. `#prize_popup`) from a
+    // freshly-fetched document and displays it in the live page. Most
+    // picks come up empty, so `doc` usually won't have this element at all
+    // — that's expected, not an error. Any previously-injected copy of the
+    // same popup is removed first so results can't stack up across picks.
+    function showPopupFromResponse(doc, popupId) {
+        const fresh = doc.getElementById(popupId);
+        if (!fresh) return;
+
+        const existing = document.getElementById(popupId);
+        if (existing) existing.remove();
+
+        const clone = document.importNode(fresh, true);
+        document.body.appendChild(clone);
+
+        if (typeof window.togglePopup__2020 === 'function') {
+            try { window.togglePopup__2020(clone); } catch (e) { /* ignore */ }
+        } else {
+            // Fallback if the native helper isn't in scope for some reason:
+            // show the popup and its shade directly.
+            clone.style.display = 'block';
+        }
+        const shade = document.getElementById('navpopupshade__2020');
+        if (shade) shade.style.display = 'block';
+    }
+
+    async function handlePick(url) {
+        if (picking) return;
+        picking = true;
+        const canvas = document.getElementById('hunt-canvas');
+        if (canvas) canvas.classList.add('nui-hwh-loading');
+        try {
+            const res = await fetch(url, { credentials: 'same-origin' });
+            const html = await res.text();
+            swapHuntFragment(html, url);
+        } catch (err) {
+            console.error('Haunted Woods Hunt: AJAX pick failed, falling back to a real navigation', err);
+            window.location.href = url;
+        } finally {
+            picking = false;
+            const freshCanvas = document.getElementById('hunt-canvas');
+            if (freshCanvas) freshCanvas.classList.remove('nui-hwh-loading');
+        }
+    }
+
+    // Intercept only the hunt's own pick URLs; every other window.open
+    // call on the page (ad popups, etc.) passes straight through.
+    const nativeOpen = window.open;
+    window.open = function (url, target) {
+        if (typeof url === 'string' && /\/halloween\/haunted_woods_hunt\.phtml\?spot=\d+&key=/.test(url)) {
+            handlePick(url);
+            return null;
+        }
+        return nativeOpen.apply(window, arguments);
+    };
+
+    // Intercept the "watch an ad, play again" reset link the same way —
+    // it's a plain <a>, not a window.open call, so it needs its own
+    // capture-phase listener (document-level, so it also covers the link
+    // re-rendered inside a freshly swapped fragment without rebinding).
+    document.addEventListener('click', function (e) {
+        const link = e.target.closest && e.target.closest('a[href*="haunted_woods_hunt.phtml?reset="]');
+        if (!link) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.togglePopup__2020 === 'function') {
+            try { window.togglePopup__2020(); } catch (err) { /* ignore */ }
+        }
+        handlePick(link.getAttribute('href'));
+    }, true);
+
+    // ── First-load pass ───────────────────────────────────────────────────
+    function boot() {
+        const container = document.getElementById('haunted_hunt');
+        if (!container) return;
+        applyCollapsibles(container);
+        pollCanvasFit();
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        boot();
+    } else {
+        document.addEventListener('DOMContentLoaded', boot);
+    }
 })();
 
 // MODULE 36: GAMES ROOM
@@ -41380,12 +42170,29 @@ return {
                                 // buffer resolution, set by Ruffle to the real stage
                                 // size regardless of any CSS on it, so prefer that
                                 // over the URL guess once it exists.
-                                if (found.canvas && found.canvas.width && found.canvas.height) {
+                                //
+                                // BUT: Ruffle briefly reports its own placeholder
+                                // canvas — Adobe Flash's classic 550x400 default
+                                // stage size — before the actual .swf has finished
+                                // loading and its real dimensions are known. The host
+                                // element existing is not the same as the canvas
+                                // being real yet, and this used to trust whatever it
+                                // found the first time the host appeared, applying
+                                // that 550x400 placeholder over a correct URL-derived
+                                // aspect (e.g. a square 435x435 game) and cropping
+                                // the actual content once forced to fill the wrong
+                                // box. Treat exactly that sentinel value as "not real
+                                // yet" and keep polling instead of accepting it.
+                                const isPlaceholderStage = found.canvas && found.canvas.width === 550 && found.canvas.height === 400;
+                                if (found.canvas && found.canvas.width && found.canvas.height && !isPlaceholderStage) {
                                     const realAspect = found.canvas.width + '/' + found.canvas.height;
                                     if (realAspect !== aspect) {
                                         aspect = realAspect;
                                         playerWrap.style.aspectRatio = realAspect;
                                     }
+                                } else if (isPlaceholderStage && attempts < 20) {
+                                    setTimeout(tryResize, 150);
+                                    return;
                                 }
                             } catch (e) {}
                             return;
@@ -48531,6 +49338,29 @@ return {
     const NPC_LABEL = NPC === 'jhudora' ? "Jhudora's Bluff" : "Illusen's Glade";
     const NPC_COLOR = NPC === 'jhudora' ? 'var(--nui-accent)' : 'var(--nui-success)';
 
+    // The Accept-Quest button and the primary search-strip button both key
+    // their background off NPC_COLOR — --nui-accent for Jhudora,
+    // --nui-success for Illusen. Every theme only ever defines an ink token
+    // calibrated against --nui-accent (--nui-accent-ink); there's no
+    // --nui-success-ink. Reusing accent-ink as Illusen's button text
+    // color means the text was calibrated for a completely different
+    // background color than the one actually drawn behind it — legible in
+    // some themes purely by coincidence, unreadable in others. Compute the
+    // real contrast against whichever color NPC_COLOR actually resolves to
+    // instead of assuming that mismatched token still happens to work.
+    function relLuminanceHex(hex) {
+        const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+        if (!m) return 1; // unknown — assume light, default to dark text
+        const chan = function (h) {
+            const c = parseInt(h, 16) / 255;
+            return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * chan(m[1]) + 0.7152 * chan(m[2]) + 0.0722 * chan(m[3]);
+    }
+    const resolvedNpcColor = getComputedStyle(document.documentElement)
+        .getPropertyValue(NPC === 'jhudora' ? '--nui-accent' : '--nui-success').trim();
+    const NPC_INK = relLuminanceHex(resolvedNpcColor) > 0.4 ? '#1A1A1A' : '#FFFFFF';
+
     function showFatalError(err) {
         try {
             const box = document.createElement('div');
@@ -48740,6 +49570,11 @@ return {
                 font-size: 14px !important;
                 line-height: 1.2 !important;
             }
+            .button-default__2020:not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020) {
+                background: var(--nui-accent) !important;
+                color: var(--nui-accent-ink, #fff) !important;
+                border-color: var(--nui-accent) !important;
+            }
             .button-yellow__2020, .button-green__2020 {
                 background: var(--nui-accent) !important;
                 color: var(--nui-accent-ink, #fff) !important;
@@ -48870,6 +49705,7 @@ return {
                 display: flex;
                 gap: 6px;
                 flex-wrap: wrap;
+                justify-content: center;
                 margin-top: 6px;
                 padding-top: 6px;
                 border-top: 1px solid var(--nui-border);
@@ -48897,12 +49733,12 @@ return {
             }
             .nui-fb-search-btn--primary {
                 background: ${NPC_COLOR};
-                color: var(--nui-accent-ink);
+                color: ${NPC_INK};
                 border-color: ${NPC_COLOR};
             }
             .nui-fb-search-btn--primary:hover {
                 filter: brightness(1.1);
-                color: var(--nui-accent-ink);
+                color: ${NPC_INK};
             }
 
             /* ── Stat pills ── */
@@ -48935,18 +49771,29 @@ return {
                 line-height: 1;
             }
 
-            /* ── Native buttons — remap to NeoUI pill style ── */
-            #nui-fb-app .flex-container {
+            /* ── Native buttons — remap to NeoUI pill style ──
+               .flex-container shows up in two separate places on this page:
+               the quest card's Accept/Decline row (real DOM node re-homed
+               into #nui-fb-app by buildApp(), so scoping to #nui-fb-app
+               covers it) and the intro popup's own Leave/Enter row, which
+               is a distinct top-level popup never touched by buildApp() —
+               #nui-fb-app never contains it, so it needs its own selector
+               or it's left with the buttons individually recolored (by the
+               unscoped .button-*__2020 rules below) but the row itself
+               never centered. */
+            #nui-fb-app .flex-container,
+            .togglePopup__2020.movePopup__2020 .flex-container {
                 display: flex !important;
                 gap: 10px !important;
                 justify-content: center !important;
                 flex-wrap: wrap !important;
                 margin-top: var(--nui-space-3) !important;
             }
-            #nui-fb-app .flex-container form { margin: 0 !important; }
+            #nui-fb-app .flex-container form,
+            .togglePopup__2020.movePopup__2020 .flex-container form { margin: 0 !important; }
             #nui-fb-app .button-green__2020 {
                 background: ${NPC_COLOR} !important;
-                color: var(--nui-accent-ink) !important;
+                color: ${NPC_INK} !important;
                 border: none !important;
                 box-shadow: none !important;
                 border-radius: var(--nui-radius-pill) !important;
@@ -52477,6 +53324,11 @@ return {
             background: var(--nui-warning-soft) !important;
             border-color: var(--nui-warning) !important;
             color: var(--nui-warning) !important;
+        }
+        .closet-container .button-default__2020:not(.back-button-circle__2020):not(.q-button__2020):not(.button-yellow__2020) {
+            background: var(--nui-accent) !important;
+            color: var(--nui-accent-ink, #fff) !important;
+            border-color: var(--nui-accent) !important;
         }
         .closet-container .button-default__2020:hover:not(.back-button-circle__2020):not(.q-button__2020),
         .closet-container .button-yellow__2020:hover:not(.q-button__2020) {
@@ -57706,6 +58558,173 @@ return {
 
 
 // ==============================================================================
+// MODULE 73: FAERIE FESTIVAL
+// ==============================================================================
+// Own topbar + NeoUI theming pass for /faeriefestival/* — deliberately NOT a
+// teardown-and-rebuild (unlike Trading Post/Auction House). Every interaction
+// on this page (donate, prize-shop purchase, Faerie Council voting, Faerie
+// Pass claims) is already fetch/AJAX-driven natively with no full page
+// reloads — fariefestival.js, voting.js, and faeriepass.js all POST to their
+// own endpoints and patch the DOM in place. Rebuilding that ourselves would
+// mean re-guessing server response shapes we can't fully see from the client
+// (esp. purchase.php's two-step confirm→purchase popup HTML) for no real
+// behavioral gain, and risks silently breaking donation/voting/purchases.
+// Instead this module claims the page (own topbar, so Sitewide Chrome's
+// generic fallback — which strips backgrounds/colors via its aggressive
+// recoloring pass, see Module 2 below — never touches it), hides the native
+// chrome, and re-themes the FF-specific markup (.faeriefestival-*, .ff-*,
+// .pp-* Faerie Pass classes, and the shared .ff-popup popups) onto NeoUI's
+// design tokens, leaving every native script/handler/data-* contract intact
+// underneath.
+//
+// v2: flattened, not just re-colored. The donate panel and the tab-content
+// log panel (.faeriefestival-team-donate, .ff-log/.ff-questlog-body) carry
+// their scroll-curl corner flourishes and flower motifs via border-image
+// and ::before/::after pseudo-elements, which a plain `background: <color>`
+// override never touches — the panel's own background flattened fine, but
+// the decorative corners kept rendering on top of it regardless. Now
+// explicitly zeroes out border-image and the ::before/::after content on
+// both panels alongside the background reset. Scene art (.faeriefestival-bg),
+// the wordmark graphic, and the return/free-the-faeries sign links are left
+// exactly as the native page renders them — those are a different, unrelated
+// concern and out of scope here.
+//
+// Deferred to a follow-up pass: a NeoUI-native dialogue/scene reader (left
+// running as native `sceneH5`/`dialogueSceneH5` for now) and deeper Faerie
+// Pass purchase-flow (NeoPass verification step) theming.
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!/^\/faeriefestival\//.test(location.pathname)) return;
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('faerie-festival')) return;
+    if (document.getElementById('nui-page-topbar')) return; // already claimed
+
+    function showFatalError(err) {
+        try {
+            const box = document.createElement('div');
+            box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fee2e2;color:#7f1d1d;font:14px monospace;padding:15px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-bottom:3px solid #dc2626;';
+            box.textContent = 'Faerie Festival Module crashed:\n' + (err && err.stack ? err.stack : String(err));
+            document.body.insertBefore(box, document.body.firstChild);
+        } catch (e2) {}
+    }
+
+    function run() {
+        NeoUI.init();
+        const profile = NeoUI.scrapeLegacyProfile();
+        NeoUI.resetDrawer();
+        NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
+        NeoUI.setProfileInfo(profile);
+        document.title = 'Faerie Festival | NeoUI';
+
+        // ---- Chrome hide + topbar clearance (mirrors Sitewide Chrome's own
+        // selector list, since we're claiming this page instead of letting
+        // that module's fallback run) ----------------------------------------
+        const CHROME_SELECTORS = [
+            '#navtop__2020', '.nav-top__2020', '#navbottom__2020', '.nav-bottom__2020',
+            '.navsub-left__2020', '.navsub-right__2020', '#navsub-buffer__2020',
+            '#navprofiledropdown__2020', '#navnewsdropdown__2020',
+            '#leaveBetaPopup__2020', '.footer__2020', '#ban',
+        ];
+        const hideStyle = document.createElement('style');
+        hideStyle.id = 'nui-ff-chrome-hide';
+        hideStyle.textContent = CHROME_SELECTORS.map(function (s) { return s + '{display:none !important;}'; }).join('\n') +
+            'body{padding-top:var(--nui-topbar-h) !important;background:var(--nui-bg) !important;overflow-x:hidden !important;}' +
+            '#container__2020{background:var(--nui-bg) !important;}';
+        document.head.appendChild(hideStyle);
+
+        // ---- Theming pass: FF-specific classes onto NeoUI tokens ------------
+        // Scoped entirely to .faeriefestival-*/.ff-*/.pp-* selectors and the
+        // shared .ff-popup wrapper — never touches #nui- componentry. Several
+        // of these panels render their scroll-curl/parchment art via
+        // border-image or ::before/::after pseudo-elements rather than their
+        // own background-image, so a plain background-color override isn't
+        // enough on its own — those get their own explicit reset alongside
+        // the background. Content-bearing native images (item icons, faerie
+        // portraits, prize art, the voting logo) are left alone.
+        const FF_CSS = [
+            '/* Donate panel — scroll-corner flourishes and flower corners live on',
+            '   pseudo-elements / border-image around this panel, not just its own',
+            '   background-color, so those need their own reset too. */',
+            '.faeriefestival-team-donate{background:var(--nui-surface) !important;background-image:none !important;border-image:none !important;box-shadow:none !important;border:1px solid var(--nui-border) !important;border-radius:var(--nui-radius-lg);margin:var(--nui-space-4);padding:var(--nui-space-4);color:var(--nui-text) !important;}',
+            '.faeriefestival-team-donate::before,.faeriefestival-team-donate::after{content:none !important;display:none !important;background-image:none !important;}',
+            '.faeriefestival-donate-title{color:var(--nui-text) !important;}',
+            '.faeriefestival-recycle-team-text{color:var(--nui-text) !important;}',
+            '.faeriefestival-recycle-button{background:var(--nui-accent) !important;color:var(--nui-accent-ink,#fff) !important;border-radius:var(--nui-radius-pill) !important;border:none !important;}',
+            '.faeriefestival-recycle-button.disabledButton{opacity:.45;}',
+            '.faeriefestival-possible-count-text{color:var(--nui-text-muted) !important;}',
+
+            '/* Log panel: Activities / Dialogues / Voting / Prize Shop / Faerie Pass tabs',
+            '   — same scroll-corner treatment as the donate panel above. */',
+            '.ff-log{background:var(--nui-surface) !important;background-image:none !important;border-image:none !important;box-shadow:none !important;border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg);margin:var(--nui-space-4);overflow:hidden;}',
+            '.ff-log::before,.ff-log::after{content:none !important;display:none !important;background-image:none !important;}',
+            '.ff-log-tabs{background:var(--nui-surface-2) !important;background-image:none !important;}',
+            '.ff-queen-tab{color:var(--nui-text-muted) !important;}',
+            '.ff-queen-tab:not(.ff-tab-disabled){color:var(--nui-accent) !important;}',
+            '.ff-questlog-body{background:var(--nui-surface) !important;background-image:none !important;border-image:none !important;box-shadow:none !important;color:var(--nui-text) !important;}',
+            '.ff-questlog-body::before,.ff-questlog-body::after{content:none !important;display:none !important;background-image:none !important;}',
+            '.ff-questlog-tab-text{color:inherit !important;}',
+            '.ff-voting::before,.ff-voting::after{content:none !important;display:none !important;background-image:none !important;}',
+
+            '/* Prize Shop */',
+            '#ffPrizeShopSection{color:var(--nui-text) !important;}',
+            '.ff-prize-shop-container{width:100% !important;margin:0 !important;}',
+            '.ff-prizes-points{display:flex;gap:var(--nui-space-3);flex-wrap:wrap;margin:0 0 var(--nui-space-3) !important;width:100% !important;}',
+            '.ff-prizes-points > div{background:var(--nui-surface-2);border-radius:var(--nui-radius-md);padding:8px 12px;}',
+            '.ff-point-amt{color:var(--nui-accent) !important;font-weight:800;}',
+            '.ff-prizes-shop{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(96px,1fr)) !important;gap:10px;width:100% !important;max-width:100% !important;margin:0 !important;flex:none !important;justify-content:stretch !important;}',
+            '.ff-shop-item{background:var(--nui-surface-2) !important;border:1px solid var(--nui-border) !important;border-radius:var(--nui-radius-md) !important;padding:8px !important;text-align:center;float:none !important;margin:0 !important;}',
+            '.ff-shop-item.prize-disabled{opacity:.45;}',
+            '.ff-item-name{color:var(--nui-text) !important;font-size:11px !important;}',
+            '.ff-item-price{color:var(--nui-accent) !important;font-weight:700;}',
+
+            '/* Faerie Council Voting */',
+            '.ff-voting-intro,.ff-voting-subtitle,.ff-voting-ballots{color:var(--nui-text) !important;}',
+            '.ff-voting-toggle-btn{background:var(--nui-surface-2) !important;color:var(--nui-text-muted) !important;border-radius:var(--nui-radius-pill) !important;border:none !important;}',
+            '.ff-voting-toggle-btn.is-active{background:var(--nui-accent-soft) !important;color:var(--nui-accent) !important;}',
+            '.ff-vlb-row,.ff-vlb-podium{background:var(--nui-surface-2) !important;border-radius:var(--nui-radius-md) !important;}',
+            '.ff-vlb-name,.ff-voting-nominee-name,.ff-voting-platform-name{color:var(--nui-text) !important;}',
+            '.ff-vlb-votes{color:var(--nui-text-muted) !important;}',
+            '.ff-voting-votenow-btn{background:var(--nui-accent) !important;color:var(--nui-accent-ink,#fff) !important;border-radius:var(--nui-radius-pill) !important;border:none !important;}',
+            '.ff-voting-votenow-btn.disabledButton{opacity:.45;}',
+            '.ff-voting-cast-card.selected{outline:2px solid var(--nui-accent);border-radius:var(--nui-radius-md);}',
+            '.ff-voting-platform-copy{color:var(--nui-text) !important;}',
+
+            '/* Faerie Pass — the native "pass" card and locked unlock-CTA tile are',
+            '   scroll/parchment styled; flatten both onto plain NeoUI surfaces. */',
+            '#PrizePass,.pp-pass{background:var(--nui-surface) !important;background-image:none !important;border-image:none !important;box-shadow:none !important;color:var(--nui-text) !important;border-radius:var(--nui-radius-lg) !important;}',
+            '.pp-pass::before,.pp-pass::after{content:none !important;display:none !important;background-image:none !important;}',
+            '.pp-track-name span,.pp-points-level span{color:var(--nui-text) !important;}',
+            '.pp-reward.claimable{outline:2px solid var(--nui-accent);border-radius:var(--nui-radius-sm);}',
+            '.pp-purchase-pass{background:var(--nui-surface-2) !important;background-image:none !important;border-radius:var(--nui-radius-md) !important;}',
+            '.pp-pass-img.unlock{background-image:none !important;}',
+            '.pp-reward-bucket{background:none !important;}',
+
+            '/* Shared popups used by donate/purchase/voting/pass (.ff-popup wrapper) —',
+            '   the header/body/footer sections carry the same border-image/pseudo-',
+            '   element scroll-banner art as the donate/log panels above. */',
+            '.ff-popup .popup-header__2020{background:var(--nui-surface-2) !important;background-image:none !important;border-image:none !important;box-shadow:none !important;color:var(--nui-text) !important;}',
+            '.ff-popup .popup-body__2020{background:var(--nui-surface) !important;background-image:none !important;border-image:none !important;box-shadow:none !important;color:var(--nui-text) !important;}',
+            '.ff-popup .popup-footer__2020{background:var(--nui-surface) !important;background-image:none !important;border-image:none !important;box-shadow:none !important;}',
+            '.ff-popup .popup-header__2020::before,.ff-popup .popup-header__2020::after,.ff-popup .popup-body__2020::before,.ff-popup .popup-body__2020::after,.ff-popup .popup-footer__2020::before,.ff-popup .popup-footer__2020::after{content:none !important;display:none !important;background-image:none !important;}',
+            '.ff-popup-title{background:none !important;}',
+            '.ff-popup-title h3{color:var(--nui-text) !important;font-size:16px;font-weight:800;}',
+            '.ff-popup-body{color:var(--nui-text) !important;}',
+            '.ff-purchase-img{background:none !important;}',
+        ].join('\n');
+        const themeStyle = document.createElement('style');
+        themeStyle.id = 'nui-ff-theme';
+        themeStyle.textContent = FF_CSS;
+        document.head.appendChild(themeStyle);
+    }
+
+    try { run(); } catch (err) { showFatalError(err); }
+})();
+
+// ==============================================================================
 // (Module 2 code lives here — see the note in the MODULE INDEX / Module 2
 // header above for why it is physically located at the end of the file.)
 // ==============================================================================
@@ -57798,8 +58817,8 @@ return {
     // exceptions are the handful of modules below that fetch data or wait on
     // something async before they build their topbar / do their full SPA
     // rebuild (Kadoatery, Forgotten Shore, Guess the Marrow, Kiko Pop, Lunar
-    // Temple, Negg Cave, Scratchcard Kiosks, the Faerie Quests full SPA,
-    // Dice-A-Roo, Battledome, Bank, Auction House, Trading Post, the Vending
+    // Temple, Negg Cave, Scratchcard Kiosks, Dice-A-Roo, Battledome, Bank,
+    // Auction House, Trading Post, the Vending
     // Machine, and the Safety Deposit Box). Since this module runs to
     // completion in the same synchronous pass, it would otherwise beat those
     // pages to the punch, see nothing at #nui-page-topbar yet, and wrongly
@@ -57823,7 +58842,6 @@ return {
         /\/worlds\/kiko\/kpop/,               // Kiko Pop
         /\/shenkuu\/lunar/,                   // Lunar Temple
         /\/shenkuu\/neggcave/,                // Mysterious Negg Cave
-        /\/quests\.phtml/,                    // Faerie Quests (full SPA)
         /\/games\/(?:play_)?dicearoo\.phtml/, // Dice-A-Roo
         /\/dome\//,                           // Battledome
         /\/battledome(?:\/|\.phtml)/,         // Battledome (alternate paths)
@@ -58116,6 +59134,26 @@ return {
             if (orig.closest('[class*="nph-"]')) return; // Neopets Helper's own controls
             orig.dataset.nuiReplaced = '1';
 
+            // Snapshot how this button was actually sitting in the page
+            // BEFORE we touch anything — hiding orig below removes it from
+            // flow entirely, so this is the only chance to read it. Classic
+            // single-button forms (Snowager's "Attempt to steal...", Wise
+            // King's "Ask", etc. — native class .btn-single__2020) are
+            // centered by the *original* element/its parent, not by
+            // anything .nui-btn provides on its own (.nui-btn only
+            // text-aligns its own label; it relies on whichever module
+            // built it to wrap it in a flex row). Swapping in a bare proxy
+            // with no wrapper silently drops that centering. Treat "the
+            // only actionable control in its parent" as the signal that
+            // centering needs to be preserved, since that's exactly the
+            // native single-button pattern.
+            const siblingControls = orig.parentElement
+                ? orig.parentElement.querySelectorAll('input[type="submit"], input[type="button"], input[type="reset"], button')
+                : [];
+            const isSoleControl = siblingControls.length === 1;
+            const parentTextAlign = orig.parentElement ? getComputedStyle(orig.parentElement).textAlign : '';
+            const shouldCenter = isSoleControl || parentTextAlign === 'center';
+
             const label = (orig.tagName === 'INPUT' ? orig.value : orig.textContent) || 'Submit';
             const proxy = document.createElement('button');
             proxy.type = 'button';
@@ -58135,7 +59173,14 @@ return {
                 if (!orig.disabled) orig.click();
             });
 
-            orig.insertAdjacentElement('afterend', proxy);
+            if (shouldCenter) {
+                const wrap = document.createElement('div');
+                wrap.style.cssText = 'display:flex !important;justify-content:center !important;width:100%;';
+                orig.insertAdjacentElement('afterend', wrap);
+                wrap.appendChild(proxy);
+            } else {
+                orig.insertAdjacentElement('afterend', proxy);
+            }
         });
     }
 
@@ -58291,6 +59336,32 @@ return {
                 replaceNativeButtons(contentWrap);
             });
         }
+
+        // replaceNativeButtons() above only ever runs once, against
+        // whatever was already in the DOM at that moment. Unclaimed pages
+        // often inject forms/buttons afterward (AJAX results, a delayed
+        // script, a confirm step that swaps in new markup) — anything that
+        // appears after that single pass never gets swapped into a real
+        // .nui-btn proxy, so it falls through to the aggressive recoloring
+        // pass below: background-color forced transparent with no
+        // replacement color/padding/radius set, leaving native
+        // default-colored button text sitting on a stripped, unshaped
+        // background — exactly the "ugly and unreadable" native button
+        // look this module exists to prevent. Watch for any later-added
+        // button/submit/reset input and run the same swap on it.
+        const nuiLateButtonObserver = new MutationObserver(function (mutations) {
+            mutations.forEach(function (m) {
+                m.addedNodes.forEach(function (n) {
+                    if (n.nodeType !== 1) return;
+                    if (n.matches && n.matches('input[type="submit"], input[type="button"], input[type="reset"], button')) {
+                        replaceNativeButtons(n.parentElement || n);
+                    } else if (n.querySelector) {
+                        replaceNativeButtons(n);
+                    }
+                });
+            });
+        });
+        nuiLateButtonObserver.observe(document.body, { childList: true, subtree: true });
     } catch (e) {
         console.error('NeoUI Sitewide Chrome: conversion failed', e);
         showFatalError(e);
