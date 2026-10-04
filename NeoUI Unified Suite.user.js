@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeoUI: Unified Suite
 // @namespace    https://github.com/dinosauringg-ui/NeoUISuite
-// @version      2.1.3
+// @version      2.3.1
 // @description  NeoUI Unified Suite: polished theme system, global search, and a daily timer hub for timed Neopets activities, bundled into one mobile-forward userscript.
 // @author       ext1nct
 // @match        *://*.neopets.com/*
@@ -53,6 +53,8 @@
  *   13. Secret Ninja Training School
  *   14. Swashbuckling Academy (Pirate Training)
  *   15. Battledome
+ *   15b. Battledome — Abilities page (full NeoUI SPA redesign)
+ *   15c. Battledome — Neopet Status page (full NeoUI SPA redesign)
  *   --- ECONOMY & BANKING ---
  *   16. Wishing Well Optimizer
  *   17. Item Transfer Log
@@ -69,6 +71,7 @@
  *   56. Shop Wizard
  *   --- QUESTS ---
  *   27. Faerie Quest Watcher
+ *   28. Faerie Quests (page theming for /quests.phtml)
  *   29. Quest Ledger
  *   30. Quest Log
  *   50. Jhudora's Bluff & Illusen's Glade
@@ -107,6 +110,173 @@
  *
  * CHANGELOG  (last 5 versions)
  *
+ * v2.3.1
+ *   - Sitewide Chrome (Module 2): fixed native buttons rendering with no
+ *     background. The aggressive recoloring pass forced background-color:
+ *     transparent !important on every non-nui-/nph- element under
+ *     #container__2020 / #nui-sitewide-content-wrap, and its specificity beat
+ *     the sitewide .button-*__2020 rules, so buttons (and button-class divs
+ *     like the one inside .fq-cta) lost their fill. That pass now skips
+ *     button/input-button tags and button-*, *-button, button__* and btn-*
+ *     class families.
+ *   - Sitewide Chrome: <a> elements styled as native buttons (Fruit Machine
+ *     "Return to Sakhmet", Petpet Lab Ray) had unreadable labels: the generic
+ *     link-accent color rule out-specified the button color rules, giving
+ *     accent text on an accent fill. Button-class links are now excluded
+ *     from that rule.
+ *   - Native .button-*__2020 buttons (and unrecognized popup button
+ *     variants) now use the same small shape as module-built .nui-btn-sm
+ *     buttons: 13px label, 9/14 padding, 12/6/12/6 corners, and the theme's
+ *     --nui-clip-path-sm. Circular Back/Help, popup X and wheel Yes/No
+ *     buttons keep their own shapes.
+ *
+ * v2.3.0
+ *   - NEW Module 15c — Battledome Neopet Status page (/dome/neopets.phtml) is
+ *     now a real mobile UI, built the same way as the Abilities page (15b):
+ *     a pet picker strip, a hero card (portrait, species/colour, level, fight
+ *     status), stat rows color-coded from the native HP/Atk/Def/Agi/Int bar
+ *     classes, a Battledome record strip, rarity index, a 6-slot equipment
+ *     grid, and a compact ability-tier preview with a link into the
+ *     Abilities page to train more. Equip/unequip taps forward to the
+ *     native icons — the existing equip-item picker and unequip+PIN dialogs
+ *     are re-skinned in place rather than rebuilt, since both flows end in a
+ *     native page navigation on success. Runs under the existing
+ *     'battledome' toggle; native UI only hidden after first successful
+ *     render.
+ *   - Safety Deposit Box (Module 23): item cards, list rows, and the item
+ *     detail drawer now show each item's rarity (e.g. "r90 · Very Rare"),
+ *     color-coded the same way the Stamp Album's itemdb panel does. Sourced
+ *     from obj_rarity, which was already fetched for the rarity sort option
+ *     but never surfaced in the UI.
+ *
+ * v2.2.9
+ *   - NEW Module 73 — Battledome Abilities page (/dome/abilities.phtml) is now
+ *     a real mobile UI instead of a 1080px desktop page: pet picker strip,
+ *     blessing counts, 3-across tier cards with tap-for-info descriptions, a
+ *     fixed bottom Train bar with the running cost, and re-skinned confirm /
+ *     not-enough-blessings dialogs. It reads state from the native DOM and
+ *     forwards every tap to the native elements, so the page's own logic and
+ *     purchase AJAX are untouched; the native UI is only hidden after the
+ *     first successful render. Runs under the existing 'battledome' toggle.
+ *   - Sitewide button proxy: buttons carrying .btn-single__2020 are always
+ *     centered. The wheels' "Spin the Wheel" lost centering on pages where
+ *     the confirm dialog's extra buttons defeated the sole-control check.
+ *   - Wheels: popups keep a frosted-glass look but with a much stronger
+ *     theme tint (stacked --nui-surface/--nui-bg layers + backdrop blur)
+ *     instead of reading as clear. Tunable via --nui-wheel-glass.
+ *   - Wheels: popups now actually show --nui-surface. Root cause: each
+ *     wheel's CSS draws these popups with a border-image ('fill') of the
+ *     native scroll-frame art, which paints over any background color.
+ *     border-image is now disabled on the popups, confirm dialog, its
+ *     Yes/No buttons and the prize popup.
+ *   - Wheels: pre-spin popups (click-to-spin / claim / done / spin-confirm)
+ *     now fully themed — outer box AND text — so contrast can't depend on
+ *     whatever native background sat behind the text. Confirm dialog
+ *     Yes/No (.wheel-button) themed too.
+ *   - Wheels (all): unstyled text fixed. The prize popup's inner body was
+ *     themed dark while its text was pinned to #222 (dark-on-dark); the
+ *     popup is now one themed panel with theme text. Intro copy
+ *     (.wheel-desc) and other #wheelbox text now follow the theme too.
+ *   - Lair of the Beast (71): prize screen no longer clips the item name.
+ *     The scale-to-fit stage wrapper kept its fixed pixel height (and
+ *     overflow:hidden) after the game was replaced by the reward markup;
+ *     it now releases to auto height once the cave is gone.
+ *   - Lair of the Beast (71): pet + speech bubble back to native stacked
+ *     layout (side-by-side looked messy), just trimmed.
+ *   - Lair of the Beast (71) follow-up: the real gap source was
+ *     characters.css sizing .char-img-square via padding-top:250px; the
+ *     earlier height:150px stacked on top of it (400px box, 150px image).
+ *     Zeroed the padding. Painted --nui-bg on html/body so the shrunken
+ *     container no longer exposes the stock background. Themed the
+ *     remaining hard-coded text colours (game prompt, ad/timer/reward
+ *     blocks, popups).
+ *   - Lair of the Beast (71): fixed the tiny Step 4 game window and the
+ *     big vertical gaps. Root cause of the tiny window: the module's own
+ *     '.lair-beast-anim {width:100%; display:flex}' rule matched
+ *     #LairBeastCave (the element being scaled), collapsing it from 1080px
+ *     to card width so the canvas was shrunk twice. Also locked the canvas
+ *     and its wrapper to native 1080x808 (evt-canvas.css forces 750px
+ *     width at <=750px viewports, plus a 10px margin / 200px min-height,
+ *     all of which desync the lyre hotspot). Scale is now width-first with
+ *     only a soft height cap. Gaps: removed native #LairBeast 2em margin
+ *     and the container's ~941px min-height, put the pet and its speech
+ *     bubble side by side (native bubble has 2em top margin + 20pt
+ *     speaker tag), tightened card/paragraph/button spacing.
+ *
+ * v2.2.8
+ *   - Lair of the Beast (71): still too much empty vertical space, even
+ *     after the Step 4 scale-to-fit math itself was computing correctly
+ *     (confirmed against a live DOM snapshot — the 504x377 stage matched
+ *     the expected scale factor exactly). The actual culprit was
+ *     #LairBeast forcing min-height:100vh + flex centering on itself,
+ *     stacked inside #container__2020's own already near-full-viewport
+ *     min-height from the sitewide framework — harmless while the
+ *     walkthrough content was tall, but once Step 4 correctly shrinks down
+ *     to a small box, centering that small box inside a full-viewport flex
+ *     container is exactly what produces a large empty gap above and
+ *     below it. Dropped the forced height/centering; nothing about the
+ *     "fits in one screen" goal actually depended on it.
+ *
+ * v2.2.7
+ *   - Faerie Quests (28): "What Rewards I might get?" / "I'm Ready for the
+ *     Quest!" (and any other fq-cta button) were vanishing — not a CSS
+ *     issue this time, and not anything in Module 28 itself. Sitewide
+ *     Chrome's global replaceNativeButtons() (predates this page's revamp)
+ *     scans for any native input/button element that isn't already ours or
+ *     Neopets Helper's, visually clips the original to nothing, and drops
+ *     in a generic .nui-btn proxy next to it — a rescue meant for legacy
+ *     unstyled native buttons. fq-hub's CTAs are real <button class="fq-
+ *     cta"> elements wrapping an already-styled .button-default__2020
+ *     child div (already reskinned fine by the sitewide button rule), and
+ *     its late-append MutationObserver (Vue mounts after the scan's
+ *     one-time initial pass) catches them anyway, clipping the working
+ *     button and replacing it with a duplicate that shouldn't have existed.
+ *     Excluded .fq-cta from that scan.
+ *
+ * v2.2.6
+ *   - Faerie Quests (28): the v2.2.5 fix didn't actually win. Its selectors
+ *     used a single id (`#fq-vue-app .fq-card`, specificity 110) against
+ *     what I'd assumed was a specificity-100 fallback rule; the real rule is
+ *     `#container__2020 *:not([class*="nui-"]):not([class*="nph-"])`, and
+ *     each `:not([...])` counts toward specificity like a class, putting it
+ *     at 120 — so the fallback was winning by 10 points the whole time.
+ *     Re-scoped every selector onto a doubled id
+ *     (`#container__2020#container__2020`, and each popup's own id doubled
+ *     on itself) for specificity 200, which also sidesteps a separate
+ *     open question about whether `#fq-vue-app` even survives as a live id
+ *     once Vue mounts onto it with an in-DOM root template — didn't need to
+ *     resolve that to know #container__2020 itself is untouched native
+ *     markup either way.
+ *
+ * v2.2.5
+ *   - Faerie Quests (28): re-added as a lightweight, CSS-only reskin of the
+ *     new mobile-native /quests.phtml layout — not the old full SPA teardown
+ *     (see v2.2.4). Since that revamp, the page has had no page-specific
+ *     module, so Sitewide Chrome's generic fallback (Module 2) was picking
+ *     it up: its aggressive pass strips background-color to transparent and
+ *     forces color:inherit sitewide, which is fine for legacy markup with
+ *     baked-in hex colors but wiped out the new Vue app's own fq.css
+ *     styling instead — cards, the Luxinia goal box, and the faerie-bio
+ *     panel lost their backgrounds while their text stayed forced to the
+ *     theme color, and in dark themes that's light-on-transparent-over-
+ *     light-native or dark-on-dark, unreadable either way. Left Sitewide
+ *     Chrome running (topbar/nav/footer conversion is fine as-is) and just
+ *     out-specified its fallback for the fq-* content classes, scoped by
+ *     the #fq-vue-app id (and, for the static PHP-rendered popups, by each
+ *     popup's own id) rather than #container__2020 — an id-anchored
+ *     ancestor selector still matches after togglePopup__2020 repositions
+ *     a popup, and beats the fallback's `#container__2020 *` wildcard on
+ *     specificity either way. The header/body/footer/buttons on the FQ
+ *     popups were already fine from the existing generic
+ *     .togglePopup__2020 .popup-body__2020 fix; this only covers what that
+ *     one doesn't reach — .fq-card, .fq-panel, item tiles, status/reward/
+ *     error text, the About section's faerie-bio panel (dark scrim + pinned
+ *     light text over the fixed backdrop art, same treatment as the
+ *     Obelisk hint box and the Wheel prize popups), and the Luxinia goal
+ *     card/checkbox/progress bar (re-themed onto --nui-accent-soft instead
+ *     of guessing back the native purple, so it now actually follows the
+ *     active theme too).
+ *
  * v2.2.4
  *   - Removed Faerie Quests (Module 28), the full /quests.phtml SPA
  *     rebuild: Neopets revamped that page to a mobile-friendly native
@@ -115,83 +285,6 @@
  *     against the new layout. The 'faerie-quests' toggle is unaffected and
  *     still gates the sitewide quest watcher (Module 27), which doesn't
  *     touch the page's markup and is unrelated to the revamp.
- *
- * v2.2.3
- *   - Games Room (36): some games had their bottom cropped off. The
- *     player box's aspect-ratio is set from the embed URL's width/height
- *     params, then corrected once Ruffle's real canvas size is known — but
- *     the correction trusted whatever the canvas reported the moment the
- *     Ruffle host element first appeared, even when that was still
- *     Ruffle's own placeholder canvas (Adobe Flash's classic 550x400
- *     default stage), before the actual .swf had finished loading and
- *     reporting its real dimensions. For a game whose real stage isn't
- *     4:3 (e.g. a square 435x435 title), that placeholder overwrote the
- *     correct URL-derived aspect ratio with the wrong box shape, and the
- *     content — forced to fill it — got cropped. Now treats exactly that
- *     550x400 sentinel as "not real yet" and keeps polling instead of
- *     accepting it.
- *
- * v2.2.2
- *   - Quest Log (30): the native "Claim Reward"/streak buttons hub.js
- *     renders (.ql-claim etc.) are normally sized by hub.css, which never
- *     gets a chance to load into this module's rebuilt page — with nothing
- *     constraining them they rendered at raw, oversized native dimensions.
- *     Forced the same compact pill sizing every other button here uses,
- *     with !important to beat any inline size hub.js sets directly.
- *   - Jhudora's Bluff & Illusen's Glade (50): the Accept-Quest button and
- *     the primary search-strip button (SSW) both key their background off
- *     NPC_COLOR — --nui-accent for Jhudora, --nui-success for Illusen —
- *     but their text color was hardcoded to --nui-accent-ink regardless.
- *     No theme defines a --nui-success-ink counterpart, so Illusen's
- *     buttons were using text contrast calibrated for a completely
- *     different background color than the green actually drawn behind it.
- *     Now computes real contrast against whichever color NPC_COLOR
- *     resolves to and picks light/dark text accordingly.
- *   - Jhudora's Bluff & Illusen's Glade (50): the SW/SSW/TP/SDB search
- *     strip had no justify-content, so it packed to the left instead of
- *     centering under the item name field like the rest of the card. Added
- *     justify-content: center.
- *
- * v2.2.1
- *   - Global: buttons sitewide were losing NeoUI colors/shaping in three
- *     distinct spots. (1) '.nui-btn-success' and '.nui-btn-red' were used
- *     at several call sites (Kadoatery collect flow, remove/delete icon
- *     buttons) but never actually defined, so those buttons fell through
- *     to the bare '.nui-btn' fallback and lost their intended green/red
- *     color. Defined both. (2) The a.nui-btn-* link-color carve-out (fixed
- *     for primary/secondary/danger/warning back in v2.0.2) never got the
- *     same fix for the ghost/success variants, leaving them exposed to the
- *     same link-color-bleeds-through-onto-button-text bug if ever used on
- *     an anchor. Added the missing color declarations. (3) Sitewide
- *     Chrome's replaceNativeButtons() only ever ran once, against whatever
- *     was in the DOM at that moment — any button/submit/reset input that
- *     appeared afterward (AJAX results, delayed scripts) never got swapped
- *     into a real .nui-btn proxy and fell through to the aggressive
- *     recoloring pass instead, which strips background-color to
- *     transparent without setting a replacement color, padding, or
- *     radius — native default-colored text on a stripped, unshaped
- *     background. Added a MutationObserver so late-appearing native
- *     buttons on unclaimed pages get the same proxy treatment.
- *
- * v2.2.0
- *   - New module: Haunted Woods Hunt (72). Two problems with the native
- *     page on mobile: (1) every click on the hunt canvas is a full-page
- *     `window.open(url, '_self')`, so finding all five items means five
- *     full reloads of chrome/nav/etc.; (2) the lore paragraph, the
- *     multi-account warning note, and an unscaled canvas together push the
- *     actual game below the fold on most phones. Fixed both: picks are
- *     now caught via a targeted `window.open` intercept (matches only the
- *     `?spot=N&key=...` pick URLs — everything else passes through
- *     untouched) and replayed as a `fetch()`, with the returned
- *     `#haunted_hunt` fragment swapped into the live DOM and its canvas
- *     re-initialized in place (config/overlays re-parsed, images
- *     reloaded, click/hit-test rebound) instead of navigating; and the
- *     canvas is now scale-to-fit on both axes (same technique as Module
- *     71's Lair of the Beast) while the lore intro and the fair-play note
- *     collapse into tap-to-expand `<details>` (open on first-ever visit,
- *     collapsed after via a localStorage flag, same convention as the
- *     rest of the suite). Falls back to a real navigation if the fetch
- *     itself fails, so a network hiccup can't strand anyone mid-hunt.
  *
  * v2.0.19
  *   - Pick Your Own: found the actual root cause of the persistent blank
@@ -2809,30 +2902,55 @@
         }
         .togglePopup__2020 .popup-body__2020 a { color: var(--nui-accent) !important; }
 
-        /* Wheel prize-reveal popup (#wheelPrizePopup / #popupRewardContent) —
-           generated by the shared wheelgame.js that every Wheel of X page
-           loads (Excitement, Knowledge, Mediocrity, Misfortune, Extravagance,
-           Monotony, Starlight all use the same script/IDs, only the art
-           differs), so this ID-scoped rule covers all of them at once. Each
-           wheel page also ships its own inline <style> giving this popup a
-           translucent, blurred WHITE background (.wheelPrizePopupCustom:
-           background: rgba(255,255,255,0.4) + backdrop-filter: blur) for a
-           glass-panel look. That background is fixed-white regardless of
-           theme — it's not one of our tokens — so pinning the text to
-           var(--nui-text) would still go light-on-white in dark mode, same
-           failure as if nothing were fixed. This needs the same treatment as
-           the codebase's other native-light-background text (hardcoded dark,
-           not theme-following), same as the Obelisk hint box and the other
-           .popup-body__2020 hardcoded-#222 fixes referenced above. Background
-           opacity nudged up slightly so the glass-panel look mostly survives
-           while guaranteeing definite contrast underneath. */
+        /* Wheel pages (all of them share wheelgame.js / wheels.css markup).
+           Two problems lived here:
+           1) The prize popup (#wheelPrizePopup) ships a translucent WHITE
+              glass background from each wheel's inline <style>, and this
+              block used to pin its text to hard-coded #222 to match. But the
+              generic '.togglePopup__2020 .popup-body__2020' rule above ALSO
+              matches the popup's inner body (the popup carries
+              .togglePopup__2020) and paints it with the themed surface —
+              so in dark themes the #222 text sat on a dark themed box.
+              Fix: stop fighting the native glass panel. Make the whole
+              popup one themed panel (opaque themed surface, no blur), let
+              the inner body be transparent, and use theme text throughout.
+           2) The page copy outside the popups (.wheel-desc intro text, and
+              any other text inside #wheelbox: timers, notices, per-wheel
+              extras) was never styled at all and inherited the native dark
+              text color. Give all of it theme text color. */
         #wheelPrizePopup.wheelPrizePopupCustom {
-            background: rgba(255,255,255,0.6) !important;
+            border-image: none !important;
+            background: var(--nui-surface) !important;
+            border: 1px solid var(--nui-border) !important;
+            border-radius: var(--nui-radius-lg) !important;
+            box-shadow: 0 8px 24px var(--nui-shadow) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
         }
-        #popupRewardContent,
-        #spinMessage, #itemName, #failMessage {
-            color: #222 !important;
+        #wheelPrizePopup .popup-body__2020,
+        #wheelPrizePopup .popup-image__2020,
+        #popupRewardContent {
+            background: transparent !important;
+            background-image: none !important;
+            color: var(--nui-text) !important;
         }
+        #wheelPrizePopup p,
+        #wheelPrizePopup span,
+        #wheelPrizePopup div:not(.wheel-exit-icon),
+        #spinMessage, #itemName, #failMessage,
+        .wheel-desc,
+        .container .wheel-desc,
+        #wheelbox p,
+        #wheelbox span:not(.wheel-exit-icon),
+        #wheelbox b,
+        #wheelbox strong,
+        #wheelbox label,
+        #wheelbox li,
+        #wheelbox a:not([class*="button-"]) {
+            color: var(--nui-text) !important;
+        }
+        #wheelbox a:not([class*="button-"]) { color: var(--nui-accent) !important; }
+        .wheel-desc { text-align: center; }
 
         /* The wheel's other three status popups — #clickToSpin ("click to
            spin"), #clickToShowPrize ("click to claim your prize"),
@@ -2847,17 +2965,125 @@
            translucent/blur styling of their own, so they can just get the
            same proper themed treatment as any other popup instead of a
            text-only patch. */
-        #clickToSpin .popup-body__2020,
-        #clickToShowPrize .popup-body__2020,
-        #wheelDonePopup .popup-body__2020 {
+        /* PRE-SPIN / STATUS POPUPS — fully themed, both the box and the text.
+           Earlier this only themed the inner .popup-body__2020 and left the
+           OUTER popup element (#clickToSpin etc., plus each wheel's
+           spin-confirm dialog, .wheelConfirmPopup) at whatever native
+           background it had — and the text on top of it was set to the
+           theme text color. Whenever the native outer background didn't
+           match the theme (light box, dark theme), that's light-on-light.
+           Guarantee contrast by owning BOTH layers: the outer popup gets an
+           opaque themed surface + border, the inner body goes transparent,
+           and every text node inside uses the theme text color. wheels.css
+           already strips the body's own background, so nothing fights
+           this. #wheelPrizePopup has its own rule above. */
+        /* WHY THE SURFACE COLOR WASN'T SHOWING: each wheel's stylesheet
+           (e.g. wheelofextravagance.css) paints these popups with a
+           border-image using the 'fill' keyword — that draws the native
+           scroll-frame artwork (textframe.png) OVER the element's
+           background, so a themed background-color underneath is simply
+           hidden. Same for the confirm dialog's Yes/No buttons and the
+           prize popup. Kill the border-image on all of them so the themed
+           background actually renders. */
+        .wheelPopup,
+        .wheelDonePopup,
+        .wheelConfirmPopup,
+        .wheelConfirmPopup .wheel-button,
+        #clickToSpin, #clickToShowPrize, #wheelDonePopup,
+        #wheelPrizePopup.wheelPopup {
+            border-image: none !important;
+            border-image-source: none !important;
+        }
+        #clickToSpin, #clickToShowPrize, #wheelDonePopup {
+            box-sizing: border-box !important;
+            padding: 8px 12px !important;
+        }
+        .wheelPopup:not(#wheelPrizePopup),
+        .wheelDonePopup {
             background: var(--nui-surface) !important;
+            background-image: none !important;
+            border: 1px solid var(--nui-border) !important;
+            border-radius: var(--nui-radius-lg) !important;
+            box-shadow: 0 8px 24px var(--nui-shadow) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            color: var(--nui-text) !important;
+        }
+        .wheelPopup:not(#wheelPrizePopup) .popup-body__2020,
+        .wheelDonePopup .popup-body__2020 {
+            background: transparent !important;
             background-image: none !important;
             color: var(--nui-text) !important;
         }
-        #clickToSpin .popup-body__2020 p,
-        #clickToShowPrize .popup-body__2020 p,
-        #wheelDonePopup .popup-body__2020 p {
+        .wheelPopup:not(#wheelPrizePopup) p,
+        .wheelPopup:not(#wheelPrizePopup) span,
+        .wheelPopup:not(#wheelPrizePopup) b,
+        .wheelPopup:not(#wheelPrizePopup) strong,
+        .wheelPopup:not(#wheelPrizePopup) label,
+        .wheelPopup:not(#wheelPrizePopup) h3,
+        .wheelDonePopup p,
+        .wheelDonePopup span,
+        .wheelDonePopup h3 {
             color: var(--nui-text) !important;
+            text-shadow: none !important;
+        }
+        .wheelPopup:not(#wheelPrizePopup) .popup-header__2020,
+        .wheelDonePopup .popup-header__2020 {
+            background: var(--nui-surface-2) !important;
+            background-image: none !important;
+            border-bottom: 1px solid var(--nui-border) !important;
+        }
+
+        /* GLASS TINT — keeps the frosted-glass look of the native popups
+           but with a much stronger, theme-colored tint so text is always
+           readable. Two stacked tint layers so it works even if the theme's
+           --nui-surface is itself translucent: a strong --nui-surface layer
+           over a --nui-bg underlay, then a real backdrop blur. Overall
+           opacity lands around 85-90%: clearly glass, never see-through.
+           Tune --nui-wheel-glass (higher = more solid) and
+           --nui-wheel-blur to taste. The plain 'background' line is the
+           fallback for browsers without color-mix(). Applies to the
+           pre-spin / claim / done popups, the spin-confirm dialog and the
+           prize popup alike. */
+        .wheelPopup:not(#wheelPrizePopup),
+        .wheelDonePopup,
+        #wheelPrizePopup.wheelPrizePopupCustom {
+            --nui-wheel-glass: 82%;
+            --nui-wheel-under: 45%;
+            --nui-wheel-blur: 10px;
+            background: var(--nui-surface) !important;
+            background:
+                linear-gradient(color-mix(in srgb, var(--nui-surface) var(--nui-wheel-glass), transparent),
+                                color-mix(in srgb, var(--nui-surface) var(--nui-wheel-glass), transparent)),
+                linear-gradient(color-mix(in srgb, var(--nui-bg) var(--nui-wheel-under), transparent),
+                                color-mix(in srgb, var(--nui-bg) var(--nui-wheel-under), transparent)) !important;
+            -webkit-backdrop-filter: blur(var(--nui-wheel-blur)) saturate(1.15) !important;
+            backdrop-filter: blur(var(--nui-wheel-blur)) saturate(1.15) !important;
+        }
+
+        /* The spin-confirm dialogs' Yes/No use a wheel-specific
+           .wheel-button class (with a small jackal/eagle icon), not the
+           .button-*__2020 family the sitewide button rule targets, so they
+           were left as native art. Theme them as pills; keep the icon. */
+        .wheelPopup .wheel-button {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            background: var(--nui-surface-2) !important;
+            background-image: none !important;
+            color: var(--nui-text) !important;
+            border: 1px solid var(--nui-border) !important;
+            border-radius: var(--nui-radius-pill) !important;
+            font-family: var(--nui-font-body) !important;
+            font-weight: 700 !important;
+            text-shadow: none !important;
+            box-shadow: none !important;
+            padding: 8px 14px !important;
+            cursor: pointer;
+        }
+        .wheelPopup .wheel-button#wheelConfirmYes {
+            background: var(--nui-accent) !important;
+            color: var(--nui-accent-ink, #fff) !important;
+            border-color: var(--nui-accent) !important;
         }
 
         .togglePopup__2020 .popup-footer__2020 {
@@ -2949,6 +3175,110 @@
         .button-red__2020:hover,
         .button-blue__2020:hover,
         .button-purple__2020:hover {
+            filter: brightness(1.08) !important;
+        }
+
+        /* ── Sitewide native buttons — small "cute" shape ────────────────────
+           Mirrors .nui-btn-sm (what every module-built button and every
+           Sitewide Chrome proxy already uses): 13px bold label, compact
+           9/14 padding, and the asymmetric 12/6/12/6 corner. Also honors
+           --nui-clip-path-sm so themes with a cut-corner signature (Sloth)
+           apply to native buttons too. Color rules above are untouched —
+           this only decides size and shape. The circular Back/Help icon
+           buttons, the popup close X and the wheel Yes/No pills have their
+           own shape rules, so they're carved out here rather than fought
+           with. Module-scoped rules (Closet, Neolodge, etc.) still win via
+           specificity. To make them even smaller, lower padding/font-size
+           here. */
+        :is(.button-default__2020, .button-yellow__2020, .button-green__2020,
+            .button-red__2020, .button-blue__2020, .button-purple__2020):not(.back-button-circle__2020):not(.q-button__2020):not(.popup-exit):not(.wheel-button) {
+            box-sizing: border-box !important;
+            padding: 9px 14px !important;
+            font-size: 13px !important;
+            line-height: 1.2 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            border-radius: 12px 6px 12px 6px !important;
+            clip-path: var(--nui-clip-path-sm);
+            cursor: pointer;
+        }
+
+        /* ── Sitewide native popup buttons — unrecognized color variants ──
+           The six .button-*__2020 modifiers above (default/yellow/green/
+           red/blue/purple) are the complete set this suite has ever
+           enumerated, but Neopets isn't limited to those six — some
+           confirm/warning dialogs (e.g. "Are you sure..." style popups)
+           carry a button class this list has never seen. Buttons in that
+           bucket get NO rule at all above (not even the neutral baseline),
+           so unlike all six known classes, they render with no background
+           whatsoever — text floating with nothing under it. Scoped to
+           .togglePopup__2020 (not sitewide bare button/input) since that's
+           where these odd, dialog-only variants show up; module-scoped
+           rules for the buttons on non-popup pages still take priority via
+           specificity, same as every rule above. */
+        .togglePopup__2020 button:not(.button-default__2020):not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020):not(.button-blue__2020):not(.button-purple__2020),
+        .togglePopup__2020 input[type="button"]:not(.button-default__2020):not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020):not(.button-blue__2020):not(.button-purple__2020),
+        .togglePopup__2020 input[type="submit"]:not(.button-default__2020):not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020):not(.button-blue__2020):not(.button-purple__2020) {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            background: var(--nui-surface-2) !important;
+            background-image: none !important;
+            border: 1px solid var(--nui-border) !important;
+            color: var(--nui-text) !important;
+            border-radius: var(--nui-radius-pill) !important;
+            font-family: var(--nui-font-body) !important;
+            font-weight: 700 !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+            padding: 9px 14px !important;
+            font-size: 13px !important;
+            line-height: 1.2 !important;
+            border-radius: 12px 6px 12px 6px !important;
+            clip-path: var(--nui-clip-path-sm);
+            cursor: pointer !important;
+        }
+        .togglePopup__2020 button:not(.button-default__2020):not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020):not(.button-blue__2020):not(.button-purple__2020):hover,
+        .togglePopup__2020 input[type="button"]:not(.button-default__2020):not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020):not(.button-blue__2020):not(.button-purple__2020):hover,
+        .togglePopup__2020 input[type="submit"]:not(.button-default__2020):not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020):not(.button-blue__2020):not(.button-purple__2020):hover {
+            filter: brightness(1.08) !important;
+        }
+
+        /* ── Circular icon buttons (Back / Help) — sitewide fix ──────────────
+           .back-button-circle__2020 and .q-button__2020 wrap a bare icon
+           <div> with no text content, so the generic pill-button rule above
+           (sized by its own text + padding) leaves them with no intrinsic
+           box to paint a background onto — they end up rendering invisible
+           even though a background-color is technically being applied to
+           them by whichever module-scoped rule wins the cascade.
+           Closet independently solved this with its own
+           '.closet-container .back-button-circle__2020' rule; rather than
+           re-solving it per module (Neolodge, etc. currently don't have
+           it — that's the "buttons showing up as invisible" bug), give
+           every one of these icon buttons an explicit circular box
+           sitewide. Deliberately placed *after* the generic button rule
+           above so it wins the border-radius tie at equal (single-class)
+           specificity; it intentionally leaves background/color untouched
+           so existing higher-specificity module rules (Neolodge's
+           '#neolodge-app .button-yellow__2020' / '.button-red__2020',
+           Closet's own, etc.) still decide the actual color. */
+        .back-button-circle__2020,
+        .q-button__2020 {
+            width: 38px !important;
+            height: 38px !important;
+            min-width: 38px !important;
+            min-height: 38px !important;
+            padding: 0 !important;
+            border-radius: 50% !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-image: none !important;
+            box-shadow: none !important;
+            flex-shrink: 0 !important;
+        }
+        .back-button-circle__2020:hover,
+        .q-button__2020:hover {
             filter: brightness(1.08) !important;
         }
 
@@ -3072,6 +3402,38 @@
             font-weight: 700;
             color: var(--nui-text) !important;
             text-align: right;
+        }
+
+        /* ── Inventory item use-result popup (#invResult) ─────────────────────
+           Deliberately left out of the #invDesc block above — its content is
+           raw useobject.phtml/process_cash.phtml response HTML (plain reveal
+           text, an owner pet photo, occasional inline <font color> flourishes
+           like the Faerie Donation Capsule's "RUSTLE!"), not our own template
+           markup, so it needs its own pass rather than sharing invDesc's
+           item-box/select/stat-grid rules, none of which apply here.
+           The bare '.popup-body__2020 { color: var(--nui-text) }' rule
+           elsewhere only sets the div's own inherited color; per the v2.0.7
+           finding, this popup's native stylesheet locks p/span/strong/a to a
+           hardcoded dark color individually, which wins over that inherited
+           value. Same five-selector out-specify pattern used for gd-popup,
+           closet__popup, and trudyPopup. Intentional inline font colors
+           (the RUSTLE! pink, etc.) are left alone — that's reveal flavor,
+           not a legibility bug.
+        ── */
+        #invResult .popup-body__2020,
+        #invResult .popup-body__2020 p,
+        #invResult .popup-body__2020 span,
+        #invResult .popup-body__2020 strong,
+        #invResult .popup-body__2020 b,
+        #invResult .popup-body__2020 i {
+            color: var(--nui-text) !important;
+        }
+        #invResult .popup-body__2020 a {
+            color: var(--nui-accent) !important;
+        }
+        #invResult .popup-body__2020 img {
+            border-radius: var(--nui-radius-md);
+            box-shadow: 0 2px 6px var(--nui-shadow);
         }
 
         /* ── Global link color override ───────────────────────────────────────
@@ -4451,7 +4813,7 @@
         { id: 'training-mi',    label: 'Training — Mystery Island',  desc: 'MI Training School SPA',                         group: 'Training & Battle' },
         { id: 'training-ninja', label: 'Training — Ninja School',    desc: 'Secret Ninja Training SPA',                      group: 'Training & Battle' },
         { id: 'training-pirate',label: 'Training — Pirate Academy',  desc: 'Swashbuckling Academy SPA',                      group: 'Training & Battle' },
-        { id: 'battledome',     label: 'Battledome',                 desc: 'Scale-to-fit mobile wrapper',                    group: 'Training & Battle' },
+        { id: 'battledome',     label: 'Battledome',                 desc: 'Mobile wrapper + Abilities & Stats page redesigns',  group: 'Training & Battle' },
 
         { id: 'wishing-well',   label: 'Wishing Well',               desc: 'Wishing Well optimizer',                         group: 'Economy & Banking' },
         { id: 'item-transfer',  label: 'Item Transfer Log',          desc: 'Transfer log SPA',                               group: 'Economy & Banking' },
@@ -4463,7 +4825,7 @@
         { id: 'shop-wizard',    label: 'Shop Wizard',                desc: 'Full page rebuild — additive multi-search results, sorted by price', group: 'Economy & Banking' },
         { id: 'shop-pricing-helper', label: 'Your Shop — Card Rebuild',   desc: 'Card-based restyle of the Your Shop stock page (SDB-style) and the Shop Till withdraw page, with per-item SW/SSW price lookup (reference only) + unpriced highlighting', group: 'Economy & Banking' },
 
-        { id: 'faerie-quests',  label: 'Faerie Quests',              desc: 'Sitewide quest watcher (page rebuild pending revamp)', group: 'Quests' },
+        { id: 'faerie-quests',  label: 'Faerie Quests',              desc: 'Sitewide quest watcher + theming for the /quests.phtml page', group: 'Quests' },
         { id: 'faerie-bluffs',  label: "Jhudora's Bluff & Illusen's Glade", desc: "Level/score summary, 12h cooldown synced to Home timers, Level 26 avatar tip", group: 'Quests' },
         { id: 'quest-ledger',   label: 'Quest Ledger',               desc: 'Taelia/Edna/Kitchen Quest tracker + analytics', group: 'Quests' },
         { id: 'quest-log',      label: 'Quest Log',                  desc: 'Reskinned /questlog/ hub — NeoUI tokens, toasts, quicklinks', group: 'Quests' },
@@ -7109,7 +7471,7 @@
 
         const modal = document.createElement('div');
         modal.className = 'nui-surface';
-        modal.style.cssText = 'width:100%;max-width:640px;height:min(88vh,720px);border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);box-shadow:0 10px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;transform:scale(0.95);opacity:0;transition:all var(--nui-dur-fast) var(--nui-ease-snap);';
+        modal.style.cssText = 'width:100%;max-width:640px;height:min(88vh,720px);color:var(--nui-text);border-radius:var(--nui-radius-lg);border:1px solid var(--nui-border);box-shadow:0 10px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;transform:scale(0.95);opacity:0;transition:all var(--nui-dur-fast) var(--nui-ease-snap);';
 
         function closeModal() {
             modal.style.transform = 'scale(0.95)'; modal.style.opacity = '0';
@@ -7276,8 +7638,8 @@
             jobs.forEach(function (job, i) {
                 var row = document.createElement('div');
                 row.id = 'nui-sdbbulk-job-' + i;
-                row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);font-size:12px;';
-                row.innerHTML = '<span>' + sdbBulkEsc(job.label) + '</span><span data-status style="color:var(--nui-text-faint);font-weight:700;">Waiting</span>';
+                row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px solid var(--nui-border);border-radius:var(--nui-radius-sm);font-size:12px;color:var(--nui-text);';
+                row.innerHTML = '<span style="color:var(--nui-text);">' + sdbBulkEsc(job.label) + '</span><span data-status style="color:var(--nui-text-faint);font-weight:700;">Waiting</span>';
                 list.appendChild(row);
             });
             container.appendChild(list);
@@ -31486,6 +31848,8 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 '.nui-sdb-grid-card img { width:48px; height:48px; object-fit:contain; }',
                 '.nui-sdb-grid-name { font-size:11px; font-weight:700; color:var(--nui-text); line-height:1.2; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }',
                 '.nui-sdb-grid-meta { font-size:10px; color:var(--nui-text-muted); }',
+                '.nui-sdb-rarity { font-size:10px; font-weight:700; }',
+                '.nui-sdb-list-rarity { font-size:11px; font-weight:700; white-space:nowrap; }',
                 '.nui-sdb-card-btn { margin-top:auto; width:100%; padding:5px; font-size:11px; border-radius:4px; border:1px solid var(--nui-border); background:var(--nui-surface-2); cursor:pointer; color:var(--nui-text); font-weight:bold; transition:all .12s; }',
                 '.nui-sdb-card-btn:hover { background:var(--nui-accent-soft); border-color:var(--nui-accent); color:var(--nui-accent); }',
 
@@ -31874,6 +32238,26 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 });
         }
 
+        // ── Rarity badge helper ──────────────────────────────────────────────
+        // Same tiering used by the Stamp Album module's itemdb helper, kept
+        // as a local copy here since that one lives in a separate IIFE scope.
+        function sdbRarityMeta(rarity) {
+            var rNum = parseInt(String(rarity).replace(/^r/i, ''), 10);
+            if (isNaN(rNum))                                return { label: 'N/A',                color: 'var(--nui-text-muted)' };
+            if (rNum <= 74)                                  return { label: 'r' + rNum,                    color: 'var(--nui-text-muted)' };
+            if (rNum >= 75 && rNum <= 84)                    return { label: 'r' + rNum + ' · Uncommon',    color: 'var(--nui-success)' };
+            if (rNum >= 85 && rNum <= 89)                    return { label: 'r' + rNum + ' · Rare',        color: 'var(--nui-success)' };
+            if (rNum >= 90 && rNum <= 94)                    return { label: 'r' + rNum + ' · Very Rare',   color: 'var(--nui-success)' };
+            if ((rNum >= 95 && rNum <= 98) || rNum === 100)  return { label: 'r' + rNum + ' · Ultra Rare',   color: 'var(--nui-success)' };
+            if (rNum === 99)                                 return { label: 'r' + rNum + ' · Super Rare',  color: 'var(--nui-success)' };
+            if (rNum >= 101 && rNum <= 104)                  return { label: 'r' + rNum + ' · Special',     color: '#aa4455' };
+            if (rNum >= 105 && rNum <= 110)                  return { label: 'r' + rNum + ' · MEGA RARE',   color: 'var(--nui-danger)' };
+            if (rNum >= 111 && rNum <= 179)                  return { label: 'r' + rNum + ' · Rarity ' + rNum, color: 'var(--nui-danger)' };
+            if (rNum === 180)                                return { label: 'r' + rNum + ' · Retired',     color: 'var(--nui-text-faint)' };
+            if (rNum === 200)                                return { label: 'r' + rNum + ' · Artifact',    color: 'var(--nui-danger)' };
+            return { label: 'r' + rNum, color: 'var(--nui-text-muted)' };
+        }
+
         // ── Sorting / shared post-fetch helpers ─────────────────────────────────
         function sdbSortComparator(key) {
             return {
@@ -32186,11 +32570,14 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
                 var priceSlot = '<div class="nui-itemdb-price-slot" data-id="' + item.obj_info_id + '">' + (item.itemdb_html || '') + '</div>';
 
+                var rarity = sdbRarityMeta(item.obj_rarity);
+
                 if (state.view === 'grid') {
                     card.innerHTML =
                         '<img src="' + imgUrl(item) + '" alt="" loading="lazy">' +
                         '<div class="nui-sdb-grid-name">' + escHtml(item.obj_name) + '</div>' +
                         '<div class="nui-sdb-grid-meta">Qty: ' + item.amount + (item.is_nc ? ' &nbsp;<span class="nui-sdb-nc-badge">NC</span>' : '') + '</div>' +
+                        '<div class="nui-sdb-rarity" style="color:' + rarity.color + ';">' + escHtml(rarity.label) + '</div>' +
                         priceSlot;
                     card.appendChild(createFavBtn(item));
                     card.appendChild(createCheckbox(item));
@@ -32202,6 +32589,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                         '<div class="nui-sdb-list-name">' + escHtml(item.obj_name) + priceSlot + '</div>' +
                         (item.is_nc ? '<span class="nui-sdb-nc-badge">NC</span>' : '') +
                         '<div class="nui-sdb-list-cat">' + escHtml(item.category_name || '') + '</div>' +
+                        '<div class="nui-sdb-list-rarity" style="color:' + rarity.color + ';">' + escHtml(rarity.label) + '</div>' +
                         '<div class="nui-sdb-list-qty">×' + item.amount + '</div>';
 
                     var fav = createFavBtn(item);
@@ -32292,6 +32680,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     '<div class="nui-sdb-drawer-name">' + escHtml(item.obj_name) + '</div>' +
                     '<div class="nui-sdb-drawer-meta">Qty: ' + item.amount +
                     (item.category_name ? ' &nbsp;·&nbsp; ' + escHtml(item.category_name) : '') +
+                    ' &nbsp;·&nbsp; <span style="color:' + sdbRarityMeta(item.obj_rarity).color + ';">' + escHtml(sdbRarityMeta(item.obj_rarity).label) + '</span>' +
                     (item.is_nc ? ' &nbsp;·&nbsp; <span class="nui-sdb-nc-badge">NC</span>' : '') +
                     '</div>' +
                 '</div>' +
@@ -38572,12 +38961,17 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                         if (pid) { hasPirate = true; totalOdds *= (globalOddsMap[pid] || 1); }
                     });
                     if (!hasPirate) totalOdds = 0;
-                    // The site's real ceiling on a bet is just the per-bet max
-                    // (maxBet) — it accepts bets whose potential payout exceeds
-                    // the 1,000,000 NP winnings cap and simply pays out no more
-                    // than MAX_WIN if the bet hits. So `cap` here tracks the
-                    // actual placeable amount, not a payout-derived amount.
-                    const cap = maxBet;
+                    // The site lets you bet up to your account's max bet
+                    // regardless of odds, but any NP wagered past the point
+                    // where the payout already hits the 1,000,000 NP cap buys
+                    // nothing more — it just risks extra NP for the same
+                    // possible return. So the useful ceiling is whichever is
+                    // lower: the account max, or the smallest bet that still
+                    // reaches MAX_WIN at these odds (rounded up, so the
+                    // payout is guaranteed to meet — not just approach — the
+                    // cap).
+                    const neededForCap = totalOdds > 0 ? Math.ceil(MAX_WIN / totalOdds) : maxBet;
+                    const cap = Math.min(maxBet, neededForCap);
                     return { totalOdds, cap };
                 }
 
@@ -38700,7 +39094,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                         amtInput.className = 'nui-input';
                         amtInput.min = '50';
                         amtInput.value = String(finalAmt);
-                        amtInput.title = `Min 50, max ${cap.toLocaleString()} (account bet cap)`;
+                        amtInput.title = `Min 50, max ${cap.toLocaleString()} (bet cap)`;
                         amtInput.style.cssText = 'width:80px;font-size:12px;padding:5px 8px;';
                         amtInput.disabled = totalOdds === 0;
 
@@ -38714,7 +39108,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                             payoutSpan.textContent = (totalOdds * previewAmt).toLocaleString();
                             const overCap = !isNaN(raw) && raw > (totalOdds > 0 ? cap : maxBet);
                             capNote.style.display = overCap ? 'block' : 'none';
-                            if (overCap) capNote.textContent = `Will be capped at ${cap.toLocaleString()} NP on save (account bet max)`;
+                            if (overCap) capNote.textContent = `Will be capped at ${cap.toLocaleString()} NP on save (bet cap)`;
                             const overPayoutCap = totalOdds > 0 && !isNaN(raw) && (totalOdds * Math.min(Math.max(raw, 0), cap)) > MAX_WIN;
                             if (overPayoutCap) {
                                 payoutCapNote.style.display = 'block';
@@ -38730,7 +39124,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                         // bulk action changed odds elsewhere) stays consistent.
                         amtInput.addEventListener('blur', () => {
                             const { wasClamped: clampedNow, finalAmt: settled } = clampAmount(bet);
-                            if (clampedNow) showToast(`Amount adjusted to ${settled.toLocaleString()} NP (account bet max).`, false);
+                            if (clampedNow) showToast(`Amount adjusted to ${settled.toLocaleString()} NP (bet cap).`, false);
                             renderQueueView();
                         });
                         amtInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') amtInput.blur(); });
@@ -38774,7 +39168,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
                         const capNote = document.createElement('div');
                         capNote.style.cssText = 'display:none;font-size:10px;font-weight:700;color:var(--nui-warning,#f5a623);text-align:right;';
-                        if (wasClamped) { capNote.style.display = 'block'; capNote.textContent = `Adjusted to ${finalAmt.toLocaleString()} NP (account bet max).`; }
+                        if (wasClamped) { capNote.style.display = 'block'; capNote.textContent = `Adjusted to ${finalAmt.toLocaleString()} NP (bet cap).`; }
 
                         // Informational only — this bet is still placed in
                         // full; Neopets itself is what caps the eventual
@@ -39037,11 +39431,20 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             oddsCard.querySelector('#nui-fc-bet-amount').addEventListener('input', updateOdds);
 
             oddsCard.querySelector('#nui-fc-max-btn').addEventListener('click', () => {
-                // Max means max bet, full stop — the site lets you bet up to
-                // your account's max bet regardless of odds; it's only the
-                // eventual payout that's capped at MAX_WIN (handled in the
-                // payoff preview below, not by shrinking the bet amount).
-                document.getElementById('nui-fc-bet-amount').value = maxBet;
+                // Betting past the point where the payout already hits the
+                // 1,000,000 NP cap buys nothing more, so "Max" targets
+                // whichever is lower: the account max bet, or the smallest
+                // bet that still reaches MAX_WIN at the current odds
+                // (rounded up so the payout meets, not just approaches,
+                // the cap).
+                let totalOdds = 0;
+                arenas.forEach((arena, idx) => {
+                    if (!betState.checked[idx] || !betState.selected[idx]) return;
+                    const o = globalOddsMap[betState.selected[idx]] || 1;
+                    totalOdds = totalOdds === 0 ? o : totalOdds * o;
+                });
+                const neededForCap = totalOdds > 0 ? Math.ceil(MAX_WIN / totalOdds) : maxBet;
+                document.getElementById('nui-fc-bet-amount').value = Math.min(maxBet, neededForCap);
                 updateOdds();
             });
 
@@ -40994,111 +41397,248 @@ return {
         }
         body { margin: 0 !important; }
 
-        /* Center the walkthrough as a single card sitting in the viewport
-           (vertically centered when it's shorter than the screen) instead
-           of native's bare, unbounded desktop-width column. */
-        #LairBeast {
-            max-width: 480px !important;
-            margin: 0 auto !important;
-            padding: 12px !important;
-            box-sizing: border-box !important;
-            min-height: 100vh !important;
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: center !important;
+        /* Shrinking #container__2020 (below) exposes whatever is behind
+           it — the stock Neopets background. Paint the themed page
+           background on the document itself so it always fills. */
+        html, body {
+            background: var(--nui-bg) !important;
+            min-height: 100% !important;
         }
 
-        /* Each step (#LairBeastStep1-4) gets real card treatment —
-           background/border/shadow — so it reads as one self-contained
-           panel instead of bare text run directly on the page background.
-           Only ever one step is visible at a time; the native '.hide'
-           class (toggled by the page's own proceedForward()) still
-           controls that, this only styles whichever one is showing.
-           Sizing stays close to native (normal reading size) now that the
-           card gives it room, rather than shrinking text/images down. */
+        /* The sitewide framework pins #container__2020 to a near-full-
+           viewport min-height (inline, ~941px). With short walkthrough
+           cards that just reads as a huge blank area. Let it hug its
+           content instead. */
+        #container__2020 {
+            min-height: 0 !important;
+            padding-bottom: 12px !important;
+        }
+        #navsub-buffer__2020 { height: 4px !important; }
+        .page-title__2020 { margin-top: 0 !important; margin-bottom: 6px !important; }
+
+        /* Native gives #LairBeast margin:2em auto — pure dead space. */
+        #LairBeast.lair-beast {
+            max-width: 480px !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+        }
+
         .lair-beast-step {
             background: var(--nui-surface) !important;
             border: 1px solid var(--nui-border) !important;
             border-radius: var(--nui-radius-lg) !important;
             box-shadow: 0 4px 12px var(--nui-shadow) !important;
-            padding: 16px !important;
+            padding: 12px !important;
             box-sizing: border-box !important;
         }
-        .lair-beast-step p {
-            margin: 6px 0 !important;
-            line-height: 1.4 !important;
+        #LairBeast .lair-beast-step p {
+            margin: 4px auto !important;
+            line-height: 1.35 !important;
             font-size: 15px !important;
             color: var(--nui-text) !important;
         }
-        .char-img-square {
+        /* THE BIG GAPS ABOVE/BELOW THE CAVE IMAGE: characters.css sizes
+           .char-img-square with height:0 + padding-top:250px (the
+           img-sq-250 class). Setting height:150px on top of that left the
+           250px padding in place, so the box was 400px tall with a 150px
+           picture floating in the middle. Kill the padding; use a real
+           height. */
+        #LairBeast .char-img-square,
+        #LairBeast .char-img-square.img-sq-250 {
             width: 150px !important;
+            max-width: 150px !important;
             height: 150px !important;
+            padding: 0 !important;
             background-size: contain !important;
-            margin: 8px auto !important;
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+            margin: 4px auto !important;
         }
-        .lair-beast-pet {
-            margin: 6px 0 !important;
+
+        /* Pet + speech bubble: keep native's stacked layout (pet on top,
+           bubble below, centered) but trim it — smaller pet, and the
+           bubble's 2em top margin / 20pt speaker tag scaled down. */
+        #LairBeast .lair-beast-pet {
+            flex-direction: column !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 0 !important;
+            margin: 4px auto !important;
         }
-        .h5-dialogue.dialogue-xs {
-            padding: 10px 14px !important;
-            background: var(--nui-surface-2) !important;
+        #LairBeast .lair-beast-pet img {
+            width: 110px !important;
+            height: 110px !important;
+            flex: 0 0 auto !important;
+        }
+        #LairBeast .h5-dialogue,
+        #LairBeast .h5-dialogue.dialogue-xs {
+            width: 75% !important;
+            min-width: 180px !important;
+            flex: 0 0 auto !important;
+            margin: 16px auto 4px !important;
+            padding: 6px 10px !important;
+            border: 3px solid var(--nui-border) !important;
+            background: transparent !important;
             border-radius: var(--nui-radius-md) !important;
             color: var(--nui-text) !important;
         }
+        #LairBeast .h5-speaker {
+            font-size: 14px !important;
+            margin: -1.15em auto 0 .5em !important;
+        }
+        #LairBeast .h5-speaker mark {
+            background: var(--nui-surface) !important;
+            color: var(--nui-text-muted) !important;
+            padding: 0 4px !important;
+        }
+        #LairBeast .h5-dialogue p {
+            width: auto !important;
+            margin: 2px 0 !important;
+            text-align: center !important;
+            font-size: 14px !important;
+        }
+
         .button-grid2__2020 {
-            margin-top: 12px !important;
+            margin-top: 8px !important;
             gap: 8px !important;
         }
 
-        /* Step 4 — pin it into a tight column so the prompt, the game, and
-           the exit link sit together with nothing pushed below the fold.
-           Scoped to :not(.hide): this previously forced 'display:flex'
-           unconditionally, which (being !important) beat the native
-           '.hide' rule's plain, non-!important 'display:none' regardless
-           of when Step 4 actually became active — leaving its card
-           visible the entire time, layered with Steps 1-3 instead of the
-           walkthrough advancing through them one at a time. That's the
-           "steps not separating" bug: this selector now only takes over
-           once the page itself has removed '.hide' from Step 4. */
+        /* Theme-aware text. Native hard-codes dark blues/purples
+           (#323887 game prompt, #2D007A timer, etc.) that vanish on dark
+           themes, and the premium-retry / ad-reward / timer blocks added
+           by adReward.js were never styled at all. */
+        #LairBeast,
+        #LairBeast p, #LairBeast span, #LairBeast b, #LairBeast strong,
+        #LairBeast div, #LairBeast label, #LairBeast li, #LairBeast mark,
+        #LairBeast a:not([class*="button-"]),
+        #LairBeast .lair-beast-game,
+        #LairBeast .lair-beast-timer,
+        #LairBeast .lair-beast-time,
+        #LairBeast .lair-beast-ad,
+        #LairBeast .lair-beast-reward,
+        #LairBeast .lair-beast-premium,
+        #LairBeastPremium {
+            color: var(--nui-text) !important;
+        }
+        #LairBeast .h5-speaker mark { color: var(--nui-text-muted) !important; }
+        #LairBeast .lair-beast-timer,
+        #LairBeast .lair-beast-time,
+        #LairBeast .lair-beast-ad,
+        #LairBeast .lair-beast-reward,
+        #LairBeastPremium {
+            font-size: 14px !important;
+            margin: 4px auto !important;
+            text-align: center !important;
+        }
+        #LairBeast .lair-beast-ad a:not([class*="button-"]) {
+            color: var(--nui-accent) !important;
+            text-decoration: underline !important;
+        }
+
+        /* Confirm / error popups live outside #LairBeast. */
+        #LairBeastConfirmPopup .popup-body__2020,
+        #LairBeastErrorPopup .popup-body__2020 {
+            background: var(--nui-surface) !important;
+        }
+        #LairBeastConfirmPopup .popup-body__2020 *,
+        #LairBeastErrorPopup .popup-body__2020 * {
+            color: var(--nui-text) !important;
+        }
+
+        /* Step 4 — tight column: prompt, game, exit link. Scoped to
+           :not(.hide) so the page's own .hide toggle keeps working. */
+        #LairBeastStep4.lair-beast-step {
+            padding: 8px !important;
+        }
         #LairBeastStep4.lair-beast-step:not(.hide) {
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
-            gap: 6px !important;
+            gap: 4px !important;
         }
         #LairBeastText, #LairBeastGame {
-            margin: 4px 0 !important;
+            margin: 2px 0 !important;
             font-size: 14px !important;
             text-align: center !important;
         }
         #LairBeastExit {
-            margin-top: 6px !important;
-        }
-        .lair-beast-anim {
-            width: 100% !important;
-            display: flex !important;
-            justify-content: center !important;
+            margin: 4px 0 0 !important;
         }
 
-        /* The unscaled spacer div we insert around #LairBeastCave — sized
-           in JS to the post-scale visual footprint so it reserves exactly
-           that much space, no more. */
-        .nui-lairbeast-stage {
-            margin: 4px auto 0 !important;
-            overflow: hidden !important;
-        }
+        /* THE "TINY PLAYABLE WINDOW" BUG: the previous version gave
+           .lair-beast-anim width:100% + display:flex. That element is
+           #LairBeastCave itself — the thing we scale — so it collapsed to
+           the card width and its 1080px canvas got centered/shrunk inside
+           it, THEN scaled down again. Double shrink. It must keep its
+           native 1080x808 box; only the transform scales it. */
+        #LairBeast .lair-beast-anim,
         #LairBeastCave {
-            transform-origin: top left;
-            width: ${NATIVE_W}px;
+            display: block !important;
+            width: ${NATIVE_W}px !important;
+            height: ${NATIVE_H}px !important;
+            max-width: none !important;
+            transform-origin: top left !important;
+        }
+        .nui-lairbeast-stage {
+            margin: 2px auto 0 !important;
+            overflow: hidden !important;
+            flex: 0 0 auto !important;
         }
 
-        /* .evtH5-wrapper (on #animation_container) is built for
-           click-and-drag horizontal scrolling of the oversized canvas —
-           once the whole cave is scaled to fit, that behavior just fights
-           tapping the lyre, so lock it down. */
-        .evtH5-wrapper {
+        /* PRIZE SCREEN: once the game ends the page swaps the cave for the
+           reward markup, but our fixed-size, overflow:hidden stage wrapper
+           (still sized for the scaled game, e.g. 460x344) stays around it
+           and clips the bottom — that's the cut-off prize name. When the
+           cave is gone the wrapper becomes a plain, auto-height box. */
+        .nui-lairbeast-stage:not(:has(#LairBeastCave)),
+        .nui-lairbeast-stage.nui-released {
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 4px !important;
+        }
+        #LairBeast .lair-beast-calm {
+            width: 60% !important;
+            max-width: 220px !important;
+            padding-top: 0 !important;
+            aspect-ratio: 4 / 3 !important;
+            margin: 6px auto !important;
+        }
+        #LairBeast .lair-beast-reward {
+            margin: 4px auto !important;
+            padding-bottom: 2px !important;
+        }
+        #LairBeast .lair-beast-reward p {
+            margin: 4px auto 2px !important;
+            line-height: 1.3 !important;
+            overflow: visible !important;
+        }
+
+        /* evt-canvas.css sizes the canvas 100% wide on desktop but a fixed
+           750px at <=750px viewports, and gives its wrapper a 10px margin
+           and 200px min-height. Any of that desyncs the canvas from the
+           lyre hotspot, which is positioned in native 1080x808 space.
+           Lock the whole stack to native geometry. */
+        #container__2020 #LairBeastCave .evtH5-wrapper {
+            width: ${NATIVE_W}px !important;
+            height: ${NATIVE_H}px !important;
+            min-height: 0 !important;
+            margin: 0 !important;
             overflow: hidden !important;
             touch-action: manipulation !important;
+            cursor: default !important;
+        }
+        #container__2020 #LairBeastCave canvas.evtH5 {
+            width: ${NATIVE_W}px !important;
+            height: ${NATIVE_H}px !important;
+            max-width: none !important;
+            margin: 0 !important;
+            cursor: default !important;
         }
     `;
     document.head.appendChild(style);
@@ -41126,19 +41666,26 @@ return {
         const cave = document.getElementById('LairBeastCave');
         if (!cave) return;
         const stage = ensureStage(cave);
-        if (!stage.parentElement) return;
+        const host = stage.parentElement;
+        if (!host || !isRendered(host)) return;
 
-        const availableW = Math.min(stage.parentElement.clientWidth || window.innerWidth, window.innerWidth) - 8;
+        // Width available = the card's content box (not the raw viewport).
+        const cs = getComputedStyle(host);
+        const innerW = host.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+        const availableW = Math.min(innerW, window.innerWidth) - 2;
 
-        // Available height = whatever's left in the viewport below wherever
-        // the stage currently sits (i.e. below the walkthrough text above
-        // it), minus room for the prompt/exit link below it. This is what
-        // actually eliminates the vertical scroll, not just the horizontal
-        // one: the game is capped to fit in one screen, full stop.
+        // Height available = viewport below the stage's top edge, minus room
+        // for the prompt + exit link. This is only a SOFT cap now: width is
+        // the primary constraint, and height may only pull the game down to
+        // 70% of its width-fit size. Previously the height cap was absolute,
+        // so any slack above the game (title, text, gaps) directly shrank
+        // the playable area — that's how it ended up as a 504x377 box.
         const stageTop = stage.getBoundingClientRect().top;
         const availableH = Math.max(160, window.innerHeight - stageTop - BELOW_RESERVE);
 
-        const factor = Math.min(1, availableW / NATIVE_W, availableH / NATIVE_H);
+        const widthFactor = Math.min(1, availableW / NATIVE_W);
+        const heightFactor = availableH / NATIVE_H;
+        const factor = Math.min(widthFactor, Math.max(heightFactor, widthFactor * 0.7));
 
         cave.style.transform = 'scale(' + factor + ')';
         stage.style.width = Math.round(NATIVE_W * factor) + 'px';
@@ -41190,6 +41737,22 @@ return {
         new MutationObserver(function () {
             if (!step4.classList.contains('hide')) applyScale();
         }).observe(step4, { attributes: true, attributeFilter: ['class'] });
+
+        // Prize screen: when the page replaces the game with the reward
+        // markup, drop the stage's fixed pixel size (inline width/height
+        // from applyScale) so it can't clip the prize. CSS :has() does the
+        // same; this covers older browsers.
+        new MutationObserver(function () {
+            const stage = step4.querySelector('.nui-lairbeast-stage');
+            if (!stage) return;
+            if (stage.querySelector('#LairBeastCave')) {
+                stage.classList.remove('nui-released');
+            } else {
+                stage.classList.add('nui-released');
+                stage.style.width = '';
+                stage.style.height = '';
+            }
+        }).observe(step4, { childList: true, subtree: true });
     }
 
     window.addEventListener('resize', applyScale);
@@ -49146,6 +49709,12 @@ return {
     const container2020 = document.getElementById('container__2020');
     if (!container2020) return;
 
+    // See Module 50 (Jhudora's Bluff/Illusen's Glade) for the full
+    // writeup: this page never mounts the --nui-* custom properties
+    // either, so every var(--nui-*) reference in the CSS below was
+    // resolving to nothing.
+    if (window.NeoUI.ensureCoreStyles) window.NeoUI.ensureCoreStyles();
+
         // 1. Inject global popups/overrides CSS once
     const styleId = 'nui-gd-styles';
     if (!document.getElementById(styleId)) {
@@ -49602,22 +50171,41 @@ return {
     const container2020 = document.getElementById('container__2020');
     if (!container2020) return;
 
+    // Mount the --nui-* custom properties (and core stylesheet) onto the
+    // document. Every module that themes anything via var(--nui-*) needs
+    // this called first — some pages trigger it earlier via Sitewide
+    // Chrome or their own init(), but nothing guarantees that happened
+    // before THIS module runs, and this page never called it on its own.
+    // Skipping it doesn't visibly break anything at a glance — the DOM
+    // still gets re-homed, text and layout still render — it just leaves
+    // every var(--nui-accent)/var(--nui-danger-soft)/var(--nui-surface-2)/
+    // etc. reference below resolving to nothing, so anything relying on
+    // one of those tokens for its background silently paints transparent
+    // instead of failing loudly. That's exactly what was happening to the
+    // Accept/Decline buttons: the selectors were matching fine (a literal
+    // test color rendered immediately), it was the color values
+    // themselves that were never defined anywhere in the document.
+    if (window.NeoUI.ensureCoreStyles) window.NeoUI.ensureCoreStyles();
+
     const DAILY_TIMERS_KEY = 'neoui_daily_timers_v1';
     const TIMER_ID = NPC === 'jhudora' ? 'jhudora-s-bluff' : 'illusen-s-glade';
     const PARTNER_TIMER_ID = NPC === 'jhudora' ? 'illusen-s-glade' : 'jhudora-s-bluff';
     const NPC_LABEL = NPC === 'jhudora' ? "Jhudora's Bluff" : "Illusen's Glade";
-    const NPC_COLOR = NPC === 'jhudora' ? 'var(--nui-accent)' : 'var(--nui-success)';
+    // Site accent, not per-NPC. This used to branch — --nui-accent on
+    // Jhudora's page, --nui-success on Illusen's — so the Accept button,
+    // search-strip highlight, focus border, and stat values all changed
+    // color depending which faerie you were looking at. Every other
+    // module in the suite themes off the one site accent regardless of
+    // page, so this module should match rather than invent its own
+    // per-NPC palette. Kept as a named constant (rather than inlining
+    // var(--nui-accent) everywhere below) purely so the intent stays
+    // readable at each call site.
+    const NPC_COLOR = 'var(--nui-accent)';
 
-    // The Accept-Quest button and the primary search-strip button both key
-    // their background off NPC_COLOR — --nui-accent for Jhudora,
-    // --nui-success for Illusen. Every theme only ever defines an ink token
-    // calibrated against --nui-accent (--nui-accent-ink); there's no
-    // --nui-success-ink. Reusing accent-ink as Illusen's button text
-    // color means the text was calibrated for a completely different
-    // background color than the one actually drawn behind it — legible in
-    // some themes purely by coincidence, unreadable in others. Compute the
-    // real contrast against whichever color NPC_COLOR actually resolves to
-    // instead of assuming that mismatched token still happens to work.
+    // Every theme defines an ink token calibrated for --nui-accent
+    // (--nui-accent-ink). Compute contrast against the color that
+    // actually resolves rather than assume accent-ink is safe, since a
+    // theme author could set an accent light enough to need dark text.
     function relLuminanceHex(hex) {
         const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
         if (!m) return 1; // unknown — assume light, default to dark text
@@ -49628,8 +50216,9 @@ return {
         return 0.2126 * chan(m[1]) + 0.7152 * chan(m[2]) + 0.0722 * chan(m[3]);
     }
     const resolvedNpcColor = getComputedStyle(document.documentElement)
-        .getPropertyValue(NPC === 'jhudora' ? '--nui-accent' : '--nui-success').trim();
+        .getPropertyValue('--nui-accent').trim();
     const NPC_INK = relLuminanceHex(resolvedNpcColor) > 0.4 ? '#1A1A1A' : '#FFFFFF';
+
 
     function showFatalError(err) {
         try {
@@ -49884,10 +50473,18 @@ return {
             }
             #nui-fb-app .welcome, #nui-fb-app font[color] { color: ${NPC_COLOR} !important; }
 
-            /* ── Faerie portrait card (strictly scoped) ── */
-            #nui-fb-app .jhudora,
-            #nui-fb-app .illusen,
-            #nui-fb-app .faerie-img {
+            /* ── Faerie portrait card ──
+               Covers both the copy re-homed into #nui-fb-app by
+               buildApp() AND the identical .jhudora/.illusen div native
+               to the intro popup, which buildApp() deliberately leaves
+               in place ("popups stay put, restyled in place") and was
+               previously left completely unstyled/uncentered as a
+               result. Safe to leave unscoped from #nui-fb-app since
+               this whole module only ever runs on darkfaerie.phtml or
+               earthfaerie.phtml — nothing else on the page can match. */
+            .jhudora,
+            .illusen,
+            .faerie-img {
                 flex-shrink: 0 !important;
                 width: 100px !important;
                 min-width: 100px !important;
@@ -49934,8 +50531,19 @@ return {
                 align-items: center;
                 gap: var(--nui-space-2);
             }
-            /* Quest item thumbnail */
-            #nui-fb-app img[width="80"][height="80"],
+            /* Quest item thumbnail — scoped to the search row itself.
+               This used to be a bare img[width="80"][height="80"]
+               selector with no #nui-fb-quest-item-row scoping, which
+               meant it was actually grabbing the NATIVE reward-preview
+               images Neopets renders in #ex-text (also 80x80) and
+               squashing each into its own 40px display:block box —
+               stacked one per line instead of centered, with no
+               relation to the real quest item. buildHelperCard() only
+               puts a text input in the row today (no thumbnail), so
+               this rule is inert until one's added, but scoping it
+               keeps it from grabbing the wrong images; the reward-
+               preview strip below now owns those instead. */
+            #nui-fb-quest-item-row img,
             #nui-fb-app .quest-item-img {
                 display: block !important;
                 width: 40px !important;
@@ -49946,6 +50554,47 @@ return {
                 background: var(--nui-surface-2) !important;
                 flex-shrink: 0 !important;
                 margin: 0 !important;
+            }
+            /* Native "sample reward" preview strip — the 3 example-item
+               images Jhudora/Illusen show in their welcome blurb, both
+               inline (#ex-text, re-homed into #nui-fb-app) and inside
+               the intro popup (untouched by buildApp(), styled here via
+               the .togglePopup__2020 branch instead). Text lines keep
+               their normal full-width flow; only the trailing images
+               are pulled into a centered, wrapping row instead of
+               stacking one per line the way the old rule above left
+               them. */
+            #nui-fb-app #ex-text,
+            .togglePopup__2020.movePopup__2020 #ex-text {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                align-items: center !important;
+                text-align: center !important;
+                gap: var(--nui-space-2) !important;
+            }
+            #nui-fb-app #ex-text > p,
+            #nui-fb-app #ex-text > b,
+            .togglePopup__2020.movePopup__2020 #ex-text > p,
+            .togglePopup__2020.movePopup__2020 #ex-text > b {
+                flex-basis: 100% !important;
+                margin: 0 !important;
+            }
+            #nui-fb-app #ex-text img[width="80"][height="80"],
+            .togglePopup__2020.movePopup__2020 #ex-text img[width="80"][height="80"],
+            .togglePopup__2020.movePopup__2020 .popup-body__2020 > img[width="80"][height="80"] {
+                display: inline-block !important;
+                width: 64px !important;
+                height: 64px !important;
+                object-fit: contain !important;
+                border-radius: var(--nui-radius-md) !important;
+                border: 1px solid var(--nui-border) !important;
+                background: var(--nui-surface-2) !important;
+                margin: 0 !important;
+            }
+            #nui-fb-app #ex-text br,
+            .togglePopup__2020.movePopup__2020 #ex-text br {
+                display: none !important;
             }
             #nui-fb-item-name {
                 font-weight: 700;
@@ -50042,15 +50691,18 @@ return {
             }
 
             /* ── Native buttons — remap to NeoUI pill style ──
-               .flex-container shows up in two separate places on this page:
-               the quest card's Accept/Decline row (real DOM node re-homed
-               into #nui-fb-app by buildApp(), so scoping to #nui-fb-app
-               covers it) and the intro popup's own Leave/Enter row, which
-               is a distinct top-level popup never touched by buildApp() —
-               #nui-fb-app never contains it, so it needs its own selector
-               or it's left with the buttons individually recolored (by the
-               unscoped .button-*__2020 rules below) but the row itself
-               never centered. */
+               .flex-container shows up in (at least) three separate
+               places on this page: the quest card's Accept/Decline row
+               (real DOM node re-homed into #nui-fb-app by buildApp(), so
+               scoping to #nui-fb-app covers it), the intro popup's own
+               Leave/Enter row, and the "Are you sure...She is a Dark
+               Faerie!" (or Illusen equivalent) confirm popup's
+               Cancel/Accept row — the latter two are distinct top-level
+               popups never touched by buildApp(), so #nui-fb-app never
+               contains them and they need the .togglePopup__2020
+               selector too, or they're left with the buttons
+               individually recolored (by the unscoped .button-*__2020
+               rules further up) but the row itself never centered. */
             #nui-fb-app .flex-container,
             .togglePopup__2020.movePopup__2020 .flex-container {
                 display: flex !important;
@@ -50061,7 +50713,31 @@ return {
             }
             #nui-fb-app .flex-container form,
             .togglePopup__2020.movePopup__2020 .flex-container form { margin: 0 !important; }
-            #nui-fb-app .button-green__2020 {
+            /* Accept/decline colors, using the site's one accent (NPC_COLOR
+               is now pinned to var(--nui-accent) above, not per-faerie).
+               Includes .button-yellow__2020 alongside .button-green__2020:
+               that's the class Neopets puts on the sole "Return to
+               Faerieland!" button shown once today's quest is already
+               done, and it's the same kind of affirmative/primary action
+               as Accept. Previously only .button-green__2020/.button-red__2020
+               were pulled into this ID-scoped rule; .button-yellow__2020 was
+               left to the plain, unscoped sitewide default further up
+               (same specificity as the *other* unscoped sitewide default
+               at the top of this file, so which one actually wins a tie
+               depends on injection order rather than anything guaranteed) —
+               giving it a real background here instead of leaning on that
+               tie is what actually makes it render as a solid pill instead
+               of text-colored-with-no-background. Also scoped to
+               .togglePopup__2020 so the popups (never touched by
+               buildApp()) get the same treatment; safe to do since this
+               module only ever runs on darkfaerie.phtml or
+               earthfaerie.phtml. */
+            #nui-fb-app .button-green__2020,
+            #nui-fb-app .button-yellow__2020,
+            #darkFaeriePopup2020 .button-green__2020,
+            #intro-popup .button-green__2020,
+            .togglePopup__2020.movePopup__2020 .button-green__2020,
+            .togglePopup__2020.movePopup__2020 .button-yellow__2020 {
                 background: ${NPC_COLOR} !important;
                 color: ${NPC_INK} !important;
                 border: none !important;
@@ -50075,8 +50751,59 @@ return {
                 letter-spacing: 0.3px !important;
                 transition: filter 0.15s !important;
             }
-            #nui-fb-app .button-green__2020:hover { filter: brightness(1.1) !important; }
-            #nui-fb-app .button-red__2020 {
+            #nui-fb-app .button-green__2020:hover,
+            #nui-fb-app .button-yellow__2020:hover,
+            #darkFaeriePopup2020 .button-green__2020:hover,
+            #intro-popup .button-green__2020:hover,
+            .togglePopup__2020.movePopup__2020 .button-green__2020:hover,
+            .togglePopup__2020.movePopup__2020 .button-yellow__2020:hover { filter: brightness(1.1) !important; }
+            #nui-fb-app .button-red__2020,
+            #darkFaeriePopup2020 .button-red__2020,
+            #intro-popup .button-red__2020,
+            .togglePopup__2020.movePopup__2020 .button-red__2020 {
+                background: var(--nui-surface-2) !important;
+                color: var(--nui-text) !important;
+                border: 1px solid var(--nui-border) !important;
+                box-shadow: none !important;
+                border-radius: var(--nui-radius-pill) !important;
+                font-family: var(--nui-font-body) !important;
+                font-weight: 700 !important;
+                padding: 13px 22px !important;
+                font-size: 14px !important;
+                cursor: pointer !important;
+            }
+            /* Belt-and-suspenders: same colors again, scoped only to
+               .flex-container (no #nui-fb-app / popup-ID prefix at all).
+               Confirmed from the actual page source that "Sorry, NO!!!"
+               and "I Accept!" do carry the recognized button-red__2020/
+               button-green__2020 classes, so the ID-scoped rules above
+               should already reach them — this exists purely as a second,
+               independent path to the same real background colors that
+               doesn't rely on buildApp()'s re-homing having already run
+               by the time these paint, in case that's what's actually
+               going wrong. Same specificity as the sitewide default this
+               module can't touch (single class selector), but placed last
+               in this file's own <style> tag so it wins the tie. */
+            .flex-container .button-green__2020 {
+                background: ${NPC_COLOR} !important;
+                color: ${NPC_INK} !important;
+                border: none !important;
+            }
+            .flex-container .button-red__2020 {
+                background: var(--nui-surface-2) !important;
+                color: var(--nui-text) !important;
+                border: 1px solid var(--nui-border) !important;
+            }
+            /* Fallback for a button in this row carrying none of the four
+               recognized classes above (default/yellow/green/red) — the
+               sitewide .togglePopup__2020-scoped fallback further up this
+               file can't reach this row, since it's the quest card's own
+               row re-homed into #nui-fb-app, outside any popup. Without
+               this, such a button would render with no background at all
+               the same way it did before the sitewide fallback existed. */
+            #nui-fb-app .flex-container button:not(.button-default__2020):not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020),
+            #nui-fb-app .flex-container input[type="button"]:not(.button-default__2020):not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020),
+            #nui-fb-app .flex-container input[type="submit"]:not(.button-default__2020):not(.button-yellow__2020):not(.button-green__2020):not(.button-red__2020) {
                 background: var(--nui-surface-2) !important;
                 color: var(--nui-text) !important;
                 border: 1px solid var(--nui-border) !important;
@@ -59295,8 +60022,14 @@ return {
            inside page content in places like item rarity/price badges) —
            see the aggressive recoloring pass below for why nph- needs the
            same exclusion. */
-        #nui-sitewide-content-wrap a:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]),
-        #container__2020 a:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]) {
+        /* Links styled as buttons (<a class="button-yellow__2020"> etc.) are
+           excluded: this rule's specificity beat the sitewide .button-*__2020
+           color rules, painting accent-colored text on the accent-colored
+           button fill, i.e. unreadable labels (Fruit Machine "Return to
+           Sakhmet", Petpet Lab Ray). They take their color from the button
+           rules in Core instead. */
+        #nui-sitewide-content-wrap a:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]):not([class*="button-"]):not([class*="-button"]):not([class*="button__"]):not([class*="btn-"]),
+        #container__2020 a:not(.nui-btn):not([class*="nui-"]):not([class*="nph-"]):not([class*="button-"]):not([class*="-button"]):not([class*="button__"]):not([class*="btn-"]) {
             color: var(--nui-accent) !important;
         }
         #nui-sitewide-content-wrap input[type="text"],
@@ -59351,9 +60084,25 @@ return {
            price badge, per-rarity badge color, sale-speed status dot), and
            without this exclusion the first version of this pass wiped all
            of those out along with the legacy Neopets colors it was
-           actually meant to target. */
-        #container__2020 *:not([class*="nui-"]):not([class*="nph-"]),
-        #nui-sitewide-content-wrap *:not([class*="nui-"]):not([class*="nph-"]) {
+           actually meant to target.
+           :not(#nui-fb-app):not(#nui-fb-app *) excludes Jhudora's Bluff/
+           Illusen's Glade's own app wrapper (Module 50) and everything
+           inside it. That module re-homes native page content — countdown
+           timers, the search strip, the native Accept/Decline and item
+           turn-in buttons — into #nui-fb-app and themes all of it itself
+           via var(--nui-*) already, using its own native .button-*__2020
+           classes (not "nui-"/"nph-" prefixed, so the exclusions above
+           don't catch them). Without this, this pass's higher-specificity
+           !important was winning over that module's own background rules
+           regardless of which style tag loaded first. */
+        /* Buttons are deliberately excluded (tags + native button-*__2020 /
+           btn-* class families). This pass used to hit them too, and at
+           three ID-level specificity points (#container__2020 plus the two
+           #nui-fb-app :not() terms) its background-color:transparent
+           !important beat the sitewide .button-*__2020 background rules
+           in Core, so native buttons lost their background entirely. */
+        #container__2020 *:not([class*="nui-"]):not([class*="nph-"]):not(#nui-fb-app):not(#nui-fb-app *):not(button):not(input[type="submit"]):not(input[type="button"]):not(input[type="reset"]):not([class*="button-"]):not([class*="-button"]):not([class*="button__"]):not([class*="btn-"]),
+        #nui-sitewide-content-wrap *:not([class*="nui-"]):not([class*="nph-"]):not(#nui-fb-app):not(#nui-fb-app *):not(button):not(input[type="submit"]):not(input[type="button"]):not(input[type="reset"]):not([class*="button-"]):not([class*="-button"]):not([class*="button__"]):not([class*="btn-"]) {
             background-color: transparent !important;
             border-color: var(--nui-border) !important;
         }
@@ -59424,6 +60173,34 @@ return {
             if (orig.dataset.nuiReplaced) return;
             if (orig.closest('[class*="nui-"]')) return; // already one of ours
             if (orig.closest('[class*="nph-"]')) return; // Neopets Helper's own controls
+            // Any native button already carrying one of the suite's own
+            // .button-*__2020 color classes is meant to be reskinned in
+            // place by the sitewide/per-module CSS system (the giant
+            // .button-default__2020/-yellow/-green/-red/-blue/-purple rule
+            // sets, plus whatever ID-scoped overrides a specific module
+            // like Jhudora's Bluff layers on top), not swapped for a
+            // generic proxy here. The "[class*=\"nui-\"]" ancestor check
+            // above is supposed to cover this once a module has re-homed
+            // its content into its own nui-* container, but this function
+            // runs synchronously and immediately, while several modules
+            // (Jhudora's Bluff/Illusen's Glade among them) defer their own
+            // re-homing to DOMContentLoaded — so on first run here, that
+            // container doesn't exist yet and the ancestor check can't see
+            // it. Checking the button's own classes instead doesn't care
+            // about timing or DOM position.
+            if (['button-default__2020', 'button-yellow__2020', 'button-green__2020', 'button-red__2020', 'button-blue__2020', 'button-purple__2020'].some(function (c) { return orig.classList.contains(c); })) return;
+            // Faerie Quests (fq-hub): a real <button class="fq-cta"> wrapping
+            // an already-styled .button-default__2020 child div — the
+            // sitewide button rule above already reskins that div properly.
+            // Without this, this scan (and the late-append MutationObserver
+            // below, which is what actually catches these — Vue mounts
+            // after this function's own one-time pass at init) grabs the
+            // real button, clips it to nothing, and drops in a generic
+            // .nui-btn proxy that duplicates a button that didn't need
+            // rescuing in the first place — "What Rewards I might get?" /
+            // "I'm Ready for the Quest!" etc. effectively vanish along with
+            // whatever real button they were on.
+            if (orig.closest('.fq-cta')) return;
             orig.dataset.nuiReplaced = '1';
 
             // Snapshot how this button was actually sitting in the page
@@ -59444,7 +60221,15 @@ return {
                 : [];
             const isSoleControl = siblingControls.length === 1;
             const parentTextAlign = orig.parentElement ? getComputedStyle(orig.parentElement).textAlign : '';
-            const shouldCenter = isSoleControl || parentTextAlign === 'center';
+            // .btn-single__2020 is the native marker for "this is THE
+            // standalone, centered button" — trust it even when the parent
+            // also holds other controls. The sole-control heuristic alone
+            // fails on pages like the wheels, where #container__2020 also
+            // contains the hidden spin-confirm dialog's Yes/No buttons, so
+            // "Spin the Wheel" was no longer the only <button> in its
+            // parent and its centering wrapper got skipped.
+            const isNativeSingle = orig.classList.contains('btn-single__2020');
+            const shouldCenter = isSoleControl || parentTextAlign === 'center' || isNativeSingle;
 
             const label = (orig.tagName === 'INPUT' ? orig.value : orig.textContent) || 'Submit';
             const proxy = document.createElement('button');
@@ -62529,5 +63314,1717 @@ return {
         boot();
     } else {
         document.addEventListener('DOMContentLoaded', boot);
+    }
+})();
+
+// ==============================================================================
+// MODULE 28: FAERIE QUESTS (PAGE THEMING FOR /quests.phtml)
+// ==============================================================================
+// Neopets revamped /quests.phtml to a mobile-native Vue app (fq-hub) with its
+// own fq.css design (purple/lavender cards, a Luxinia/Faerie Fragments goal
+// module, per-faerie backdrop art in the About panel). The old Module 28 was
+// a full teardown-and-rebuild SPA and was pulled in v2.2.4 once that DOM no
+// longer matched what it expected — see that changelog entry.
+//
+// This is deliberately NOT a rebuild, and it doesn't even claim the page: it
+// leaves Sitewide Chrome (Module 2) running as normal for the topbar/nav/
+// footer conversion (that part is fine), and just adds a CSS pass that
+// out-specifies Sitewide Chrome's generic fallback for the fq-* content
+// classes that fallback doesn't know about. That fallback strips
+// background-color to transparent and forces color:inherit sitewide (correct
+// for legacy markup with baked-in hex colors, wrong for a modern component
+// tree with its own stylesheet), which is what was making large parts of
+// this page unreadable in non-default themes.
+//
+// The fallback's actual wildcard is
+//   `#container__2020 *:not([class*="nui-"]):not([class*="nph-"])`
+// — each `:not([...])` counts toward specificity same as a class, so that's
+// id + two attribute-in-:not clauses = specificity 120, not the 100 a plain
+// id+universal reading would suggest. Everything here is scoped by a
+// doubled id selector — `#container__2020#container__2020` for the main hub/
+// About section, and each static popup's own id doubled on itself
+// (`#fqAbandonPopup#fqAbandonPopup`, etc.) for the PHP-rendered confirm/
+// reward popups. Repeating an id selector on one compound is valid CSS (the
+// element's id trivially matches itself twice), and each occurrence counts
+// separately toward specificity, giving 200 — comfortably clears 120
+// regardless of nesting depth, and #container__2020 is native server-
+// rendered markup so this holds even where the Vue app's own DOM structure
+// (id churn from mounting/teleporting) can't be relied on as an anchor.
+//
+// The FQ popups' header/body/footer/exit/buttons are already handled by the
+// existing generic `.togglePopup__2020 .popup-*__2020` + `.button-*__2020`
+// rules elsewhere in this file — this module only covers what those don't
+// reach: .fq-card, .fq-panel, item tiles, status/reward/error text, the
+// About section's faerie-bio panel, and the Luxinia goal card.
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (location.pathname !== '/quests.phtml') return;
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('faerie-quests')) return;
+
+    // Static PHP-rendered popups that share the .fq-card / .fq-popup-faerie
+    // pattern. #fqLuxiniaPopup#fqLuxiniaPopup is included here too since its Luxinia-goal
+    // markup is Vue-teleported INTO it (#fqLuxiniaMount is a static child of
+    // it), so scoping by this id also covers that teleported content.
+    const FQ_CARD_POPUP_IDS = [
+        'fqAbandonPopup', 'fqDeclinedPopup', 'fqBonusRejectPopup',
+        'fqRerollPopup', 'fqLuxiniaCompletedPopup',
+        // Added: the four Luxinia (Faerie Fragments) popups NeoPass-gate/
+        // decline/abandon/expiry flow uses .fq-card / .fq-card--tight the
+        // same way the rest of this list does, but were missed when Luxinia
+        // shipped — they were unstyled until now.
+        'fqLuxiniaIneligiblePopup', 'fqLuxiniaDeclinedPopup',
+        'fqLuxiniaAbandonPopup', 'fqLuxiniaExpiredPopup',
+    ];
+    const fqCardPopupSel = function (suffix) {
+        // Doubled id (#id#id) rather than a single #id: valid CSS (repeating
+        // an id selector is legal, and each occurrence counts separately
+        // toward specificity), giving specificity 200 — comfortably clears
+        // Sitewide Chrome's `#container__2020 *:not([class*="nui-"]):not
+        // ([class*="nph-"])` fallback, which is 120 (id + two attribute-in-
+        // :not clauses), not the 100 a plain id+universal read would suggest.
+        return FQ_CARD_POPUP_IDS.map(function (id) { return '#' + id + '#' + id + ' ' + suffix; }).join(',\n');
+    };
+
+    const FQ_CSS = [
+        '/* fq.css defines these two custom props on :root for the card fill/edge',
+        '   (#f0e6f8 / #bb96d4, a hardcoded lilac) — .fq-card::before\'s legend flap',
+        '   reads --fq-card-bg directly, so overriding the variable here fixes that',
+        '   flap too, not just the card body set explicitly below. This module only',
+        '   loads on /quests.phtml, so redefining :root here is safely page-scoped. */',
+        ':root { --fq-card-bg: var(--nui-surface) !important; --fq-card-edge: var(--nui-border) !important; }',
+
+        '/* ── Main hub content, scoped via a doubled #container__2020 id',
+        '   for guaranteed specificity — see the module comment above ── */',
+        '#container__2020#container__2020 .fq-card, #container__2020#container__2020 .fq-card--tight {',
+        '    background: var(--nui-surface) !important;',
+        '    border: 1px solid var(--nui-border) !important;',
+        '    border-radius: var(--nui-radius-lg) !important;',
+        '    padding: var(--nui-space-4) !important;',
+        '    color: var(--nui-text) !important;',
+        '}',
+        '#container__2020#container__2020 .fq-card p, #container__2020#container__2020 .fq-card span { color: var(--nui-text) !important; }',
+        '#container__2020#container__2020 .fq-card a { color: var(--nui-accent) !important; }',
+
+        '#container__2020#container__2020 .fq-panel {',
+        '    background: var(--nui-surface-2) !important;',
+        '    border-radius: var(--nui-radius-lg) !important;',
+        '    padding: var(--nui-space-4) !important;',
+        '    max-width: 640px;',
+        '    margin: 0 auto var(--nui-space-4) !important;',
+        '    color: var(--nui-text) !important;',
+        '    /* fq.css paints this panel\'s actual visible surface with a 9-slice',
+        '       border-image (fq-bottombacking.png, a purple-to-lavender wash) —',
+        '       border-image renders ON TOP of background-color per spec, so the',
+        '       background line above was being silently painted over by that art',
+        '       and never showing. This is why the panel kept reading as purple no',
+        '       matter what background color was set here. */',
+        '    border-image: none !important;',
+        '    border-width: 0 !important;',
+        '}',
+        '/* Intro banner (no-quest / event states) — solid #b05ec2 purple behind a',
+        '   gold-leaf border-image plaque (fq-topheader.png). Its color rule further',
+        '   down only fixed the TEXT; the background and frame art are still native',
+        '   purple/gold regardless of theme, which is the same "art wins over',
+        '   background-color" issue as the panel above. */',
+        '#container__2020#container__2020 .fq-intro {',
+        '    background: var(--nui-accent) !important;',
+        '    background-image: none !important;',
+        '    border-image: none !important;',
+        '    border-width: 0 !important;',
+        '    border-radius: var(--nui-radius-lg) !important;',
+        '    color: var(--nui-accent-ink, #fff) !important;',
+        '}',
+        '#container__2020#container__2020 .fq-intro, #container__2020#container__2020 .fq-event-intro, #container__2020#container__2020 .fq-status,',
+        '#container__2020#container__2020 .fq-reward, #container__2020#container__2020 .fq-kaia-hint,',
+        '#container__2020#container__2020 .fq-item-name, #container__2020#container__2020 .fq-about-heading, #container__2020#container__2020 .fq-faerie-name {',
+        '    color: var(--nui-text) !important;',
+        '}',
+        '/* Shop Wizard reminder strip — flat #808080/#fff, unrelated to any theme;',
+        '   the .fq-intro rule above now also sets its own background, so this stays',
+        '   its own rule rather than joining that text-only group. */',
+        '#container__2020#container__2020 .fq-reminder { background: var(--nui-surface-2) !important; color: var(--nui-text) !important; }',
+        '#container__2020#container__2020 .fq-error, #container__2020#container__2020 .fq-in-battle { color: var(--nui-danger, #dc2626) !important; font-weight: 700; }',
+
+        '/* About section — per-faerie backdrop/character art is set via inline',
+        '   style and left untouched; a dark scrim behind the name/bio text',
+        '   guarantees contrast regardless of theme AND regardless of how light',
+        '   or dark any individual faerie\'s own backdrop happens to be — same',
+        '   "pin legible color for text on fixed art" treatment already used for',
+        '   the Obelisk hint box and the Wheel prize popups elsewhere in this file. */',
+        '#container__2020#container__2020 .fq-faerie-panel { background-color: var(--nui-surface-2) !important; border-radius: var(--nui-radius-lg) !important; overflow: hidden; }',
+        '#container__2020#container__2020 .fq-faerie-copy { background: rgba(0,0,0,.55) !important; padding: var(--nui-space-3) !important; border-radius: var(--nui-radius-md) !important; }',
+        '#container__2020#container__2020 .fq-faerie-name, #container__2020#container__2020 .fq-faerie-bio { color: #fff !important; text-shadow: 0 1px 2px rgba(0,0,0,.6) !important; }',
+        '#container__2020#container__2020 .fq-faerie-icon.is-selected { outline: 2px solid var(--nui-accent) !important; outline-offset: 2px; }',
+
+        '/* Luxinia (Faerie Fragments) goal card — appears inline in the main hub',
+        '   (post-event main-slot quest) AND teleported into #fqLuxiniaPopup;',
+        '   both are stable ancestor ids so both are covered. Re-themed onto',
+        '   --nui-accent-soft rather than guessing back the native purple, so it',
+        '   now actually follows the active theme. */',
+        '#container__2020#container__2020 .fq-lux-goal, #fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-goal {',
+        '    background: var(--nui-accent-soft, rgba(124,58,237,.14)) !important;',
+        '    border: 1px solid var(--nui-border) !important;',
+        '    border-radius: var(--nui-radius-lg) !important;',
+        '    padding: var(--nui-space-3) var(--nui-space-4) !important;',
+        '}',
+        '#container__2020#container__2020 .fq-lux-goal-title, #container__2020#container__2020 .fq-lux-goal-label, #container__2020#container__2020 .fq-lux-goal-count,',
+        '#fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-goal-title, #fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-goal-label, #fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-goal-count {',
+        '    color: var(--nui-text) !important;',
+        '}',
+        '#container__2020#container__2020 .fq-lux-check, #fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-check { background: var(--nui-surface) !important; border: 2px solid var(--nui-border) !important; }',
+        '#container__2020#container__2020 .fq-lux-check.is-done, #fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-check.is-done { background: var(--nui-accent) !important; border-color: var(--nui-accent) !important; }',
+        '#container__2020#container__2020 .fq-lux-goal-bar, #fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-goal-bar { background: var(--nui-surface) !important; }',
+        '#container__2020#container__2020 .fq-lux-goal-bar span, #fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-goal-bar span { background: var(--nui-accent) !important; }',
+        '#container__2020#container__2020 .fq-lux-clock, #fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-clock {',
+        '    background: var(--nui-surface) !important;',
+        '    border: 2px solid var(--nui-border) !important;',
+        '    color: var(--nui-text) !important;',
+        '}',
+        '#container__2020#container__2020 .fq-lux-copy, #container__2020#container__2020 .fq-lux-offer-copy, #container__2020#container__2020 .fq-lux-download,',
+        '#container__2020#container__2020 .fq-lux-inv, #container__2020#container__2020 .fq-lux-remaining-label { color: var(--nui-text) !important; }',
+        '#container__2020#container__2020 .fq-lux-icon { filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }',
+        '/* The line above only reaches this content while it\'s inline in the hub.',
+        '   Teleported into #fqLuxiniaPopup it is outside #container__2020 entirely,',
+        '   and .fq-lux-copy / .fq-lux-download there each carry their OWN color',
+        '   declaration in fq.css (#2c1442 / #4d2474) — a direct match on the',
+        '   element always wins over inherited color regardless of !important on an',
+        '   ancestor, so .fq-lux-popup\'s color rule below can\'t reach these two by',
+        '   itself; they need the same explicit override, scoped to the popup. */',
+        '#fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-copy, #fqLuxiniaPopup#fqLuxiniaPopup .fq-lux-download {',
+        '    color: var(--nui-text) !important;',
+        '}',
+        '/* fqLuxiniaAbandonPopup renders its confirm copy as a bare .fq-lux-copy',
+        '   paragraph rather than wrapping it in .fq-card like its siblings, so',
+        '   it falls outside fqCardPopupSel() below and needs its own rule. */',
+        '#fqLuxiniaAbandonPopup#fqLuxiniaAbandonPopup .fq-lux-copy { color: var(--nui-text) !important; }',
+
+        '/* Kaia\'s "which NC item do you have" picker — a bare native <select>,',
+        '   unstyled until now. */',
+        '#container__2020#container__2020 .fq-kaia-select {',
+        '    width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 13px;',
+        '    border-radius: var(--nui-radius-sm) !important; border: 1px solid var(--nui-border) !important;',
+        '    background: var(--nui-surface-2) !important; color: var(--nui-text) !important;',
+        '    margin-top: var(--nui-space-2);',
+        '}',
+
+        '/* Session-expired takeover — its box and copy carry hardcoded inline',
+        '   style="background:#fff" / "color:#2c1442", which need !important to',
+        '   beat (inline style, not a class, so ordinary specificity can\'t win). */',
+        '#container__2020#container__2020 .fq-session-expired-box {',
+        '    background: var(--nui-surface) !important;',
+        '    box-shadow: 0 6px 24px var(--nui-shadow) !important;',
+        '}',
+        '#container__2020#container__2020 .fq-session-expired-box p { color: var(--nui-text) !important; }',
+
+        '/* Bonus quest offer banner (Delina) — plain card, not a .togglePopup__2020,',
+        '   so none of the generic popup fixes reach it. */',
+        '#container__2020#container__2020 .fq-bonus-inner {',
+        '    background: var(--nui-surface) !important;',
+        '    border: 1px solid var(--nui-border) !important;',
+        '    border-radius: var(--nui-radius-lg) !important;',
+        '    padding: var(--nui-space-4) !important;',
+        '}',
+        '#container__2020#container__2020 .fq-bonus-copy { color: var(--nui-text) !important; }',
+
+        '/* Skeleton loading placeholders — plain blocks that go invisible once',
+        '   their own background is stripped (theme text color on theme bg = no',
+        '   contrast against them, since there is no text to contrast with). */',
+        '#container__2020#container__2020 .fq-sk-line, #container__2020#container__2020 .fq-sk-tile, #container__2020#container__2020 .fq-sk-char,',
+        '#container__2020#container__2020 .fq-sk-host, #container__2020#container__2020 .fq-sk-card { background: var(--nui-surface-2) !important; }',
+
+        '/* ── De-skin the FQ popup frame ────────────────────────────────────────',
+        '   fq.css gives EVERY quest popup (.fq-popup / #fqPrizePopup, which covers',
+        '   Abandon/Declined/Reroll/BonusReject/all five Luxinia popups/the Luxinia',
+        '   modal/the daily-prize popup) its own ornamental purple/lavender 9-slice',
+        '   frame (fq-popup-light.png) instead of the shared chrome — its own',
+        '   comment says this "DELIBERATELY OVERRIDES THE PLAYER\'S PROFILE THEME"',
+        '   and that reverting means deleting that block, "the shared chrome',
+        '   underneath is untouched". That is exactly what this does, restoring the',
+        '   flat nui-surface popup look used everywhere else on the site. Their',
+        '   selectors are plain class/id with no !important, so a slightly more',
+        '   specific selector plus !important wins outright; no doubled-id trick',
+        '   needed here since these popups\' own header/footer are already emptied',
+        '   out by fq.css (background:none, pattern divs display:none), so there is',
+        '   nothing native left to out-specify once the frame itself is gone. */',
+        '.fq-popup, #fqPrizePopup {',
+        '    background: var(--nui-surface) !important;',
+        '    background-image: none !important;',
+        '    border-image: none !important;',
+        '    border: 1px solid var(--nui-border) !important;',
+        '    border-radius: var(--nui-radius-lg) !important;',
+        '    box-shadow: 0 10px 40px var(--nui-shadow) !important;',
+        '}',
+        '.fq-popup .popup-header__2020, .fq-popup .popup-footer__2020,',
+        '#fqPrizePopup .popup-header__2020, #fqPrizePopup .popup-footer__2020 {',
+        '    background: var(--nui-surface-2) !important;',
+        '    margin: 0 !important;',
+        '    padding: var(--nui-space-3) var(--nui-space-4) !important;',
+        '}',
+        '.fq-popup .popup-header__2020 h3, #fqPrizePopup .popup-header__2020 h3 { color: var(--nui-accent) !important; }',
+        '.fq-popup .popup-body__2020, #fqPrizePopup .popup-body__2020 { background: var(--nui-surface) !important; color: var(--nui-text) !important; }',
+        '.fq-lux-popup { color: var(--nui-text) !important; }',
+        '#fqPrizePopup .fq-prize-name b, #fqPrizePopup .popup-body__2020 a { color: var(--nui-accent) !important; }',
+
+        '/* ── Static (non-Vue) popups\' .fq-card content. Header/body/footer/exit/',
+        '   buttons here are handled by the frame de-skin block below now, not the',
+        '   sitewide generic .togglePopup__2020 fixes — see that block\'s comment',
+        '   for why those weren\'t reaching this page. This only covers the nested',
+        '   .fq-card content those don\'t know about. ID-anchored so it wins on',
+        '   specificity whether or not the popup is still a descendant of',
+        '   #container__2020 once opened. */',
+        fqCardPopupSel('.fq-card') + ' {',
+        '    background: var(--nui-surface-2) !important;',
+        '    border-radius: var(--nui-radius-md) !important;',
+        '    padding: var(--nui-space-3) !important;',
+        '    color: var(--nui-text) !important;',
+        '}',
+        fqCardPopupSel('.fq-card p') + ' { color: var(--nui-text) !important; }',
+    ].join('\n');
+
+    const style = document.createElement('style');
+    style.id = 'nui-fq-theme';
+    style.textContent = FQ_CSS;
+    document.head.appendChild(style);
+})();
+
+
+// ==============================================================================
+// MODULE 73: BATTLEDOME — ABILITIES PAGE (MOBILE REDESIGN)
+// ==============================================================================
+// /dome/abilities.phtml is a fixed-geometry legacy page: a 1080px-wide
+// container (forced with !important by the page's own inline <style>),
+// sprite-based frames, a 550px slider for the pet picker and 3-across ability
+// rows sized in pixels. Module 15 (Battledome) only clamps overflow, so on a
+// phone you get a zoomed-out or sideways-scrolling desktop page.
+//
+// Rather than fight that markup, this module renders a fresh responsive UI
+// and DRIVES the native page underneath:
+//   - Everything it shows is read from the native DOM (pet list, blessing
+//     counts, tier rows, ability names/images/costs, which are owned /
+//     selected / locked / cooling down, the running total). Ability
+//     descriptions come from the page's own inline script data.
+//   - Every action is forwarded to the native elements — tapping a pet clicks
+//     the native .petThumbContainer, tapping an ability clicks the native
+//     .bdsAbility, Train clicks #bdsTrainAbilities — so the page's own
+//     handlers, validation and AJAX purchase flow are untouched.
+//   - A MutationObserver on the native #bdsMain re-renders the mobile UI
+//     whenever the native page updates its state.
+//   - The native confirm / "not enough blessings" / "in battle" dialogs
+//     (which the page's JS opens and fills) are re-skinned as themed,
+//     centered, viewport-width cards instead of 500-680px sprite frames.
+// Fail-safe: the native UI is only hidden after the first successful render,
+// so if Neopets changes the markup the original page is left as it was.
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('battledome')) return;
+    if (NeoUI.__inFrame) return;
+    if (!/\/dome\/abilities\.phtml/.test(location.pathname)) return;
+
+    const CATS = {
+        1: { name: 'Earth', color: '#5fb04d' },
+        2: { name: 'Air',   color: '#7cc4f0' },
+        3: { name: 'Fire',  color: '#ee5a36' },
+        4: { name: 'Water', color: '#3a7be0' },
+        5: { name: 'Light', color: '#efc233' },
+        6: { name: 'Dark',  color: '#8659cf' }
+    };
+    const STASH_ORDER = [1, 2, 3, 4, 5, 6];
+    const NAV = [
+        { href: '/dome/fight.phtml',      label: 'Battle' },
+        { href: '/dome/neopets.phtml',    label: 'Stats' },
+        { href: '/dome/status.phtml',     label: 'Challenges' },
+        { href: '/dome/abilities.phtml',  label: 'Abilities', active: true },
+        { href: '/dome/record.phtml',     label: 'Records' },
+        { href: '/dome/battlepedia.phtml', label: 'Battlepedia' }
+    ];
+    const COOLDOWN_LABEL = {
+        fight: 'Once per battle',
+        turn: 'Turn cooldown',
+        daily: 'Once per day'
+    };
+
+    NeoUI.init();
+
+    // ── Styles ──────────────────────────────────────────────────────────────
+    const style = document.createElement('style');
+    style.id = 'nui-bda-style';
+    style.textContent = `
+        /* The page's own inline <style> pins #container__2020 to 1080px and
+           body to max-content with !important. It sits later in the document
+           than anything NeoUI injects into <head>, so beating it needs extra
+           specificity, not just !important. */
+        html body { width: 100% !important; max-width: 100vw !important; overflow-x: hidden !important; }
+        html body #container__2020#container__2020 {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
+        }
+        .battledome-container { padding: 0 !important; }
+        .page-title__2020 .bd-subtitle { width: auto !important; flex: 1 1 auto; margin: 0 !important; }
+        .page-title__2020 .bd-subtitle h1 { margin: 0 !important; color: var(--nui-text) !important; font-family: var(--nui-font-display) !important; }
+        .page-title__2020 .bd-subtitle h2 { margin: 0 !important; font-size: 15px !important; color: var(--nui-text-muted) !important; font-family: var(--nui-font-display) !important; }
+
+        /* Native UI is hidden only once the mobile UI has rendered. */
+        html.nui-bda-on #bdsMain,
+        html.nui-bda-on #bdHeader,
+        html.nui-bda-on #bdNav,
+        html.nui-bda-on .battledome-container > br,
+        html.nui-bda-on .battledome-container > .social-links,
+        html.nui-bda-on #bdsTooltipContainer { display: none !important; }
+
+        /* ── Mobile UI ── */
+        #nui-bda {
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 0 12px calc(96px + env(safe-area-inset-bottom, 0px));
+            box-sizing: border-box;
+            color: var(--nui-text);
+            text-align: left;
+        }
+        #nui-bda * { box-sizing: border-box; }
+        #nui-bda .bda-intro {
+            margin: 4px 0 10px;
+            font-size: 13px; line-height: 1.4;
+            color: var(--nui-text-muted);
+            text-align: center;
+        }
+        #nui-bda .bda-nav {
+            display: flex; gap: 6px; overflow-x: auto;
+            padding: 2px 0 10px;
+            scrollbar-width: none;
+        }
+        #nui-bda .bda-nav::-webkit-scrollbar { display: none; }
+        #nui-bda .bda-nav a {
+            flex: 0 0 auto;
+            padding: 7px 13px;
+            border-radius: var(--nui-radius-pill);
+            background: var(--nui-surface-2);
+            border: 1px solid var(--nui-border);
+            color: var(--nui-text) !important;
+            font-size: 13px; font-weight: 700;
+            text-decoration: none !important;
+        }
+        #nui-bda .bda-nav a.is-active {
+            background: var(--nui-accent);
+            border-color: var(--nui-accent);
+            color: var(--nui-accent-ink) !important;
+        }
+
+        #nui-bda .bda-label {
+            margin: 12px 2px 6px;
+            font-size: 11px; font-weight: 800; letter-spacing: .08em;
+            text-transform: uppercase; color: var(--nui-text-muted);
+        }
+
+        /* Pet picker */
+        #nui-bda .bda-pets {
+            display: flex; gap: 8px; overflow-x: auto;
+            padding: 2px 2px 8px;
+            scroll-snap-type: x proximity;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+        #nui-bda .bda-pet {
+            flex: 0 0 auto; width: 74px;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            padding: 6px 4px;
+            background: var(--nui-surface);
+            border: 2px solid var(--nui-border);
+            border-radius: var(--nui-radius-md);
+            color: var(--nui-text);
+            font: inherit; font-size: 11px; font-weight: 600;
+            cursor: pointer; scroll-snap-align: start;
+        }
+        #nui-bda .bda-pet img { width: 52px; height: 52px; object-fit: contain; }
+        #nui-bda .bda-pet span {
+            max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        #nui-bda .bda-pet.is-selected {
+            border-color: var(--nui-accent);
+            background: var(--nui-surface-2);
+        }
+
+        /* Blessings */
+        #nui-bda .bda-stash {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+        }
+        #nui-bda .bda-stash-item {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 10px;
+            background: var(--nui-surface);
+            border: 1px solid var(--nui-border);
+            border-radius: var(--nui-radius-md);
+            font-size: 13px;
+        }
+        #nui-bda .bda-stash-item b { margin-left: auto; font-size: 15px; }
+        #nui-bda .bda-dot {
+            flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%;
+            background: var(--dot, #999);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot, #999) 30%, transparent);
+        }
+
+        /* Tiers */
+        #nui-bda .bda-tier {
+            margin-top: 12px;
+            padding: 10px;
+            background: var(--nui-surface);
+            border: 1px solid var(--nui-border);
+            border-radius: var(--nui-radius-lg);
+        }
+        #nui-bda .bda-tier.is-locked { opacity: .62; }
+        #nui-bda .bda-tier-head {
+            display: flex; align-items: center; gap: 8px;
+            margin: 0 2px 8px;
+            font-size: 14px; font-weight: 800;
+            font-family: var(--nui-font-display);
+        }
+        #nui-bda .bda-tier-head small {
+            margin-left: auto;
+            font-size: 11px; font-weight: 600; color: var(--nui-text-muted);
+            font-family: inherit;
+        }
+        #nui-bda .bda-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+        }
+        #nui-bda .bda-ab {
+            position: relative;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 8px 4px 8px;
+            background: var(--nui-surface-2);
+            border: 2px solid transparent;
+            border-radius: var(--nui-radius-md);
+            text-align: center;
+        }
+        #nui-bda .bda-ab-main {
+            appearance: none; -webkit-appearance: none;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            width: 100%; padding: 0;
+            background: none; border: 0; color: inherit; font: inherit;
+            cursor: pointer;
+        }
+        #nui-bda .bda-ab-img {
+            width: 64px; height: 64px;
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+            border-radius: var(--nui-radius-sm);
+        }
+        #nui-bda .bda-ab-name {
+            min-height: 2.5em;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; line-height: 1.25;
+            word-break: break-word;
+        }
+        #nui-bda .bda-cost {
+            display: flex; flex-wrap: wrap; gap: 3px; justify-content: center;
+            min-height: 20px;
+        }
+        #nui-bda .bda-chip {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 2px 6px;
+            border-radius: var(--nui-radius-pill);
+            background: var(--nui-surface);
+            border: 1px solid var(--nui-border);
+            font-size: 11px; font-weight: 700;
+        }
+        #nui-bda .bda-chip .bda-dot { width: 8px; height: 8px; box-shadow: none; }
+        #nui-bda .bda-chip.is-short { color: #ff6b6b; border-color: #ff6b6b; }
+        #nui-bda .bda-free { font-size: 11px; font-weight: 700; color: var(--nui-text-muted); }
+        #nui-bda .bda-badge {
+            font-size: 10px; font-weight: 800; letter-spacing: .04em;
+            text-transform: uppercase; color: var(--nui-accent);
+        }
+        #nui-bda .bda-info {
+            appearance: none; -webkit-appearance: none;
+            position: absolute; top: 3px; right: 3px;
+            width: 22px; height: 22px; padding: 0;
+            border-radius: 50%; border: 1px solid var(--nui-border);
+            background: var(--nui-surface); color: var(--nui-text-muted);
+            font: inherit; font-size: 12px; font-weight: 800; line-height: 1;
+            cursor: pointer;
+        }
+        #nui-bda .bda-ab.is-owned    { border-color: color-mix(in srgb, var(--nui-accent) 55%, transparent); }
+        #nui-bda .bda-ab.is-selected { border-color: var(--nui-accent); background: color-mix(in srgb, var(--nui-accent) 14%, var(--nui-surface-2)); }
+        #nui-bda .bda-ab.is-poor .bda-ab-img,
+        #nui-bda .bda-ab.is-poor .bda-ab-name,
+        #nui-bda .bda-ab.is-locked .bda-ab-img,
+        #nui-bda .bda-ab.is-cooling .bda-ab-img { opacity: .5; filter: grayscale(.6); }
+        #nui-bda .bda-ab.is-info-open { outline: 2px solid var(--nui-border); }
+
+        #nui-bda .bda-desc {
+            margin-top: 8px; padding: 10px 12px;
+            background: var(--nui-surface-2);
+            border: 1px solid var(--nui-border);
+            border-radius: var(--nui-radius-md);
+            font-size: 13px; line-height: 1.45;
+        }
+        #nui-bda .bda-desc h4 { margin: 0 0 4px; font-size: 14px; color: var(--nui-text); }
+        #nui-bda .bda-desc .bda-status { margin-top: 6px; font-size: 12px; font-weight: 700; color: var(--nui-accent); }
+        #nui-bda .bda-desc .bda-status.is-bad { color: #ff6b6b; }
+        #nui-bda .bda-desc i { color: var(--nui-text-muted); }
+        #nui-bda .bda-desc .bda-tag {
+            display: inline-block; margin-top: 4px;
+            padding: 1px 8px; border-radius: var(--nui-radius-pill);
+            background: var(--nui-surface); border: 1px solid var(--nui-border);
+            font-size: 11px; font-weight: 700; color: var(--nui-text-muted);
+        }
+
+        /* Fixed bottom bar: running total + Train */
+        #nui-bda-bar {
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+            display: none; align-items: center; gap: 10px;
+            padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+            background: color-mix(in srgb, var(--nui-surface) 92%, transparent);
+            -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+            border-top: 1px solid var(--nui-border);
+            box-shadow: 0 -6px 18px var(--nui-shadow);
+        }
+        html.nui-bda-on #nui-bda-bar { display: flex; }
+        #nui-bda-bar .bda-bar-info { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--nui-text-muted); }
+        #nui-bda-bar .bda-bar-info .bda-cost { justify-content: flex-start; min-height: 0; margin-top: 3px; }
+        #nui-bda-bar .bda-bar-info strong { color: var(--nui-text); font-size: 13px; }
+        #nui-bda-bar .bda-chip { background: var(--nui-surface-2); border: 1px solid var(--nui-border); border-radius: var(--nui-radius-pill); padding: 2px 6px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 3px; color: var(--nui-text); }
+        #nui-bda-bar .bda-chip .bda-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot, #999); box-shadow: none; }
+        #nui-bda-bar .bda-train {
+            appearance: none; -webkit-appearance: none;
+            flex: 0 0 auto;
+            padding: 12px 18px;
+            border: 0; border-radius: var(--nui-radius-pill);
+            background: var(--nui-accent); color: var(--nui-accent-ink);
+            font: inherit; font-size: 14px; font-weight: 800;
+            cursor: pointer;
+        }
+        #nui-bda-bar .bda-train:disabled { opacity: .4; cursor: not-allowed; }
+        #nui-bda .bda-cost .bda-dot { background: var(--dot, #999); }
+
+        /* ── Native dialogs, re-skinned (the page's JS still opens / fills them) ── */
+        #bdFade {
+            position: fixed !important; inset: 0 !important;
+            width: auto !important; height: auto !important;
+            background: rgba(0, 0, 0, .6) !important;
+            z-index: 9990 !important;
+        }
+        #bdPopupGeneric-bdsconfirm,
+        #bdPopupGeneric-bdssorry,
+        #bdPopupGeneric-bdsinbattle {
+            position: fixed !important;
+            top: 50% !important; left: 50% !important;
+            margin: 0 !important;
+            width: min(92vw, 520px) !important;
+            height: auto !important;
+            max-height: 86vh; overflow-y: auto;
+            transform: translate(-50%, -50%);
+            background: var(--nui-surface) !important;
+            color: var(--nui-text) !important;
+            border: 1px solid var(--nui-border);
+            border-radius: var(--nui-radius-lg);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, .5);
+            z-index: 10000 !important;
+            box-sizing: border-box;
+        }
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.bg,
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.edge,
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.frame,
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.title,
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.bg,
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.edge,
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.frame,
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.title,
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.bg,
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.edge,
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.frame,
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.title { display: none !important; }
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.middle,
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.middle,
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.middle { width: 100% !important; position: static !important; }
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.contents,
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.contents,
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.contents { padding: 46px 16px 18px !important; text-align: center; }
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.contents::before,
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.contents::before,
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.contents::before {
+            position: absolute; top: 12px; left: 16px; right: 52px;
+            font-size: 17px; font-weight: 800; text-align: left;
+            font-family: var(--nui-font-display);
+            color: var(--nui-text);
+        }
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.contents::before { content: 'Train these abilities?'; }
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.contents::before { content: 'Just a moment…'; }
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.contents::before { content: 'Battle in progress'; }
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.close,
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.close,
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.close {
+            position: absolute !important; top: 8px !important; right: 8px !important;
+            width: 34px !important; height: 34px !important;
+            background: var(--nui-surface-2) !important; background-image: none !important;
+            border: 1px solid var(--nui-border); border-radius: 50%;
+            cursor: pointer; z-index: 2;
+        }
+        #bdPopupGeneric-bdsconfirm .bdPopupGeneric.close::before,
+        #bdPopupGeneric-bdssorry .bdPopupGeneric.close::before,
+        #bdPopupGeneric-bdsinbattle .bdPopupGeneric.close::before {
+            content: '\\2715'; position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 800; color: var(--nui-text);
+        }
+        #bdsConfirm, #bdsSorry, #bdsInBattle { color: var(--nui-text) !important; }
+        #bdsConfirm p, #bdsSorry p, #bdsSorry h3, #bdsInBattle p {
+            margin: 6px 0 !important; font-size: 14px !important; line-height: 1.4 !important;
+            color: var(--nui-text) !important; text-align: center !important; width: auto !important;
+        }
+        #bdsConfirm .abilities { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 8px 0; }
+        #bdsConfirm .abilities .ability {
+            width: 84px !important; height: auto !important; float: none !important;
+            font-size: 12px; font-weight: 700; color: var(--nui-text);
+        }
+        #bdsConfirm .abilities .ability img { width: 64px !important; height: 64px !important; object-fit: contain; }
+        #bdsConfirm table, #bdsSorry table { margin: 8px auto !important; width: auto !important; }
+        #bdsConfirm td, #bdsSorry td { padding: 0 6px !important; text-align: center; }
+        #bdsConfirm .label, #bdsSorry .label { font-size: 11px !important; color: var(--nui-text-muted) !important; }
+        #bdsConfirm .confirmvalue, #bdsSorry .sorryvalue { font-size: 16px !important; font-weight: 800 !important; color: var(--nui-text) !important; }
+        #bdsConfirm .dialogbutton, #bdsSorry .dialogbutton, #bdsInBattle .dialogbutton {
+            all: unset !important;
+            display: inline-flex !important; align-items: center; justify-content: center;
+            margin: 8px 4px 0 !important;
+            padding: 11px 18px !important;
+            border-radius: var(--nui-radius-pill) !important;
+            background: var(--nui-accent) !important; color: var(--nui-accent-ink) !important;
+            font-family: inherit !important; font-size: 14px !important; font-weight: 800 !important;
+            cursor: pointer !important; box-sizing: border-box !important;
+            text-indent: 0 !important; line-height: 1.2 !important;
+            width: auto !important; height: auto !important;
+        }
+        #bdsConfirm #bdsConfirmCancel {
+            background: var(--nui-surface-2) !important; color: var(--nui-text) !important;
+            border: 1px solid var(--nui-border) !important;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // ── Native-page readers ─────────────────────────────────────────────────
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    // Ability descriptions live in the page's inline script (BDAbilities.abilities),
+    // not in the DOM. It's a plain JSON literal, so parse it straight out of the
+    // script text instead of poking at a closure we can't reach.
+    let descCache = null;
+    function abilityData() {
+        if (descCache) return descCache;
+        descCache = {};
+        try {
+            const scr = Array.from(document.scripts).map(function (s) { return s.textContent || ''; })
+                .find(function (t) { return t.indexOf('var BDAbilities') > -1; });
+            if (scr) {
+                const m = scr.match(/abilities:\s*(\{[\s\S]*?\}),\s*purchase:/);
+                if (m) descCache = JSON.parse(m[1]) || {};
+            }
+        } catch (e) { descCache = {}; }
+        return descCache;
+    }
+    function cleanDesc(html) {
+        return String(html || '')
+            .replace(/<(?!\/?(?:i|br)\b)[^>]*>/gi, '')
+            .replace(/(?:<br\s*\/?>\s*){2,}/gi, '<br><br>')
+            .replace(/^\s*(?:<br\s*\/?>\s*)+/i, '');
+    }
+
+    function parseCost(listEl) {
+        const out = {};
+        if (!listEl) return out;
+        listEl.querySelectorAll('li').forEach(function (li) {
+            const icon = li.querySelector('.costicon');
+            const val = li.querySelector('.costvalue');
+            if (!icon || !val) return;
+            const m = /\bc(\d)\b/.exec(icon.className);
+            if (m) out[m[1]] = parseInt(val.textContent, 10) || 0;
+        });
+        return out;
+    }
+
+    function readPets() {
+        const seen = {};
+        const list = [];
+        document.querySelectorAll('.petThumbContainer').forEach(function (c) {
+            const name = c.getAttribute('data-name');
+            if (!name || seen[name]) return;
+            seen[name] = true;
+            const img = c.querySelector('.petThumbSmall') || c.querySelector('img');
+            const large = c.querySelector('.petThumbFrameLarge');
+            const selected = !!large && getComputedStyle(large).display !== 'none';
+            list.push({ name: name, src: img ? img.getAttribute('src') : '', selected: selected });
+        });
+        return list;
+    }
+
+    function readState() {
+        const rows = document.querySelectorAll('#bdsTierList .bdsTierRow');
+        if (!rows.length) return null;
+
+        const stash = {};
+        document.querySelectorAll('.stashvalue').forEach(function (el) {
+            stash[el.getAttribute('data-category')] = parseInt(el.textContent, 10) || 0;
+        });
+
+        const data = abilityData();
+        const tiers = [];
+        rows.forEach(function (row) {
+            const abEls = row.querySelectorAll('.bdsAbility');
+            if (!abEls.length) return;
+            const valEl = row.querySelector('.bdsTierLabelContainer .value');
+            const level = valEl ? valEl.textContent.trim() : '';
+            const abilities = [];
+            abEls.forEach(function (ab) {
+                const cont = ab.querySelector('.bdsAbilityContainer');
+                if (!cont) return;
+                const id = cont.getAttribute('data-ability');
+                const nameEl = ab.querySelector('.bdsAbilityNameLabel');
+                const imgEl = ab.querySelector('.bdsAbilityDisplay .img');
+                let imgUrl = '';
+                if (imgEl) {
+                    const bg = getComputedStyle(imgEl).backgroundImage || '';
+                    const m = /url\(["']?([^"')]+)["']?\)/.exec(bg);
+                    if (m) imgUrl = m[1];
+                }
+                const cd = ab.querySelector('.bdsAbilityCooldown');
+                let cdType = '';
+                if (cd) ['fight', 'turn', 'daily'].forEach(function (t) { if (cd.classList.contains(t)) cdType = t; });
+                const cdActive = !!cd && cd.classList.contains('active');
+                let cdText = '';
+                if (cdActive) {
+                    const tc = cd.querySelector('.turncontainer, .timercontainer');
+                    cdText = tc ? tc.textContent.trim() : '';
+                }
+                const costEl = ab.querySelector('.bdsAbilityCost');
+                const lowerEl = ab.querySelector('.bdsAbilityLowerCost');
+                const costShown = !costEl || getComputedStyle(costEl).display !== 'none';
+                const lowerShown = !!lowerEl && getComputedStyle(lowerEl).display !== 'none';
+                const useLower = lowerShown && !costShown;
+                abilities.push({
+                    id: id,
+                    name: nameEl ? nameEl.textContent.trim() : (data[id] && data[id].name) || ('Ability ' + id),
+                    img: imgUrl,
+                    desc: data[id] ? cleanDesc(data[id].description) : '',
+                    cdType: cdType, cdActive: cdActive, cdText: cdText,
+                    owned: ab.classList.contains('activated'),
+                    selected: ab.classList.contains('selected'),
+                    cost: useLower ? parseCost(lowerEl) : parseCost(costEl)
+                });
+            });
+            tiers.push({
+                id: row.getAttribute('data-tierid'),
+                level: level,
+                locked: row.classList.contains('locked'),
+                cooling: row.classList.contains('cooldown'),
+                abilities: abilities
+            });
+        });
+
+        const totals = {};
+        document.querySelectorAll('#bdsCartTotal .totalvalue').forEach(function (el) {
+            const v = parseInt(el.textContent, 10) || 0;
+            if (v > 0) totals[el.getAttribute('data-category')] = v;
+        });
+        const trainBtn = document.getElementById('bdsTrainAbilities');
+        return {
+            pets: readPets(),
+            stash: stash,
+            tiers: tiers,
+            totals: totals,
+            canTrain: !!trainBtn && trainBtn.classList.contains('active')
+        };
+    }
+
+    // ── Render ──────────────────────────────────────────────────────────────
+    const openInfo = {};       // tierId -> abilityId whose description is expanded
+    let introText = '';
+    let root = null, bar = null;
+    let lastPet = null;
+
+    function dot(cat) {
+        const c = CATS[cat];
+        return '<span class="bda-dot" style="--dot:' + (c ? c.color : '#999') + '"></span>';
+    }
+    function chip(cat, val, short) {
+        const c = CATS[cat];
+        return '<span class="bda-chip' + (short ? ' is-short' : '') + '" title="' + esc(c ? c.name : '') + ' blessings">' + dot(cat) + esc(val) + '</span>';
+    }
+
+    function statusOf(t, a, st) {
+        const keys = Object.keys(a.cost);
+        const afford = keys.every(function (k) { return (st.stash[k] || 0) >= a.cost[k]; });
+        if (t.locked) return { can: false, text: 'Unlocks at level ' + t.level + '.', bad: true };
+        if (t.cooling && !a.owned && !a.selected) return { can: false, text: 'An ability in this tier is on cooldown, so it can\u2019t be changed yet.', bad: true };
+        if (a.cdActive) return { can: false, text: 'On cooldown' + (a.cdText ? ': ' + a.cdText : '') + '.', bad: true };
+        if (a.owned) return { can: true, text: 'Already trained. Tap the card to swap to a different ability in this tier.', bad: false };
+        if (a.selected) return { can: true, text: 'Selected. Tap the card again to deselect.', bad: false };
+        if (!afford) return { can: false, text: 'Not enough blessings to learn this yet.', bad: true };
+        return { can: true, text: 'Tap the card to select it for training.', bad: false };
+    }
+
+    function render() {
+        const st = readState();
+        if (!st) return false;
+
+        const selPet = (st.pets.find(function (p) { return p.selected; }) || {}).name || null;
+
+        const petsHtml = st.pets.map(function (p) {
+            return '<button type="button" class="bda-pet' + (p.selected ? ' is-selected' : '') + '" data-pet="' + esc(p.name) + '" title="' + esc(p.name) + '">'
+                + '<img src="' + esc(p.src) + '" alt="" loading="lazy"><span>' + esc(p.name) + '</span></button>';
+        }).join('');
+
+        const stashHtml = STASH_ORDER.map(function (k) {
+            return '<div class="bda-stash-item">' + dot(k) + '<span>' + CATS[k].name + '</span><b>' + (st.stash[k] || 0) + '</b></div>';
+        }).join('');
+
+        const tiersHtml = st.tiers.map(function (t) {
+            const openId = openInfo[t.id];
+            let descHtml = '';
+            const cards = t.abilities.map(function (a) {
+                const s = statusOf(t, a, st);
+                const keys = Object.keys(a.cost);
+                let costHtml;
+                if (a.owned && !a.selected) costHtml = '<span class="bda-badge">\u2713 Trained</span>';
+                else if (a.selected) costHtml = '<span class="bda-badge">Selected</span>';
+                else if (a.cdActive) costHtml = '<span class="bda-free">\u23F3 ' + esc(a.cdText || 'Cooldown') + '</span>';
+                else if (!keys.length) costHtml = '<span class="bda-free">Free</span>';
+                else costHtml = keys.map(function (k) { return chip(k, a.cost[k], (st.stash[k] || 0) < a.cost[k]); }).join('');
+
+                const cls = ['bda-ab'];
+                if (a.owned) cls.push('is-owned');
+                if (a.selected) cls.push('is-selected');
+                if (!s.can && !a.owned && !a.selected) cls.push(t.locked ? 'is-locked' : 'is-poor');
+                if (a.cdActive) cls.push('is-cooling');
+                if (openId === a.id) cls.push('is-info-open');
+
+                if (openId === a.id) {
+                    descHtml = '<div class="bda-desc"><h4>' + esc(a.name) + '</h4>'
+                        + (a.desc ? '<div>' + a.desc + '</div>' : '')
+                        + (a.cdType ? '<span class="bda-tag">' + esc(COOLDOWN_LABEL[a.cdType] || a.cdType) + '</span>' : '')
+                        + '<div class="bda-status' + (s.bad ? ' is-bad' : '') + '">' + esc(s.text) + '</div></div>';
+                }
+
+                return '<div class="' + cls.join(' ') + '" data-can="' + (s.can ? 1 : 0) + '">'
+                    + '<button type="button" class="bda-ab-main" data-aid="' + esc(a.id) + '" data-tid="' + esc(t.id) + '" aria-label="' + esc(a.name) + '">'
+                    + '<span class="bda-ab-img" style="background-image:url(\'' + esc(a.img) + '\')"></span>'
+                    + '<span class="bda-ab-name">' + esc(a.name) + '</span>'
+                    + '<span class="bda-cost">' + costHtml + '</span></button>'
+                    + '<button type="button" class="bda-info" data-info="' + esc(a.id) + '" data-tid="' + esc(t.id) + '" aria-label="About ' + esc(a.name) + '">i</button>'
+                    + '</div>';
+            }).join('');
+
+            return '<section class="bda-tier' + (t.locked ? ' is-locked' : '') + '">'
+                + '<div class="bda-tier-head"><span>Level ' + esc(t.level) + '</span>'
+                + '<small>' + (t.locked ? '\uD83D\uDD12 Locked' : (t.cooling ? '\u23F3 Cooling down' : '')) + '</small></div>'
+                + '<div class="bda-grid">' + cards + '</div>' + descHtml + '</section>';
+        }).join('');
+
+        const navHtml = NAV.map(function (n) {
+            return '<a href="' + n.href + '"' + (n.active ? ' class="is-active"' : '') + '>' + n.label + '</a>';
+        }).join('');
+
+        const strip = root.querySelector('.bda-pets');
+        const keepScroll = strip ? strip.scrollLeft : 0;
+
+        root.innerHTML =
+            '<nav class="bda-nav">' + navHtml + '</nav>'
+            + (introText ? '<p class="bda-intro">' + esc(introText) + '</p>' : '')
+            + '<div class="bda-label">Your Neopets</div><div class="bda-pets">' + petsHtml + '</div>'
+            + '<div class="bda-label">Faerie blessings' + (selPet ? ' \u2014 ' + esc(selPet) : '') + '</div><div class="bda-stash">' + stashHtml + '</div>'
+            + '<div class="bda-label">Abilities</div>' + tiersHtml;
+
+        const newStrip = root.querySelector('.bda-pets');
+        if (newStrip) {
+            newStrip.scrollLeft = keepScroll;
+            if (selPet && selPet !== lastPet) {
+                const selEl = newStrip.querySelector('.bda-pet.is-selected');
+                if (selEl) newStrip.scrollLeft = Math.max(0, selEl.offsetLeft - 12);
+            }
+        }
+        lastPet = selPet;
+
+        // Bottom bar
+        const totalKeys = Object.keys(st.totals);
+        const totalChips = totalKeys.map(function (k) { return chip(k, st.totals[k], false); }).join('');
+        bar.querySelector('.bda-bar-info').innerHTML = totalKeys.length
+            ? '<strong>Total cost</strong><div class="bda-cost">' + totalChips + '</div>'
+            : (st.canTrain ? '<strong>Ready to train</strong>' : 'Tap abilities to choose what to train.');
+        const trainBtn = bar.querySelector('.bda-train');
+        trainBtn.disabled = !st.canTrain;
+        return true;
+    }
+
+    // ── Event forwarding to the native page ─────────────────────────────────
+    function nativeAbility(aid) {
+        const c = document.querySelector('.bdsAbilityContainer[data-ability="' + aid + '"]');
+        return c ? c.closest('.bdsAbility') : null;
+    }
+    function onRootClick(e) {
+        const petBtn = e.target.closest('[data-pet]');
+        if (petBtn) {
+            const name = petBtn.getAttribute('data-pet');
+            const native = Array.from(document.querySelectorAll('.petThumbContainer'))
+                .find(function (c) { return c.getAttribute('data-name') === name; });
+            if (native) native.click();
+            return;
+        }
+        const infoBtn = e.target.closest('[data-info]');
+        if (infoBtn) {
+            const tid = infoBtn.getAttribute('data-tid');
+            const aid = infoBtn.getAttribute('data-info');
+            if (openInfo[tid] === aid) delete openInfo[tid]; else openInfo[tid] = aid;
+            render();
+            return;
+        }
+        const main = e.target.closest('[data-aid]');
+        if (main) {
+            const card = main.closest('.bda-ab');
+            const aid = main.getAttribute('data-aid');
+            const tid = main.getAttribute('data-tid');
+            if (card && card.getAttribute('data-can') === '0') {
+                // Can't be picked (locked / can't afford / cooling down): the
+                // native handler would silently ignore this tap, so explain
+                // why instead.
+                openInfo[tid] = aid;
+                render();
+                return;
+            }
+            const nat = nativeAbility(aid);
+            if (nat) nat.click();
+        }
+    }
+
+    // ── Mount ───────────────────────────────────────────────────────────────
+    let timer = null;
+    function scheduleRender() {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            if (render()) document.documentElement.classList.add('nui-bda-on');
+        }, 40);
+    }
+
+    function mount(attempt) {
+        attempt = attempt || 0;
+        const host = document.querySelector('.battledome-container') || document.getElementById('container__2020');
+        const nativeMain = document.getElementById('bdsMain');
+        if (!host || !nativeMain || !document.querySelector('#bdsTierList .bdsTierRow')) {
+            if (attempt < 40) setTimeout(function () { mount(attempt + 1); }, 150);
+            return; // native page left untouched
+        }
+
+        // Grab the page's intro sentence (a bare text node) before hiding it.
+        Array.from(host.childNodes).forEach(function (n) {
+            if (n.nodeType === 3 && n.textContent.trim()) {
+                if (!introText) introText = n.textContent.trim();
+                n.textContent = '';
+            }
+        });
+
+        root = document.createElement('div');
+        root.id = 'nui-bda';
+        host.insertBefore(root, host.firstChild);
+
+        bar = document.createElement('div');
+        bar.id = 'nui-bda-bar';
+        bar.innerHTML = '<div class="bda-bar-info"></div><button type="button" class="bda-train">Train abilities</button>';
+        document.body.appendChild(bar);
+
+        root.addEventListener('click', onRootClick);
+        bar.querySelector('.bda-train').addEventListener('click', function () {
+            const nat = document.getElementById('bdsTrainAbilities');
+            if (nat) nat.click();
+        });
+
+        new MutationObserver(scheduleRender).observe(nativeMain, {
+            subtree: true, childList: true, attributes: true, characterData: true
+        });
+
+        if (render()) document.documentElement.classList.add('nui-bda-on');
+        // The page selects its default pet inside its own ready handler; make
+        // sure we pick up the state that leaves behind.
+        setTimeout(scheduleRender, 300);
+        setTimeout(scheduleRender, 1000);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { mount(); });
+    } else {
+        mount();
+    }
+})();
+
+
+// ==============================================================================
+// MODULE 74: BATTLEDOME — NEOPET STATUS PAGE (MOBILE REDESIGN)
+// ==============================================================================
+// /dome/neopets.phtml has the same fixed-geometry problem Module 73 solved for
+// the Abilities page: a 980px sprite-framed stage, one pet shown at a time via
+// a 550px bxSlider thumbnail strip, and a dense per-pet panel (stats,
+// Battledome record, six equip slots, a mini ability grid) all sized and
+// absolutely-positioned in pixels for a fixed desktop canvas.
+//
+// Same approach as Module 73 — read everything from the native DOM, forward
+// every tap back to the native elements, only hide the native UI once the
+// mobile UI has rendered successfully:
+//   - Pet picker forwards to the native .petThumbContainer; BDStatus.selectPet
+//     (native, untouched) shows/hides the matching .petContainer and swaps
+//     its own thumbnail frame — a MutationObserver on #bdStatus picks up
+//     whichever .petContainer becomes visible and re-renders from it.
+//   - Equip / unequip slots forward to the native .equipIcon.plus / .minus,
+//     which open the existing #bdPopupGeneric-status{Equip,Unequip,EquipNone}
+//     dialogs. Those are re-skinned in place rather than rebuilt — the
+//     equippable-item list, PIN check and equip/unequip AJAX are all native,
+//     and both flows end in a full navigation (window.location.href) on
+//     success, so there's no post-action state to re-render here.
+//   - "Choose an Ability" slots in the mini ability grid forward to the
+//     native per-slot <a>, which the page's own script intercepts and
+//     redirects to /dome/abilities.phtml (Module 73 takes over from there).
+//     Trained/locked slots are shown but not interactive.
+// Fail-safe: native UI only hidden after first successful render, so if
+// Neopets changes the markup the original page is left as it was.
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('battledome')) return;
+    if (NeoUI.__inFrame) return;
+    if (!/\/dome\/neopets\.phtml/.test(location.pathname)) return;
+
+    const NAV = [
+        { href: '/dome/fight.phtml',       label: 'Battle' },
+        { href: '/dome/neopets.phtml',     label: 'Stats', active: true },
+        { href: '/dome/status.phtml',      label: 'Challenges' },
+        { href: '/dome/abilities.phtml',   label: 'Abilities' },
+        { href: '/dome/record.phtml',      label: 'Records' },
+        { href: '/dome/battlepedia.phtml', label: 'Battlepedia' }
+    ];
+
+    NeoUI.init();
+
+    // ── Styles ──────────────────────────────────────────────────────────────
+    const style = document.createElement('style');
+    style.id = 'nui-bns-style';
+    style.textContent = `
+        /* Same 1080px-forcing inline <style> problem as the Abilities page —
+           beat it with matching specificity, not just !important. */
+        html body { width: 100% !important; max-width: 100vw !important; overflow-x: hidden !important; }
+        html body #container__2020#container__2020 {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
+        }
+        .battledome-container { padding: 0 !important; }
+        .page-title__2020 .bd-subtitle { width: auto !important; flex: 1 1 auto; margin: 0 !important; }
+        .page-title__2020 .bd-subtitle h1 { margin: 0 !important; color: var(--nui-text) !important; font-family: var(--nui-font-display) !important; }
+        .page-title__2020 .bd-subtitle h2 { margin: 0 !important; font-size: 15px !important; color: var(--nui-text-muted) !important; font-family: var(--nui-font-display) !important; }
+
+        /* Native UI is hidden only once the mobile UI has rendered. */
+        html.nui-bns-on #bdStatus,
+        html.nui-bns-on #bdHeader,
+        html.nui-bns-on #bdNav,
+        html.nui-bns-on .battledome-container > br,
+        html.nui-bns-on .battledome-container > .social-links,
+        html.nui-bns-on #bdsTooltipContainer { display: none !important; }
+
+        /* ── Mobile UI ── */
+        #nui-bns {
+            width: 100%; max-width: 560px; margin: 0 auto;
+            padding: 0 12px 32px;
+            box-sizing: border-box; color: var(--nui-text); text-align: left;
+        }
+        #nui-bns * { box-sizing: border-box; }
+        #nui-bns .bns-intro {
+            margin: 4px 0 10px; font-size: 13px; line-height: 1.4;
+            color: var(--nui-text-muted); text-align: center;
+        }
+        #nui-bns .bns-nav {
+            display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px;
+            scrollbar-width: none;
+        }
+        #nui-bns .bns-nav::-webkit-scrollbar { display: none; }
+        #nui-bns .bns-nav a {
+            flex: 0 0 auto; padding: 7px 13px;
+            border-radius: var(--nui-radius-pill);
+            background: var(--nui-surface-2); border: 1px solid var(--nui-border);
+            color: var(--nui-text) !important;
+            font-size: 13px; font-weight: 700; text-decoration: none !important;
+        }
+        #nui-bns .bns-nav a.is-active {
+            background: var(--nui-accent); border-color: var(--nui-accent);
+            color: var(--nui-accent-ink) !important;
+        }
+        #nui-bns .bns-label {
+            margin: 14px 2px 6px; font-size: 11px; font-weight: 800; letter-spacing: .08em;
+            text-transform: uppercase; color: var(--nui-text-muted);
+            display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+        }
+        #nui-bns .bns-label .bns-ab-more {
+            text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 700;
+            color: var(--nui-accent) !important; text-decoration: none !important;
+        }
+
+        /* Pet picker */
+        #nui-bns .bns-pets {
+            display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px;
+            scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+        #nui-bns .bns-pet {
+            appearance: none; -webkit-appearance: none;
+            flex: 0 0 auto; width: 74px;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            padding: 6px 4px;
+            background: var(--nui-surface); border: 2px solid var(--nui-border);
+            border-radius: var(--nui-radius-md); color: var(--nui-text);
+            font: inherit; font-size: 11px; font-weight: 600;
+            cursor: pointer; scroll-snap-align: start;
+        }
+        #nui-bns .bns-pet img { width: 52px; height: 52px; object-fit: contain; }
+        #nui-bns .bns-pet span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #nui-bns .bns-pet.is-selected { border-color: var(--nui-accent); background: var(--nui-surface-2); }
+
+        /* Hero card */
+        #nui-bns .bns-hero {
+            display: flex; align-items: center; gap: 12px; margin-top: 4px;
+            padding: 12px; background: var(--nui-surface); border: 1px solid var(--nui-border);
+            border-radius: var(--nui-radius-lg);
+        }
+        #nui-bns .bns-hero-img { width: 76px; height: 76px; object-fit: contain; flex-shrink: 0; }
+        #nui-bns .bns-hero-info { min-width: 0; flex: 1 1 auto; }
+        #nui-bns .bns-hero-name { font-size: 17px; font-weight: 800; font-family: var(--nui-font-display); color: var(--nui-text); }
+        #nui-bns .bns-hero-sub { font-size: 12px; color: var(--nui-text-muted); margin-top: 1px; }
+        #nui-bns .bns-hero-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        #nui-bns .bns-badge {
+            font-size: 11px; font-weight: 800; padding: 3px 9px;
+            border-radius: var(--nui-radius-pill); background: var(--nui-surface-2);
+            border: 1px solid var(--nui-border); color: var(--nui-text);
+        }
+        #nui-bns .bns-badge.bns-good { color: var(--nui-success); border-color: color-mix(in srgb, var(--nui-success) 45%, var(--nui-border)); }
+        #nui-bns .bns-badge.bns-bad  { color: var(--nui-danger);  border-color: color-mix(in srgb, var(--nui-danger) 45%, var(--nui-border)); }
+
+        /* Stats */
+        #nui-bns .bns-stats {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+        }
+        #nui-bns .bns-stat-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 9px 10px; background: var(--nui-surface); border: 1px solid var(--nui-border);
+            border-radius: var(--nui-radius-md);
+        }
+        #nui-bns .bns-dot {
+            flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%;
+            background: var(--dot, var(--nui-text-muted));
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot, var(--nui-text-muted)) 30%, transparent);
+        }
+        #nui-bns .bns-stat-body { min-width: 0; }
+        #nui-bns .bns-stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--nui-text-muted); }
+        #nui-bns .bns-stat-value { font-size: 13px; font-weight: 800; color: var(--nui-text); }
+        #nui-bns .bns-stat-value small { font-size: 10px; font-weight: 600; color: var(--nui-text-muted); text-transform: lowercase; }
+
+        /* Battledome record */
+        #nui-bns .bns-record {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+        }
+        #nui-bns .bns-record-cell {
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            padding: 8px 2px; background: var(--nui-surface); border: 1px solid var(--nui-border);
+            border-radius: var(--nui-radius-md); text-align: center;
+        }
+        #nui-bns .bns-record-cell b { font-size: 13px; font-weight: 800; color: var(--nui-text); }
+        #nui-bns .bns-record-cell span { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--nui-text-muted); }
+
+        #nui-bns .bns-rarity {
+            margin-top: 10px; padding: 9px 12px; background: var(--nui-surface); border: 1px solid var(--nui-border);
+            border-radius: var(--nui-radius-md); font-size: 12px; color: var(--nui-text-muted); text-align: center;
+        }
+        #nui-bns .bns-rarity b { color: var(--nui-text); font-weight: 800; }
+
+        /* Equipment */
+        #nui-bns .bns-equip {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+        }
+        #nui-bns .bns-equip-slot {
+            appearance: none; -webkit-appearance: none;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            padding: 10px 6px; background: var(--nui-surface); border: 2px dashed var(--nui-border);
+            border-radius: var(--nui-radius-md); color: var(--nui-text-muted);
+            font: inherit; font-size: 11px; font-weight: 700; text-align: center; cursor: pointer;
+            min-height: 84px; justify-content: center;
+        }
+        #nui-bns .bns-equip-slot.is-filled {
+            border-style: solid; border-color: var(--nui-border); color: var(--nui-text);
+        }
+        #nui-bns .bns-equip-slot img { width: 44px; height: 44px; object-fit: contain; }
+        #nui-bns .bns-equip-slot span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #nui-bns .bns-equip-plus { font-size: 22px; font-weight: 800; line-height: 1; color: var(--nui-text-faint); }
+
+        /* Ability preview grid */
+        #nui-bns .bns-ab-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+        }
+        #nui-bns .bns-ab-cell {
+            appearance: none; -webkit-appearance: none;
+            position: relative;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            padding: 6px 3px 5px; background: var(--nui-surface-2); border: 1px solid transparent;
+            border-radius: var(--nui-radius-sm); color: var(--nui-text); font: inherit;
+            text-align: center;
+        }
+        #nui-bns .bns-ab-lvl { font-size: 9px; font-weight: 700; color: var(--nui-text-muted); }
+        #nui-bns .bns-ab-img { width: 36px; height: 36px; background-size: contain; background-repeat: no-repeat; background-position: center; }
+        #nui-bns .bns-ab-name { font-size: 9px; font-weight: 700; line-height: 1.15; word-break: break-word; }
+        #nui-bns .bns-ab-plus { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: var(--nui-accent); }
+        #nui-bns .bns-ab-lock { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 15px; opacity: .5; }
+        #nui-bns .bns-ab-cell.is-ability { border-color: color-mix(in srgb, var(--nui-accent) 45%, transparent); }
+        #nui-bns .bns-ab-cell.is-available { cursor: pointer; }
+        #nui-bns .bns-ab-cell.is-available:hover { border-color: var(--nui-accent); }
+        #nui-bns .bns-ab-cell.is-locked { opacity: .55; }
+
+        #nui-bns .bns-compare { margin-top: 14px; text-align: center; }
+        #nui-bns .bns-compare a { color: var(--nui-accent) !important; font-size: 13px; font-weight: 700; text-decoration: none !important; }
+
+        /* ── Native equip / unequip dialogs, re-skinned (page's JS still opens / fills them) ── */
+        #bdFade {
+            position: fixed !important; inset: 0 !important;
+            width: auto !important; height: auto !important;
+            background: rgba(0, 0, 0, .6) !important; z-index: 9990 !important;
+        }
+        #bdPopupGeneric-statusUnequip,
+        #bdPopupGeneric-statusEquip,
+        #bdPopupGeneric-statusEquipNone {
+            position: fixed !important;
+            top: 50% !important; left: 50% !important; margin: 0 !important;
+            width: min(92vw, 520px) !important; height: auto !important;
+            max-height: 86vh; overflow-y: auto;
+            transform: translate(-50%, -50%);
+            background: var(--nui-surface) !important; color: var(--nui-text) !important;
+            border: 1px solid var(--nui-border); border-radius: var(--nui-radius-lg);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, .5);
+            z-index: 10000 !important; box-sizing: border-box;
+        }
+        #bdPopupGeneric-statusUnequip .bdPopupGeneric.bg, #bdPopupGeneric-statusUnequip .bdPopupGeneric.edge,
+        #bdPopupGeneric-statusUnequip .bdPopupGeneric.frame, #bdPopupGeneric-statusUnequip .bdPopupGeneric.title,
+        #bdPopupGeneric-statusEquip .bdPopupGeneric.bg, #bdPopupGeneric-statusEquip .bdPopupGeneric.edge,
+        #bdPopupGeneric-statusEquip .bdPopupGeneric.frame, #bdPopupGeneric-statusEquip .bdPopupGeneric.title,
+        #bdPopupGeneric-statusEquipNone .bdPopupGeneric.bg, #bdPopupGeneric-statusEquipNone .bdPopupGeneric.edge,
+        #bdPopupGeneric-statusEquipNone .bdPopupGeneric.frame, #bdPopupGeneric-statusEquipNone .bdPopupGeneric.title { display: none !important; }
+        #bdPopupGeneric-statusUnequip .bdPopupGeneric.middle,
+        #bdPopupGeneric-statusEquip .bdPopupGeneric.middle,
+        #bdPopupGeneric-statusEquipNone .bdPopupGeneric.middle { width: 100% !important; position: static !important; }
+        #bdPopupGeneric-statusUnequip .bdPopupGeneric.contents,
+        #bdPopupGeneric-statusEquip .bdPopupGeneric.contents,
+        #bdPopupGeneric-statusEquipNone .bdPopupGeneric.contents { padding: 46px 16px 18px !important; text-align: center; }
+        #bdPopupGeneric-statusUnequip .bdPopupGeneric.contents::before,
+        #bdPopupGeneric-statusEquip .bdPopupGeneric.contents::before,
+        #bdPopupGeneric-statusEquipNone .bdPopupGeneric.contents::before {
+            position: absolute; top: 12px; left: 16px; right: 52px;
+            font-size: 17px; font-weight: 800; text-align: left;
+            font-family: var(--nui-font-display); color: var(--nui-text);
+        }
+        #bdPopupGeneric-statusUnequip .bdPopupGeneric.contents::before { content: 'Unequip this item?'; }
+        #bdPopupGeneric-statusEquip .bdPopupGeneric.contents::before { content: 'Choose an item to equip'; }
+        #bdPopupGeneric-statusEquipNone .bdPopupGeneric.contents::before { content: 'Nothing to equip'; }
+        #bdPopupGeneric-statusUnequip .bdPopupGeneric.close,
+        #bdPopupGeneric-statusEquip .bdPopupGeneric.close,
+        #bdPopupGeneric-statusEquipNone .bdPopupGeneric.close {
+            position: absolute !important; top: 8px !important; right: 8px !important;
+            width: 34px !important; height: 34px !important;
+            background: var(--nui-surface-2) !important; background-image: none !important;
+            border: 1px solid var(--nui-border); border-radius: 50%; cursor: pointer; z-index: 2;
+        }
+        #bdPopupGeneric-statusUnequip .bdPopupGeneric.close::before,
+        #bdPopupGeneric-statusEquip .bdPopupGeneric.close::before,
+        #bdPopupGeneric-statusEquipNone .bdPopupGeneric.close::before {
+            content: '\\2715'; position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 800; color: var(--nui-text);
+        }
+        #bdStatusUnequipItemImage { width: 64px !important; height: 64px !important; border: 1px solid var(--nui-border) !important; border-radius: var(--nui-radius-sm); }
+        #bdStatusUnequipItemName { font-weight: 800 !important; color: var(--nui-text) !important; }
+        #bdPopupGeneric-statusUnequip table[border] { border: none !important; width: 100% !important; margin-top: 12px !important; font-size: 12px !important; color: var(--nui-text-muted) !important; }
+        #bdPopupGeneric-statusUnequip table[border] td { border: none !important; vertical-align: middle !important; }
+        #bdPopupGeneric-statusUnequip table[border] img { border-radius: 8px; }
+        #pin_field { padding: 8px 10px !important; border: 1px solid var(--nui-border) !important; border-radius: var(--nui-radius-sm) !important; background: var(--nui-surface-2) !important; color: var(--nui-text) !important; font-size: 14px !important; text-align: center !important; width: 120px !important; }
+
+        #bdStatusEquipContents { min-height: 260px !important; }
+        #bdStatusEquipContents table { width: 100% !important; border-collapse: collapse !important; }
+        #bdStatusEquipContents td.equippableCell { width: auto !important; padding: 6px !important; }
+        #bdStatusEquipContents .equippableItemFrame { width: auto !important; height: auto !important; padding: 6px !important; border-radius: var(--nui-radius-md) !important; }
+        #bdStatusEquipContents .equippableItemFrame.selected { background: var(--nui-accent-soft) !important; }
+        #bdStatusEquipContents .equippableItem { width: 100% !important; max-width: 56px !important; height: auto !important; aspect-ratio: 1 / 1; object-fit: contain; border: 1px solid var(--nui-border) !important; border-radius: var(--nui-radius-sm) !important; cursor: pointer; }
+        #bdStatusEquipContents .equippableName { display: block !important; font-size: 10px !important; font-weight: 700 !important; color: var(--nui-text) !important; margin-top: 2px; }
+        #bdStatusEquipNav { display: flex !important; align-items: center; justify-content: center; gap: 16px; position: relative !important; width: auto !important; margin: 10px 0 !important; }
+        #bdStatusEquipNav .bdArrow { all: unset !important; cursor: pointer !important; font-size: 20px !important; color: var(--nui-text-muted) !important; }
+        #bdStatusEquipNavPrev::after { content: '\\25C0'; }
+        #bdStatusEquipNavNext::after { content: '\\25B6'; }
+        #bdStatusEquipNavText { font-size: 13px !important; font-weight: 700 !important; color: var(--nui-text) !important; }
+
+        #bdStatusUnequipButtonCancel, #bdStatusUnequipButtonUnequip,
+        #bdStatusEquipButtonCancel, #bdStatusEquipButtonEquip {
+            all: unset !important;
+            display: inline-flex !important; align-items: center; justify-content: center;
+            margin: 8px 6px 0 !important;
+            padding: 11px 18px !important;
+            border-radius: var(--nui-radius-pill) !important;
+            background: var(--nui-surface-2) !important; color: var(--nui-text) !important;
+            border: 1px solid var(--nui-border) !important;
+            font-family: inherit !important; font-size: 14px !important; font-weight: 800 !important;
+            cursor: pointer !important; box-sizing: border-box !important;
+            text-indent: 0 !important; line-height: 1.2 !important;
+            width: auto !important; height: auto !important;
+        }
+        #bdStatusUnequipButtonUnequip, #bdStatusEquipButtonEquip {
+            background: var(--nui-accent) !important; color: var(--nui-accent-ink) !important; border-color: var(--nui-accent) !important;
+        }
+        #bdStatusEquipButtonEquip.disabled { opacity: .4 !important; cursor: not-allowed !important; }
+        #bdStatusUnequipButtonCancel::after { content: 'Cancel'; }
+        #bdStatusUnequipButtonUnequip::after { content: 'Unequip'; }
+        #bdStatusEquipButtonCancel::after { content: 'Cancel'; }
+        #bdStatusEquipButtonEquip::after { content: 'Equip'; }
+    `;
+    document.head.appendChild(style);
+
+    // ── Native-page readers ─────────────────────────────────────────────────
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function readPets() {
+        const seen = {};
+        const list = [];
+        document.querySelectorAll('#bdStatusPetThumbs .petThumbContainer').forEach(function (c) {
+            const name = c.getAttribute('data-name');
+            if (!name || seen[name]) return;
+            seen[name] = true;
+            const img = c.querySelector('.petThumbSmall') || c.querySelector('img');
+            const large = c.querySelector('.petThumbFrameLarge');
+            const selected = !!large && getComputedStyle(large).display !== 'none';
+            list.push({ name: name, src: img ? img.getAttribute('src') : '', selected: selected });
+        });
+        return list;
+    }
+
+    function activePetContainer() {
+        const list = document.querySelectorAll('.petContainer[data-name]');
+        for (let i = 0; i < list.length; i++) {
+            if (getComputedStyle(list[i]).display !== 'none') return list[i];
+        }
+        return list[0] || null;
+    }
+
+    function statText(container, cls) {
+        const el = container.querySelector('.' + cls);
+        return el ? el.textContent.trim() : '';
+    }
+
+    function barColor(container, cls) {
+        const el = container.querySelector('.statBar' + cls);
+        if (!el) return 'var(--nui-text-muted)';
+        if (el.classList.contains('green')) return 'var(--nui-success)';
+        if (el.classList.contains('yellow')) return 'var(--nui-warning, #d97706)';
+        if (el.classList.contains('red')) return 'var(--nui-danger)';
+        return 'var(--nui-text-muted)';
+    }
+
+    function readInfo(container) {
+        const fs = container.querySelector('.petFightStatus');
+        const lvl = container.querySelector('.level');
+        const lm = lvl ? /Level:\s*(\d+)/.exec(lvl.textContent) : null;
+        const img = container.querySelector('.petImageContainer img.petImage');
+        const sp = container.querySelector('.petSpecies');
+        const co = container.querySelector('.petColor');
+        const spM = sp ? /:\s*(.+)$/.exec(sp.textContent.trim()) : null;
+        const coM = co ? /:\s*(.+)$/.exec(co.textContent.trim()) : null;
+        return {
+            name: statText(container, 'petName'),
+            species: spM ? spM[1].trim() : '',
+            color: coM ? coM[1].trim() : '',
+            fightStatusText: fs ? fs.textContent.trim() : '',
+            fightGood: !fs || fs.classList.contains('good'),
+            level: lm ? lm[1] : '',
+            rarity: statText(container, 'rarityValue'),
+            img: img ? img.getAttribute('src') : ''
+        };
+    }
+
+    function readStats(container) {
+        return {
+            hp: statText(container, 'hpValue'),
+            atk: statText(container, 'atkValue'), atkName: statText(container, 'atkName'),
+            def: statText(container, 'defValue'), defName: statText(container, 'defName'),
+            agi: statText(container, 'agiValue'), agiName: statText(container, 'agiName'),
+            int: statText(container, 'intValue'), intName: statText(container, 'intName')
+        };
+    }
+
+    function readRecord(container) {
+        return {
+            played: statText(container, 'recordPlayed'),
+            won: statText(container, 'recordWon'),
+            lost: statText(container, 'recordLost'),
+            draw: statText(container, 'recordDraw'),
+            score: statText(container, 'recordScore')
+        };
+    }
+
+    function readEquip(container) {
+        const slots = [];
+        container.querySelectorAll('.equipTable td').forEach(function (td) {
+            const minus = td.querySelector('.equipIcon.minus');
+            const img = td.querySelector('img.equipItem');
+            const frame = td.querySelector('.equipFrame');
+            slots.push({
+                filled: !!minus,
+                img: img ? img.getAttribute('src') : '',
+                name: frame ? frame.textContent.trim() : ''
+            });
+        });
+        return slots;
+    }
+
+    function readAbilityCells(container) {
+        const table = container.querySelector('#bdNPabilExpand table');
+        if (!table) return [];
+        const cells = [];
+        table.querySelectorAll('td').forEach(function (td) {
+            const ps = td.querySelectorAll('p');
+            const level = ps.length ? ps[0].textContent.trim() : '';
+            const disp = td.querySelector('.display');
+            let state = 'locked';
+            if (disp) {
+                if (disp.classList.contains('available')) state = 'available';
+                else if (disp.classList.contains('ability')) state = 'ability';
+            }
+            const img = disp ? disp.querySelector('img') : null;
+            const nameP = ps.length > 1 ? ps[ps.length - 1] : null;
+            cells.push({
+                level: level,
+                state: state,
+                img: img ? img.getAttribute('src') : '',
+                name: (state === 'ability' && nameP) ? nameP.textContent.trim() : ''
+            });
+        });
+        return cells;
+    }
+
+    // ── Render ──────────────────────────────────────────────────────────────
+    let introText = '';
+    let root = null;
+    let lastPet = null;
+
+    function statItem(container, label, cls, value, desc) {
+        return '<div class="bns-stat-item"><span class="bns-dot" style="--dot:' + barColor(container, cls) + '"></span>'
+            + '<div class="bns-stat-body"><div class="bns-stat-label">' + esc(label) + '</div>'
+            + '<div class="bns-stat-value">' + esc(value) + (desc ? ' <small>' + esc(desc) + '</small>' : '') + '</div></div></div>';
+    }
+
+    function recordCell(label, val) {
+        return '<div class="bns-record-cell"><b>' + esc(val) + '</b><span>' + esc(label) + '</span></div>';
+    }
+
+    function render() {
+        const container = activePetContainer();
+        if (!container) return false;
+
+        const pets = readPets();
+        const selPet = (pets.find(function (p) { return p.selected; }) || {}).name || null;
+        const info = readInfo(container);
+        const stats = readStats(container);
+        const record = readRecord(container);
+        const equip = readEquip(container);
+        const abilityCells = readAbilityCells(container);
+
+        const petsHtml = pets.map(function (p) {
+            return '<button type="button" class="bns-pet' + (p.selected ? ' is-selected' : '') + '" data-pet="' + esc(p.name) + '" title="' + esc(p.name) + '">'
+                + '<img src="' + esc(p.src) + '" alt="" loading="lazy"><span>' + esc(p.name) + '</span></button>';
+        }).join('');
+
+        const navHtml = NAV.map(function (n) {
+            return '<a href="' + n.href + '"' + (n.active ? ' class="is-active"' : '') + '>' + n.label + '</a>';
+        }).join('');
+
+        const heroHtml =
+            '<div class="bns-hero">'
+            + '<img class="bns-hero-img" src="' + esc(info.img) + '" alt="" loading="lazy">'
+            + '<div class="bns-hero-info">'
+            + '<div class="bns-hero-name">' + esc(info.name) + '</div>'
+            + '<div class="bns-hero-sub">' + esc(info.species) + (info.species && info.color ? ' \u00B7 ' : '') + esc(info.color) + '</div>'
+            + '<div class="bns-hero-badges">'
+            + '<span class="bns-badge">Level ' + esc(info.level) + '</span>'
+            + '<span class="bns-badge ' + (info.fightGood ? 'bns-good' : 'bns-bad') + '">' + esc(info.fightStatusText) + '</span>'
+            + '</div></div></div>';
+
+        const statsHtml =
+            statItem(container, 'HP', 'HP', stats.hp, '')
+            + statItem(container, 'Attack', 'Atk', stats.atk, stats.atkName)
+            + statItem(container, 'Defence', 'Def', stats.def, stats.defName)
+            + statItem(container, 'Agility', 'Agi', stats.agi, stats.agiName)
+            + statItem(container, 'Intelligence', 'Int', stats.int, stats.intName);
+
+        const recordHtml = '<div class="bns-record">'
+            + recordCell('Played', record.played) + recordCell('Won', record.won)
+            + recordCell('Lost', record.lost) + recordCell('Draw', record.draw)
+            + recordCell('Score', record.score) + '</div>';
+
+        const rarityHtml = info.rarity ? '<div class="bns-rarity">Rarity Index: <b>' + esc(info.rarity) + '</b></div>' : '';
+
+        const equipHtml = equip.map(function (slot, i) {
+            if (slot.filled) {
+                return '<button type="button" class="bns-equip-slot is-filled" data-slot="' + i + '">'
+                    + '<img src="' + esc(slot.img) + '" alt="" loading="lazy"><span>' + esc(slot.name) + '</span></button>';
+            }
+            return '<button type="button" class="bns-equip-slot" data-slot="' + i + '">'
+                + '<span class="bns-equip-plus">+</span><span>Equip</span></button>';
+        }).join('');
+
+        const abilityHtml = abilityCells.map(function (c, i) {
+            const cls = 'bns-ab-cell is-' + c.state;
+            let body;
+            if (c.state === 'ability') {
+                body = '<div class="bns-ab-img" style="background-image:url(\'' + esc(c.img) + '\')"></div><div class="bns-ab-name">' + esc(c.name) + '</div>';
+            } else if (c.state === 'available') {
+                body = '<div class="bns-ab-plus">+</div><div class="bns-ab-name">Train</div>';
+            } else {
+                body = '<div class="bns-ab-lock">\uD83D\uDD12</div>';
+            }
+            const lvlHtml = c.level ? '<div class="bns-ab-lvl">Lv ' + esc(c.level) + '</div>' : '';
+            if (c.state === 'available') {
+                return '<button type="button" class="' + cls + '" data-ab-slot="' + i + '">' + lvlHtml + body + '</button>';
+            }
+            return '<div class="' + cls + '">' + lvlHtml + body + '</div>';
+        }).join('');
+
+        const strip = root.querySelector('.bns-pets');
+        const keepScroll = strip ? strip.scrollLeft : 0;
+
+        root.innerHTML =
+            '<nav class="bns-nav">' + navHtml + '</nav>'
+            + (introText ? '<p class="bns-intro">' + esc(introText) + '</p>' : '')
+            + '<div class="bns-label">Your Neopets</div><div class="bns-pets">' + petsHtml + '</div>'
+            + heroHtml
+            + '<div class="bns-label">Stats</div><div class="bns-stats">' + statsHtml + '</div>'
+            + '<div class="bns-label">Battledome Record</div>' + recordHtml
+            + rarityHtml
+            + '<div class="bns-label">Equipment</div><div class="bns-equip">' + equipHtml + '</div>'
+            + '<div class="bns-label">Abilities<a class="bns-ab-more" href="/dome/abilities.phtml">Manage \u2192</a></div><div class="bns-ab-grid">' + abilityHtml + '</div>'
+            + '<div class="bns-compare"><a href="compare.phtml">Compare Neopets \u2192</a></div>';
+
+        const newStrip = root.querySelector('.bns-pets');
+        if (newStrip) {
+            newStrip.scrollLeft = keepScroll;
+            if (selPet && selPet !== lastPet) {
+                const selEl = newStrip.querySelector('.bns-pet.is-selected');
+                if (selEl) newStrip.scrollLeft = Math.max(0, selEl.offsetLeft - 12);
+            }
+        }
+        lastPet = selPet;
+        return true;
+    }
+
+    // ── Event forwarding to the native page ─────────────────────────────────
+    function onRootClick(e) {
+        const petBtn = e.target.closest('[data-pet]');
+        if (petBtn) {
+            const name = petBtn.getAttribute('data-pet');
+            const native = Array.from(document.querySelectorAll('#bdStatusPetThumbs .petThumbContainer'))
+                .find(function (c) { return c.getAttribute('data-name') === name; });
+            if (native) native.click();
+            return;
+        }
+        const equipBtn = e.target.closest('[data-slot]');
+        if (equipBtn) {
+            const container = activePetContainer();
+            if (!container) return;
+            const idx = parseInt(equipBtn.getAttribute('data-slot'), 10);
+            const td = container.querySelectorAll('.equipTable td')[idx];
+            const icon = td && (td.querySelector('.equipIcon.minus') || td.querySelector('.equipIcon.plus'));
+            if (icon) icon.click();
+            return;
+        }
+        const abBtn = e.target.closest('[data-ab-slot]');
+        if (abBtn) {
+            const container = activePetContainer();
+            if (!container) return;
+            const table = container.querySelector('#bdNPabilExpand table');
+            const idx = parseInt(abBtn.getAttribute('data-ab-slot'), 10);
+            const td = table && table.querySelectorAll('td')[idx];
+            const a = td && td.querySelector('a');
+            if (a) a.click();
+        }
+    }
+
+    // ── Mount ───────────────────────────────────────────────────────────────
+    let timer = null;
+    function scheduleRender() {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            if (render()) document.documentElement.classList.add('nui-bns-on');
+        }, 40);
+    }
+
+    function mount(attempt) {
+        attempt = attempt || 0;
+        const host = document.querySelector('.battledome-container') || document.getElementById('container__2020');
+        const status = document.getElementById('bdStatus');
+        if (!host || !status || !document.querySelector('.petContainer[data-name]')) {
+            if (attempt < 40) setTimeout(function () { mount(attempt + 1); }, 150);
+            return; // native page left untouched
+        }
+
+        // Grab the page's intro sentence (a bare text node) before hiding it.
+        Array.from(host.childNodes).forEach(function (n) {
+            if (n.nodeType === 3 && n.textContent.trim()) {
+                if (!introText) introText = n.textContent.trim();
+                n.textContent = '';
+            }
+        });
+
+        root = document.createElement('div');
+        root.id = 'nui-bns';
+        host.insertBefore(root, host.firstChild);
+
+        root.addEventListener('click', onRootClick);
+
+        new MutationObserver(scheduleRender).observe(status, {
+            subtree: true, childList: true, attributes: true,
+            attributeFilter: ['style', 'class'], characterData: true
+        });
+
+        if (render()) document.documentElement.classList.add('nui-bns-on');
+        // The page selects its default pet inside its own ready handler; make
+        // sure we pick up the state that leaves behind.
+        setTimeout(scheduleRender, 300);
+        setTimeout(scheduleRender, 1000);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { mount(); });
+    } else {
+        mount();
     }
 })();
