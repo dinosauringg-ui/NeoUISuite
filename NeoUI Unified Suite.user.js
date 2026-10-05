@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeoUI: Unified Suite
 // @namespace    https://github.com/dinosauringg-ui/NeoUISuite
-// @version      2.3.1
+// @version      2.3.5
 // @description  NeoUI Unified Suite: polished theme system, global search, and a daily timer hub for timed Neopets activities, bundled into one mobile-forward userscript.
 // @author       ext1nct
 // @match        *://*.neopets.com/*
@@ -48,6 +48,7 @@
  *   11. Neopian Times (reader + submission)
  *   60. Settings Pages (avatar/sticker picker retheme + search/sort)
  *   62. Create-a-Pet (full NeoUI SPA redesign)
+ *   75. Customise (mobile reskin: pinned pet preview, fluid item grid, fixed popups)
  *   --- TRAINING & BATTLE ---
  *   12. Mystery Island Training School
  *   13. Secret Ninja Training School
@@ -109,6 +110,31 @@
  *   73. Faerie Festival (topbar + theming; native AJAX flows kept)
  *
  * CHANGELOG  (last 5 versions)
+ *
+ * v2.3.4
+ *   - Customise (Module 75): NPH rarity/action badges no longer paint above
+ *     the pinned preview (item grids are now isolated stacking contexts).
+ *
+ * v2.3.3
+ *   - Customise (Module 75): fixed the pinned preview ignoring its size
+ *     rules — the pin toggle lived on <html>, whose class NPH rewrites, so
+ *     the rules vanished. Pin CSS now lives in its own <style> element. The
+ *     pinned block also gets a solid background + shadow (items no longer
+ *     show through it), hides its "closet" caption, and defaults to a
+ *     compact size. The toolbar button cycles Small / Large / Off. NPH
+ *     price-highlight borders on item images are no longer overridden.
+ *
+ * v2.3.2
+ *   - NEW Module 75 — Customise (/customise/). In-place mobile reskin of the
+ *     native React customisation app (no rebuild, so dressing/saving/pet
+ *     switching keep working untouched): own NeoUI topbar, every npcma-* class
+ *     re-themed onto NeoUI tokens, pet preview pinned (position:sticky) while
+ *     the item list scrolls beneath it, fluid item grid with bigger remove
+ *     targets, 16px search input (no focus-zoom), popups/filter sheet/toast/
+ *     loader switched to position:fixed so they are never off-screen on a
+ *     scrolled page, landscape side-by-side layout, toolbar with a 📌 pin
+ *     toggle and a 🐞 button that copies a layout outline for debugging.
+ *     Toggle id: 'customise' (Home & Reference).
  *
  * v2.3.1
  *   - Sitewide Chrome (Module 2): fixed native buttons rendering with no
@@ -4872,6 +4898,7 @@
         { id: 'explore',        label: 'Explore Neopia',             desc: 'World map hub + location pages. Fetches animation JS to surface hidden canvas links (e.g. Hidden Tower).', group: 'Home & Reference' },
         { id: 'settings-pages', label: 'Account Settings',           desc: 'Restyles /settings/ pages — avatar & sticker pickers (with search/sort), popups, and page background', group: 'Home & Reference' },
         { id: 'createpet',      label: 'Create-a-Pet',               desc: 'Full NeoUI redesign of the Create-a-Pet page — species grid, color/bandana pickers, personality, stats, live preview', group: 'Home & Reference' },
+        { id: 'customise',      label: 'Customise',                  desc: 'Mobile reskin of the Customise page — pinned pet preview, fluid item grid, fixed popups (native dressing logic untouched)', group: 'Home & Reference' },
         { id: 'neohome',        label: 'Neohome',                    desc: 'Full rebuild of the Neohome hub page + mobile scale-to-fit wrapper for the Neohome editor', group: 'Home & Reference' },
     ];
 
@@ -5092,7 +5119,7 @@
             { id: 'cork-gun-gallery', label: 'Cork Gun Gallery', icon: '💰', img: 'https://images.neopets.com/items/can_box_fruitbeans.gif', href: '/halloween/corkgun.phtml', intervalHours: 1.2, note: '20 times a day', category: 'Daily', sourceGroup: 'Some NP Required' },
             { id: 'employment-agency', label: 'Employment Agency', icon: '💰', img: 'https://images.neopets.com/items/purple_ticket.gif', href: '/faerieland/employ/employment.phtml', intervalHours: 24.0, note: 'Anytime', category: 'Special', sourceGroup: 'Some NP Required' },
             { id: 'faerie-caverns', label: 'Faerie Caverns', icon: '💰', img: 'https://images.neopets.com/items/bg_faerie_caverns.gif', href: '/faerieland/caverns/index.phtml', intervalHours: 12.0, note: 'Up to twice per day (resets at NST midnight)', category: 'Daily', sourceGroup: 'Some NP Required' },
-            { id: 'food-club', label: 'Food Club', icon: '💰', img: 'https://images.neopets.com/games/pages/trophies/88_1.png', href: '/pirates/foodclub.phtml?type=bet', intervalHours: 2.4, note: '10 bets per daily round', category: 'Daily', sourceGroup: 'Some NP Required' },
+            { id: 'food-club', label: 'Food Club', icon: '💰', img: 'https://images.neopets.com/games/pages/trophies/88_1.png', href: '/pirates/foodclub.phtml?tab=bet', intervalHours: 2.4, note: '10 bets per daily round', category: 'Daily', sourceGroup: 'Some NP Required' },
             { id: 'hidden-tower', label: 'Hidden Tower', icon: '💰', img: 'https://images.neopets.com/items/fyora_supreme_doll.gif', href: '/faerieland/hiddentower938.phtml', intervalHours: 24.0, note: 'Can purchase one item every 24 hours', category: 'Daily', sourceGroup: 'Some NP Required' },
             { id: 'igloo-garage-sale', label: 'Igloo Garage Sale', icon: '💰', img: 'https://images.neopets.com/items/gar_igloo.gif', href: '/winter/igloo.phtml', intervalHours: 2.4, note: '10 items per day, restock times vary', category: 'Daily', sourceGroup: 'Some NP Required' },
             { id: 'lever-of-doom', label: 'Lever of Doom', icon: '💰', img: 'https://images.neopets.com/items/coi_leverofdoom.gif', href: '/space/strangelever.phtml', intervalHours: 24.0, note: 'Anytime', category: 'Special', sourceGroup: 'Some NP Required' },
@@ -19542,7 +19569,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             // — Games & Gambling —
             { name: 'Almost Abandoned Attic', url: '/halloween/garage.phtml', icon: '🏚️', group: 'Games & Gambling' },
             { name: 'Dice-A-Roo', url: '/games/dicearoo.phtml', icon: '🎲', group: 'Games & Gambling' },
-            { name: 'Food Club', url: '/pirates/foodclub.phtml?type=bet', icon: '🍗', group: 'Games & Gambling' },
+            { name: 'Food Club', url: '/pirates/foodclub.phtml?tab=bet', icon: '🍗', group: 'Games & Gambling' },
             { name: 'Neopian Lottery', url: '/games/lottery.phtml', icon: '🎫', group: 'Games & Gambling' },
             { name: 'Godori', url: '/games/godori/godori.phtml', icon: '🎴', group: 'Games & Gambling' },
             { name: 'Scorchy Slots', url: '/games/slots.phtml', icon: '🎰', group: 'Games & Gambling' },
@@ -19577,7 +19604,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     { name: 'Shop Wizard', url: '/market.phtml?type=wizard', icon: '🪄' },
                     { name: 'Neoboards', url: '/neoboards/index.phtml', icon: '💬' },
                     { name: 'Trading Post', url: '/island/tradingpost.phtml', icon: '📜' },
-                    { name: 'Food Club', url: '/pirates/foodclub.phtml?type=bet', icon: '🍗' }
+                    { name: 'Food Club', url: '/pirates/foodclub.phtml?tab=bet', icon: '🍗' }
                 ];
             }
         }
@@ -19680,7 +19707,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 // — Economy —
                 { name: 'Auction House', url: '/auctions.phtml', icon: '🏛️', group: 'Economy' },
                 { name: 'Bank', url: '/bank.phtml', icon: '🏦', group: 'Economy' },
-                { name: 'Food Club', url: '/pirates/foodclub.phtml?type=bet', icon: '🍗', group: 'Economy' },
+                { name: 'Food Club', url: '/pirates/foodclub.phtml?tab=bet', icon: '🍗', group: 'Economy' },
                 { name: 'Inventory', url: '/inventory.phtml', icon: '🎒', group: 'Economy' },
                 { name: 'Item Transfer Log', url: '/items/transfer_list.phtml', icon: '📦', group: 'Economy' },
                 { name: 'Safety Deposit Box', url: '/safetydeposit.phtml', icon: '🔒', group: 'Economy' },
@@ -20375,7 +20402,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 { name: 'Shop Wizard', url: '/market.phtml?type=wizard', icon: '🪄' },
                 { name: 'Neoboards', url: '/neoboards/index.phtml', icon: '💬' },
                 { name: 'Trading Post', url: '/island/tradingpost.phtml', icon: '📜' },
-                { name: 'Food Club', url: '/pirates/foodclub.phtml?type=bet', icon: '🍗' }
+                { name: 'Food Club', url: '/pirates/foodclub.phtml?tab=bet', icon: '🍗' }
             ];
         } catch (e) {}
 
@@ -21243,7 +21270,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     'nui-qv-fc', '🍗', 'Food Club Bets',
                     fcCache ? fcCache.valueHtml : `<span style="color:var(--nui-text-muted);font-size:12px;">Loading…</span>`,
                     cachedSub,
-                    '/pirates/foodclub.phtml?type=current_bets'
+                    '/pirates/foodclub.phtml?tab=current'
                 );
             }
 
@@ -21312,18 +21339,15 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     const pill = document.getElementById('nui-qv-fc');
                     if (!pill) return;
                     try {
-                        const res = await fetch('/pirates/foodclub.phtml?type=current_bets', { credentials: 'include' });
+                        const res = await fetch('/pirates/foodclub.phtml?tab=current', { credentials: 'include' });
                         const html = await res.text();
                         const doc = new DOMParser().parseFromString(html, 'text/html');
                         const bets = [];
-                        doc.querySelectorAll('tr').forEach(row => {
-                            const cells = row.querySelectorAll('td');
-                            if (cells.length === 5 && cells[0].textContent.trim() !== 'Round' && cells[0].textContent.trim() !== '') {
-                                bets.push({
-                                    amount: parseInt(cells[2].textContent.replace(/[^0-9]/g, ''), 10) || 0,
-                                    winnings: parseInt(cells[4].textContent.replace(/[^0-9]/g, ''), 10) || 0,
-                                });
-                            }
+                        doc.querySelectorAll('.fc-cb-row').forEach(row => {
+                            bets.push({
+                                amount: parseInt(row.getAttribute('data-amount'), 10) || 0,
+                                winnings: parseInt(row.getAttribute('data-payoff'), 10) || 0,
+                            });
                         });
                         const valueEl = pill.querySelector('span[style*="text-align:right"]');
                         const subEl = pill.querySelector('span[style*="text-faint"]');
@@ -33394,6 +33418,19 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             });
         }
 
+        if (/ajax\/pirates\/foodclub\/collect\.php/.test(url)) {
+            return _origFetch.apply(this, arguments).then(response => {
+                response.clone().json().then(data => {
+                    if (!data || !data.success) return;
+                    const amount = parseInt(data.collected, 10);
+                    if (isNaN(amount) || amount <= 0) return;
+                    TxManager.add(amount, 'Food Club Payout', '', 'Food Club', 'exact');
+                    markExactLog(amount);
+                }).catch(() => {});
+                return response;
+            });
+        }
+
         if (/process_foodclub\.phtml/.test(url)) {
             let isCollect = false;
             try {
@@ -38206,7 +38243,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
     }
 
     const ARENAS = ['Shipwreck', 'Lagoon', 'Treasure Island', 'Hidden Cove', "Harpoon Harry's"];
-    const MAX_WIN = 1000000;
+    let MAX_WIN = 1000000;   // overwritten from the bet form's data-max-win when present
 
     // ─────────────────────────────────────────────────────────────────────────
     // TROPHY RUN — localStorage-backed day/expiry labels
@@ -38401,115 +38438,157 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
 
 
     // ─────────────────────────────────────────────────────────────────────────
-    // FETCH HELPERS
+    // FETCH HELPERS  (Food Club revamp: AJAX fragments, not ?type= pages)
     // ─────────────────────────────────────────────────────────────────────────
-    async function fetchFC(type) {
-        const res = await fetch(`/pirates/foodclub.phtml?type=${type}`, { credentials: 'include' });
-        const html = await res.text();
-        return { doc: new DOMParser().parseFromString(html, 'text/html'), raw: html };
+    // The revamped Food Club swaps a fragment in from tab.php (sending the page's
+    // data-tab-ck as X-CSRF-Token). If that ever fails we fall back to loading
+    // the full page with ?tab=<name>, which server-renders the same fragment.
+    let FC_TAB_CK = '';
+
+    function esc(str) {
+        return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function fetchTab(tab) {
+        let doc = null;
+        if (FC_TAB_CK) {
+            try {
+                const res = await fetch('/np-templates/ajax/pirates/foodclub/tab.php?tab=' + encodeURIComponent(tab) + '&_=' + Date.now(), {
+                    credentials: 'include',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': FC_TAB_CK },
+                });
+                if (res.ok) {
+                    const txt = await res.text();
+                    if (txt.trim() && txt.indexOf('data-fc-reload') === -1) {
+                        doc = new DOMParser().parseFromString('<div id="fc-swap">' + txt + '</div>', 'text/html');
+                    }
+                }
+            } catch (e) {}
+        }
+        if (!doc) {
+            const res = await fetch('/pirates/foodclub.phtml?tab=' + encodeURIComponent(tab), { credentials: 'include' });
+            doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+        }
+        return { doc };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // SCRAPERS
     // ─────────────────────────────────────────────────────────────────────────
+    function tipRow(tip, key) {
+        const rows = tip.querySelectorAll('.fc-tip__row');
+        for (let i = 0; i < rows.length; i++) {
+            const k = rows[i].querySelector('.fc-tip__k');
+            if (k && k.textContent.trim().toLowerCase().indexOf(key) === 0) {
+                return rows[i].textContent.replace(k.textContent, '').replace(/\s+/g, ' ').trim();
+            }
+        }
+        return '';
+    }
+
+    // Pirate stats now live in hidden tooltip sources on the Overview ("main")
+    // fragment (#fc-tip-pirate-N). Arena + current odds come from .fc-arena cards.
     function scrapePirates(doc) {
+        const where = {};
+        doc.querySelectorAll('.fc-arena').forEach(a => {
+            const nameEl = a.querySelector('.fc-arena__banner span');
+            const arenaName = nameEl ? nameEl.textContent.trim() : '';
+            a.querySelectorAll('.fc-arena__pirate[data-fc-tip]').forEach(pEl => {
+                const m = (pEl.getAttribute('data-fc-tip') || '').match(/pirate-(\d+)/);
+                const oddsEl = pEl.querySelector('.fc-arena__odds');
+                if (m) where[m[1]] = { arena: arenaName, odds: oddsEl ? oddsEl.textContent.trim() : '' };
+            });
+        });
+
         const pirates = [];
-        const rows = doc.querySelectorAll("tr");
-        rows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length < 6) return;
-            const link = cells[0].querySelector('a');
-            if (!link) return;
-            const href = link.getAttribute('href') || '';
-            const idMatch = href.match(/id=(\d+)/);
-            if (!idMatch) return;
+        doc.querySelectorAll('[id^="fc-tip-pirate-"]').forEach(tip => {
+            const id = parseInt(tip.id.replace('fc-tip-pirate-', ''), 10);
+            if (isNaN(id)) return;
+            const nameEl = tip.querySelector('.fc-tip__name');
+            const wl = tipRow(tip, 'wins').match(/([\d,]+)\s*\/\s*([\d,]+)\s*\(\s*([\d.]+)\s*%/);
+            const w = where[String(id)] || {};
             pirates.push({
-                id: parseInt(idMatch[1]),
-                name: link.textContent.trim(),
-                strength: parseInt(cells[1].textContent) || 0,
-                weight: parseInt(cells[2].textContent) || 0,
-                wins: parseInt(cells[3].textContent.replace(/,/g, '')) || 0,
-                losses: parseInt(cells[4].textContent.replace(/,/g, '')) || 0,
-                pct: parseInt(cells[5].textContent) || 0,
+                id,
+                name: nameEl ? nameEl.textContent.trim() : 'Pirate ' + id,
+                strength: parseInt(tipRow(tip, 'strength'), 10) || 0,
+                weight: parseInt(tipRow(tip, 'weight'), 10) || 0,
+                wins: wl ? parseInt(wl[1].replace(/,/g, ''), 10) : 0,
+                losses: wl ? parseInt(wl[2].replace(/,/g, ''), 10) : 0,
+                pct: wl ? parseFloat(wl[3]) : 0,
+                favourites: tipRow(tip, 'favourites'),
+                allergies: tipRow(tip, 'allergies'),
+                arena: w.arena || '',
+                odds: w.odds || '',
             });
         });
         return pirates;
     }
+
+    // Bet form: #fc-bet-form carries the limits + one-time CSRF token as data-*.
     function scrapeBetForm(doc) {
-        const raw = doc.documentElement.innerHTML;
+        const empty = { maxBet: 0, maxWin: 0, balance: 0, ck: '', maxBets: 0, betsPlaced: 0, arenas: [] };
+        const form = doc.querySelector('#fc-bet-form');
+        if (!form) return empty;
+        const num = k => parseInt(form.getAttribute(k), 10) || 0;
 
-        // 1. Scrape Max Bet Amount safely from the text string or JS fallback
-        let maxBet = 0;
-        const textMatch = raw.match(/up to <b>(\d+)<\/b> NeoPoints/i);
-        const jsMatch = raw.match(/max_bet\s*=\s*(\d+)/i);
-
-        if (textMatch) {
-            maxBet = parseInt(textMatch[1], 10);
-        } else if (jsMatch) {
-            maxBet = parseInt(jsMatch[1], 10);
-        }
-
-        // 2. Scrape Pirate Odds
-        const oddsMap = {};
-        const oddsRe = /pirate_odds\[(\d+)\]\s*=\s*(\d+)/g;
-        let m;
-        while ((m = oddsRe.exec(raw)) !== null) {
-            oddsMap[parseInt(m[1], 10)] = parseInt(m[2], 10);
-        }
-
-        // 3. Map Arenas and Pirates
         const arenas = [];
-        const betTable = doc.querySelector("form[name='bet_form'] table");
-        if (!betTable) return { maxBet, arenas };
-
-        const rows = betTable.querySelectorAll('tr');
-        rows.forEach(row => {
-            const cbInput = row.querySelector('input[type="checkbox"][name="matches[]"]');
-            if (!cbInput) return;
-            const arenaIndex = parseInt(cbInput.value, 10) - 1;
-            const arenaName = ARENAS[arenaIndex] || `Arena ${arenaIndex + 1}`;
-            const select = row.querySelector('select');
-            if (!select) return;
-
+        form.querySelectorAll('.fc-bet-row').forEach(row => {
+            const match = parseInt(row.getAttribute('data-match'), 10);
+            if (isNaN(match)) return;
+            const nameEl = row.querySelector('.fc-bet-arena__name');
             const pirates = [];
-            select.querySelectorAll('option').forEach(opt => {
-                if (!opt.value) return;
-                const id = parseInt(opt.value, 10);
-                const oddsVal = oddsMap[id] || 1;
-                const txt = opt.textContent.trim();
-                const nameMatch = txt.match(/^(.+?)\s+\(/);
-                const name = nameMatch ? nameMatch[1].trim() : txt;
-                pirates.push({ id, name, odds: oddsVal });
+            row.querySelectorAll('.fc-bet-pirate-radio').forEach(radio => {
+                const label = radio.closest('label') || radio.parentNode;
+                const nEl = label ? label.querySelector('.fc-bet-pirate__name') : null;
+                pirates.push({
+                    id: parseInt(radio.value, 10),
+                    name: nEl ? nEl.textContent.trim() : ('Pirate ' + radio.value),
+                    odds: parseInt(radio.getAttribute('data-odds'), 10) || 1,
+                });
             });
-
-            arenas.push({ name: arenaName, arenaIndex, pirates });
+            arenas.push({
+                name: nameEl ? nameEl.textContent.trim() : (ARENAS[match - 1] || ('Arena ' + match)),
+                arenaIndex: match - 1,
+                pirates,
+            });
         });
+        arenas.sort((x, y) => x.arenaIndex - y.arenaIndex);
 
-        return { maxBet, arenas };
+        return {
+            maxBet: num('data-max-bet'),
+            maxWin: num('data-max-win'),
+            balance: num('data-balance'),
+            ck: form.getAttribute('data-ck') || '',
+            maxBets: num('data-max-bets'),
+            betsPlaced: num('data-bets-placed'),
+            arenas,
+        };
     }
 
+    // Shared "Bet Info" legs markup for current/collect rows.
+    function legsHtml(row) {
+        const out = [];
+        row.querySelectorAll('.fc-cb-leg').forEach(leg => {
+            const t = sel => { const e = leg.querySelector(sel); return e ? e.textContent.trim() : ''; };
+            out.push(`<div>${esc(t('.fc-cb-leg__arena'))}: <b>${esc(t('.fc-cb-leg__pirate'))}</b> <span style="opacity:.7;">${esc(t('.fc-cb-leg__odds'))}</span></div>`);
+        });
+        return out.join('');
+    }
 
     function scrapeCurrentBets(doc) {
+        const rows = doc.querySelectorAll('.fc-cb-row');
+        if (!rows.length) return null;
         const bets = [];
-        const rows = doc.querySelectorAll("tr");
-        let dataRows = 0;
         rows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length === 5 && cells[0].textContent.trim() !== 'Round' && cells[0].textContent.trim() !== '') {
-                const betInfo = cells[1].innerHTML.trim();
-                const amount = cells[2].textContent.trim();
-                const odds = cells[3].textContent.trim();
-                const winnings = cells[4].textContent.trim();
-                bets.push({ betInfo, amount, odds, winnings });
-                dataRows++;
-            }
+            const amt = parseInt(row.getAttribute('data-amount'), 10) || 0;
+            const pay = parseInt(row.getAttribute('data-payoff'), 10) || 0;
+            bets.push({
+                betInfo: legsHtml(row),
+                amount: amt.toLocaleString() + ' NP',
+                odds: amt > 0 ? Math.round(pay / amt) + ':1' : '—',
+                winnings: pay.toLocaleString() + ' NP',
+            });
         });
-
-        if (dataRows === 0) {
-            const emptyCell = doc.querySelector("td[colspan='5']");
-            if (emptyCell && emptyCell.textContent.includes('You do not have any bets placed')) return null;
-        }
-
         return bets;
     }
 
@@ -38535,107 +38614,112 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         } catch (e) {}
     }
 
+    // Collect screen: one .fc-collect-row per winning bet. The Collect button
+    // carries data-round / data-bet, which is the reliable source for the round.
+    // The figure cells aren't individually labelled, so winnings = the largest
+    // plain number in the row (skipping the round pill and "13:1"-style odds).
     function scrapeCollect(doc) {
-        const formAction = 'process_foodclub.phtml';
+        const section = doc.querySelector('.fc-tab--collect');
+        const ck = section ? (section.getAttribute('data-ck') || '') : '';
         const rows = [];
-        const trs = doc.querySelectorAll("tr");
-        trs.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length === 5 && cells[0].textContent.trim() !== 'Round' && cells[0].textContent.trim() !== '') {
-                rows.push({
-                    round: cells[0].textContent.trim(),
-                    betInfo: cells[1].innerHTML.trim(),
-                    amount: cells[2].textContent.trim(),
-                    odds: cells[3].textContent.trim(),
-                    winnings: cells[4].textContent.trim(),
-                });
-            }
+        doc.querySelectorAll('.fc-collect-row').forEach(row => {
+            const btn = row.querySelector('.fc-collect-one');
+            const round = btn ? (btn.getAttribute('data-round') || '') : '';
+            const betString = btn ? (btn.getAttribute('data-bet') || '') : '';
+            const cells = Array.from(row.querySelectorAll('.fc-cb-cell'))
+                .map(c => c.textContent.replace(/\s+/g, ' ').trim())
+                .filter(Boolean);
+            let win = 0;
+            const detail = [];
+            cells.forEach(c => {
+                if (/round/i.test(c) || c.indexOf(':') !== -1) { return; }
+                const n = parseInt(c.replace(/[^0-9]/g, ''), 10);
+                if (isNaN(n) || String(n) === String(round)) return;
+                detail.push(c);
+                if (n > win) win = n;
+            });
+            rows.push({
+                round, betString,
+                betInfo: legsHtml(row),
+                winnings: String(win),
+                detail: detail.join(' · '),
+            });
         });
-
-        let emptyCheck = false;
-        trs.forEach(row => {
-            const td = row.querySelector("td[colspan='5']");
-            if (td && td.textContent.includes("You do not have any winning bets")) emptyCheck = true;
-        });
-
-        const hasWinnings = rows.length > 0 && !emptyCheck;
-        return { hasWinnings, rows, formAction };
+        const hasWinnings = rows.length > 0;
+        return { hasWinnings, rows, ck };
     }
 
+    // Bet History is now a single lifetime-summary panel (label + value pairs).
     function scrapeHistory(doc) {
-        const tables = doc.querySelectorAll('table');
-        let historyData = null;
-        tables.forEach(table => {
+        const stats = [];
+        doc.querySelectorAll('.fc-hist-summary .fc-totals__stat').forEach(el => {
+            const kids = Array.from(el.children).map(k => k.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
+            if (kids.length >= 2) stats.push({ label: kids[0].replace(/:$/, ''), value: kids[kids.length - 1] });
+        });
+        if (stats.length) return stats;
+
+        // Legacy table fallback
+        let out = null;
+        doc.querySelectorAll('table').forEach(table => {
             if (table.textContent.includes('Bets Placed') && table.textContent.includes('Bet Total')) {
                 const rows = table.querySelectorAll('tr');
                 if (rows.length >= 3) {
                     const cells = rows[2].querySelectorAll('td');
                     if (cells.length >= 4) {
-                        historyData = {
-                            betsPlaced: cells[0].textContent.trim(),
-                            betTotal: cells[1].textContent.trim(),
-                            winTotal: cells[2].textContent.trim(),
-                            differenceHtml: cells[3].innerHTML.trim()
-                        };
+                        out = [
+                            { label: 'Bets Placed', value: cells[0].textContent.trim() },
+                            { label: 'Bet Total',   value: cells[1].textContent.trim() },
+                            { label: 'Win Total',   value: cells[2].textContent.trim() },
+                            { label: 'Difference',  value: cells[3].textContent.trim() },
+                        ];
                     }
                 }
             }
         });
-        return historyData;
+        return out;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // POST A SINGLE BET
+    // ACTIONS: place a bet / collect  (JSON endpoints used by the new page)
     // ─────────────────────────────────────────────────────────────────────────
-    async function postBet(row, amount) {
-        const fd = new FormData();
-        fd.append('type', 'bet');
-        fd.append('bet_amount', String(amount));
-
-        row.forEach((pid, arenaIdx) => {
-            if (!pid) return;
-            fd.append('matches[]', String(arenaIdx + 1));
-            fd.append(`winner${arenaIdx + 1}`, String(pid));
-        });
-
-        const res = await fetch('/pirates/process_foodclub.phtml', {
-            method: 'POST',
-            credentials: 'include',
-            body: fd,
-        });
-        const html = await res.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-
-        // SUCCESS SIGNAL: a successful bet redirects to the current-bets page.
-        // That page contains bet rows (tr with 5 td cells, first cell ≠ 'Round').
-        // We look for that positive signal rather than scanning for error keywords,
-        // which was triggering on incidental text in the current-bets tables.
-        const rows = doc.querySelectorAll('tr');
-        let hasBetRows = false;
-        rows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length === 5 && cells[0].textContent.trim() !== 'Round' && cells[0].textContent.trim() !== '') {
-                hasBetRows = true;
-            }
-        });
-        if (hasBetRows) return { ok: true, message: 'Bet placed!' };
-
-        // Also accept an empty current-bets page (no bets yet placed this round
-        // but no error either — e.g. first bet in a fresh round clears after redirect)
-        const emptyBets = doc.querySelector("td[colspan='5']");
-        if (emptyBets && emptyBets.textContent.includes('You do not have any bets')) {
-            return { ok: true, message: 'Bet placed!' };
+    // `ctx` holds the one-time CSRF token; the server hands back a fresh one on
+    // every response, so we keep it updated for sequential bets.
+    async function postBet(row, amount, ctx) {
+        const picks = {};
+        row.forEach((pid, arenaIdx) => { if (pid) picks[arenaIdx + 1] = pid; });
+        try {
+            const res = await fetch('/np-templates/ajax/pirates/foodclub/place_bet.php', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ _ref_ck: ctx.ck, bet_amount: amount, picks }),
+            });
+            const data = await res.json();
+            if (data && data.ck) ctx.ck = data.ck;
+            if (data && typeof data.placed !== 'undefined') ctx.betsPlaced = parseInt(data.placed, 10) || 0;
+            else if (data && data.success) ctx.betsPlaced++;
+            if (data && data.success) return { ok: true, message: 'Bet placed!' };
+            return { ok: false, message: ((data && data.error) || 'Bet was rejected.').toString().slice(0, 200) };
+        } catch (e) {
+            return { ok: false, message: 'Network error' };
         }
+    }
 
-        // Explicit error elements from Neopets
-        const errorEl = doc.querySelector('.errorMessage, #errorMessage, .error_msg, p.error, .neopets-error');
-        if (errorEl) {
-            return { ok: false, message: errorEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 200) };
+    async function collectAjax(extra, ctx) {
+        try {
+            const res = await fetch('/np-templates/ajax/pirates/foodclub/collect.php', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify(Object.assign({ _ref_ck: ctx.ck }, extra)),
+            });
+            const data = await res.json();
+            if (data && data.ck) ctx.ck = data.ck;
+            if (data && data.success) return { ok: true, collected: parseInt(data.collected, 10) || 0 };
+            return { ok: false, error: ((data && data.error) || 'Could not collect winnings.').toString() };
+        } catch (e) {
+            return { ok: false, error: 'Network error' };
         }
-
-        // Fallback: if we can't read a positive signal, assume success (the bet
-        // went through and process_foodclub redirected us somewhere unexpected).
-        return { ok: true, message: 'Bet placed!' };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -38644,8 +38728,10 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
     async function init() {
         const profile = NeoUI.scrapeLegacyProfile();
 
-        const nextMatchEl = document.querySelector('center');
-        const nextMatchText = nextMatchEl ? nextMatchEl.textContent.trim() : '';
+        const fcApp = document.getElementById('fc-app');
+        FC_TAB_CK = fcApp ? (fcApp.getAttribute('data-tab-ck') || '') : '';
+        const statusEl = document.querySelector('.fc-round__status');
+        const nextMatchText = statusEl ? statusEl.textContent.replace(/\s+/g, ' ').trim() : '';
 
         document.body.innerHTML = '';
         document.body.className = 'nui-reset';
@@ -38693,11 +38779,12 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             { id: 'history',  label: '📜 History'    },
         ];
 
-        const urlType = new URLSearchParams(location.search).get('type') || '';
-        const startTab = urlType === 'current_bets' ? 'mybets'
-                       : urlType === 'collect'       ? 'collect'
-                       : urlType === 'bet'           ? 'bet'
-                       : urlType === 'history'       ? 'history'
+        const urlParams = new URLSearchParams(location.search);
+        const urlType = urlParams.get('tab') || urlParams.get('type') || '';
+        const startTab = (urlType === 'current' || urlType === 'current_bets') ? 'mybets'
+                       : urlType === 'collect' ? 'collect'
+                       : urlType === 'bet'     ? 'bet'
+                       : urlType === 'history' ? 'history'
                        : 'pirates';
 
         let activeTab = startTab;
@@ -38758,7 +38845,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         // RENDER: PIRATES TAB
         // ─────────────────────────────────────────────────────────────────────
         async function renderPirates() {
-            const { doc } = await fetchFC('pirates');
+            const { doc } = await fetchTab('main');
             const pirates = scrapePirates(doc);
 
             contentInner.innerHTML = '';
@@ -38811,12 +38898,15 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     card.innerHTML = `
                         <div style="min-width:0;">
                             <div style="font-weight:800;font-size:15px;color:var(--nui-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                                <a href="/pirates/foodclub.phtml?type=pirates&id=${p.id}" style="color:var(--nui-accent);text-decoration:none;">${p.name}</a>
+                                <span style="color:var(--nui-accent);">${esc(p.name)}</span>${p.odds ? ` <span class="nui-badge" style="font-size:11px;">${esc(p.odds)}</span>` : ''}
                             </div>
                             <div style="font-size:12px;color:var(--nui-text-muted);font-weight:600;margin-top:3px;">
                                 Str <b style="color:var(--nui-text);">${p.strength}</b> &nbsp;·&nbsp;
                                 Wt <b style="color:var(--nui-text);">${p.weight}</b> &nbsp;·&nbsp;
                                 ${p.wins.toLocaleString()} W / ${p.losses.toLocaleString()} L
+                            </div>
+                            <div style="font-size:11px;color:var(--nui-text-faint);font-weight:600;margin-top:2px;">
+                                ${p.arena ? esc(p.arena) + ' &nbsp;·&nbsp; ' : ''}♥ ${esc(p.favourites || '—')} &nbsp;·&nbsp; ⚠ ${esc(p.allergies || '—')}
                             </div>
                             <div style="margin-top:6px;height:5px;background:var(--nui-surface);border-radius:3px;overflow:hidden;">
                                 <div style="height:100%;width:${barW}%;background:${barColor};border-radius:3px;transition:width 0.3s;"></div>
@@ -38841,15 +38931,19 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         // RENDER: BET TAB (WITH MULTIPLE BET QUEUE AND CAPPING)
         // ─────────────────────────────────────────────────────────────────────
         async function renderBet(extraState) {
-            const { doc } = await fetchFC('bet');
-            const { maxBet, arenas } = scrapeBetForm(doc);
+            const { doc } = await fetchTab('bet');
+            const betInfo = scrapeBetForm(doc);
+            const { maxBet, arenas } = betInfo;
+            if (betInfo.maxWin) MAX_WIN = betInfo.maxWin;
+            const ctx = { ck: betInfo.ck, betsPlaced: betInfo.betsPlaced, maxBets: betInfo.maxBets };
+            const closedText = ((doc.querySelector('#fc-tab-body') || {}).textContent || '').replace(/\s+/g, ' ').trim().slice(0, 200);
             const globalOddsMap = {};
             arenas.forEach(a => a.pirates.forEach(p => { globalOddsMap[p.id] = p.odds; }));
 
             contentInner.innerHTML = '';
 
             if (!arenas.length) {
-                contentInner.innerHTML = `<div class="nui-empty"><span class="nui-empty-emoji">🎰</span>Betting is not currently available.</div>`;
+                contentInner.innerHTML = `<div class="nui-empty"><span class="nui-empty-emoji">🎰</span>Betting is not currently available.${closedText ? '<br><small>' + esc(closedText) + '</small>' : ''}</div>`;
                 return;
             }
 
@@ -39212,7 +39306,11 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                             const st = document.getElementById('q-status-' + r.idx);
                             if (st) { st.textContent = '...'; st.style.color = 'var(--nui-warning)'; }
 
-                            const res = await postBet(r.selections, r.amt);
+                            if (ctx.maxBets > 0 && ctx.betsPlaced >= ctx.maxBets) {
+                                if (st) { st.textContent = 'Cap'; st.style.color = 'var(--nui-danger)'; st.title = 'Max bets for this round reached'; }
+                                continue;
+                            }
+                            const res = await postBet(r.selections, r.amt, ctx);
                             if (st) {
                                 if (res.ok) {
                                     st.textContent = 'Placed!';
@@ -39253,6 +39351,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             infoRow.innerHTML = `
                 <span class="nui-badge" style="background:var(--nui-accent-soft);color:var(--nui-accent);">Max Bet: <b>${maxBet.toLocaleString()} NP</b></span>
                 <span class="nui-badge">Check up to 5 arenas</span>
+                ${ctx.maxBets > 0 ? `<span class="nui-badge">Bets this round: <b>${ctx.betsPlaced}/${ctx.maxBets}</b></span>` : ''}
             `;
             viewContainer.appendChild(infoRow);
 
@@ -39449,37 +39548,37 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
             });
 
             const submitBtn = document.createElement('button');
-            submitBtn.type = 'submit';
+            submitBtn.type = 'button';
             submitBtn.className = 'nui-btn nui-btn-primary nui-btn-block';
             submitBtn.textContent = 'Place This Bet!';
             submitBtn.style.marginTop = 'var(--nui-space-2)';
 
-            submitBtn.addEventListener('click', (e) => {
-                const anyChecked = betState.checked.some((c, i) => c && betState.selected[i]);
-                if (!anyChecked) {
-                    e.preventDefault();
+            form.addEventListener('submit', (e) => e.preventDefault());
+            submitBtn.addEventListener('click', async () => {
+                if (ctx.maxBets > 0 && ctx.betsPlaced >= ctx.maxBets) {
+                    showToast('You have already placed the maximum number of bets for this round.', true);
+                    return;
+                }
+                const row = betState.selected.map((pid, i) => betState.checked[i] ? pid : null);
+                if (!row.some(Boolean)) {
                     showToast('Check at least one arena and pick a pirate!', true);
                     return;
                 }
                 const amt = parseInt(document.getElementById('nui-fc-bet-amount').value) || 0;
-                if (amt < 1) {
-                    e.preventDefault();
-                    showToast('Enter a bet amount!', true);
-                    return;
+                if (amt < 1) { showToast('Enter a bet amount!', true); return; }
+                if (amt > maxBet) { showToast(`Max bet is ${maxBet.toLocaleString()} NP!`, true); return; }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Placing…';
+                const res = await postBet(row, amt, ctx);
+                if (res.ok) {
+                    showToast('Bet placed!', false);
+                    setTimeout(() => switchTab('bet'), 900);   // refresh count + fresh token
+                } else {
+                    showToast(res.message, true);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Place This Bet!';
                 }
-                if (amt > maxBet) {
-                    e.preventDefault();
-                    showToast(`Max bet is ${maxBet.toLocaleString()} NP!`, true);
-                    return;
-                }
-                let amtInput = form.querySelector('input[name="bet_amount"]');
-                if (!amtInput) {
-                    amtInput = document.createElement('input');
-                    amtInput.type = 'hidden';
-                    amtInput.name = 'bet_amount';
-                    form.appendChild(amtInput);
-                }
-                amtInput.value = String(amt);
             });
 
             form.appendChild(oddsCard);
@@ -39494,7 +39593,7 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         // RENDER: MY BETS TAB
         // ─────────────────────────────────────────────────────────────────────
         async function renderMyBets() {
-            const { doc } = await fetchFC('current_bets');
+            const { doc } = await fetchTab('current');
             const bets = scrapeCurrentBets(doc);
             cacheQuickviewFoodClub(bets);
 
@@ -39579,8 +39678,9 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         }
 
         async function renderCollect() {
-            const { doc } = await fetchFC('collect');
-            const { hasWinnings, rows } = scrapeCollect(doc);
+            const { doc } = await fetchTab('collect');
+            const { hasWinnings, rows, ck: collectCk } = scrapeCollect(doc);
+            const collectCtx = { ck: collectCk };
             const trophyOn = isTrophyMode();
             const queueInfo = computeQueueInfo(rows); // live, authoritative FIFO queue — null if nothing uncollected
 
@@ -39782,24 +39882,38 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 card.style.cssText = 'border:1px solid var(--nui-border);border-radius:var(--nui-radius-md);padding:12px 14px;background:var(--nui-surface-2);margin-bottom:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;' + (alreadyLogged ? 'opacity:0.6;' : '');
                 card.innerHTML = `
                     <div style="flex:1;min-width:0;">
-                        <div style="font-size:12px;color:var(--nui-text-faint);font-weight:700;margin-bottom:3px;">Round ${r.round}${alreadyLogged ? ' <span style="color:var(--nui-success);">· ✔ Logged</span>' : ''}</div>
+                        <div style="font-size:12px;color:var(--nui-text-faint);font-weight:700;margin-bottom:3px;">Round ${esc(r.round)}${alreadyLogged ? ' <span style="color:var(--nui-success);">· ✔ Logged</span>' : ''}</div>
                         <div style="font-size:13px;color:var(--nui-text-muted);">${r.betInfo}</div>
+                        ${r.detail ? `<div style="font-size:11px;color:var(--nui-text-faint);margin-top:3px;">${esc(r.detail)}</div>` : ''}
                     </div>
-                    <div style="display:flex;gap:12px;align-items:center;">
-                        <div style="text-align:center;">
-                            <div style="font-weight:800;color:var(--nui-text);font-size:15px;">${r.amount}</div>
-                            <div style="font-size:10px;font-weight:700;color:var(--nui-text-faint);text-transform:uppercase;">Bet</div>
-                        </div>
-                        <div style="text-align:center;">
-                            <div style="font-weight:800;color:var(--nui-accent);font-size:15px;">${r.odds}</div>
-                            <div style="font-size:10px;font-weight:700;color:var(--nui-text-faint);text-transform:uppercase;">Odds</div>
-                        </div>
-                        <div style="text-align:center;">
-                            <div style="font-weight:800;color:var(--nui-success);font-size:18px;">${r.winnings}</div>
-                            <div style="font-size:10px;font-weight:700;color:var(--nui-text-faint);text-transform:uppercase;">Won</div>
-                        </div>
+                    <div style="text-align:center;">
+                        <div style="font-weight:800;color:var(--nui-success);font-size:18px;">${(parseInt(r.winnings, 10) || 0).toLocaleString()} NP</div>
+                        <div style="font-size:10px;font-weight:700;color:var(--nui-text-faint);text-transform:uppercase;">Won</div>
                     </div>
                 `;
+                // The new Food Club can collect a single bet. Only offered outside
+                // Trophy Run mode (holding is the whole point there).
+                if (!trophyOn && r.round && r.betString) {
+                    const oneBtn = document.createElement('button');
+                    oneBtn.type = 'button';
+                    oneBtn.className = 'nui-btn nui-btn-secondary';
+                    oneBtn.style.cssText = 'flex-shrink:0;font-size:12px;padding:6px 10px;';
+                    oneBtn.textContent = 'Collect';
+                    oneBtn.addEventListener('click', async () => {
+                        oneBtn.disabled = true;
+                        oneBtn.textContent = '…';
+                        const out = await collectAjax({ mode: 'one', round: parseInt(r.round, 10), bet_string: r.betString }, collectCtx);
+                        if (out.ok) {
+                            oneBtn.textContent = '✓ ' + out.collected.toLocaleString();
+                            setTimeout(() => renderCollect(), 1200);
+                        } else {
+                            oneBtn.disabled = false;
+                            oneBtn.textContent = 'Collect';
+                            showToast(out.error.slice(0, 120), true);
+                        }
+                    });
+                    card.appendChild(oneBtn);
+                }
                 contentInner.appendChild(card);
             });
 
@@ -39855,35 +39969,17 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                     if (!confirm('Collect winnings now? This will end your trophy run for this cycle if uncollected NP is being held.')) return;
                     emergencyBtn.disabled = true;
                     emergencyBtn.textContent = 'Collecting…';
-                    const fd = new FormData();
-                    fd.append('type', 'collect');
-                    try {
-                        const res = await fetch('/pirates/process_foodclub.phtml', { method: 'POST', credentials: 'include', body: fd });
-                        const html = await res.text();
-                        const rdoc = new DOMParser().parseFromString(html, 'text/html');
-                        const errorEl = rdoc.querySelector('.errorMessage, #errorMessage, .error_msg, p.error, .neopets-error');
-                        if (errorEl) {
-                            emergencyBtn.textContent = '⚠ ' + errorEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 80);
-                            emergencyBtn.className = 'nui-btn nui-btn-danger nui-btn-block';
-                        } else {
-                            // Same reasoning as the normal-mode collect button:
-                            // trust the total we already scraped/summed from the
-                            // Collect page (totalWin) instead of re-parsing the
-                            // confirmation page's body text, which can surface
-                            // an unrelated, smaller "<number> NP" mention first.
-                            emergencyBtn.textContent = '✓ Collected ' + totalWin.toLocaleString() + ' NP!';
-                            emergencyBtn.className = 'nui-btn nui-btn-success nui-btn-block';
-                            // Real collection is all-or-nothing, so the entire
-                            // local log is now stale — mark it collected to
-                            // match reality instead of leaving old rounds
-                            // showing as still "held".
-                            const runNow = loadTrophyRun();
-                            if (runNow) markAllTrophyEntriesCollected(runNow);
-                            setTimeout(() => renderCollect(), 1500);
-                        }
-                    } catch (e) {
-                        emergencyBtn.textContent = '⚠ Network error';
+                    const out = await collectAjax({ mode: 'all' }, collectCtx);
+                    if (!out.ok) {
+                        emergencyBtn.textContent = '⚠ ' + out.error.slice(0, 80);
                         emergencyBtn.className = 'nui-btn nui-btn-danger nui-btn-block';
+                    } else {
+                        emergencyBtn.textContent = '✓ Collected ' + (out.collected || totalWin).toLocaleString() + ' NP!';
+                        emergencyBtn.className = 'nui-btn nui-btn-success nui-btn-block';
+                        // Collect-all drains the whole queue — clear the local log to match.
+                        const runNow = loadTrophyRun();
+                        if (runNow) markAllTrophyEntriesCollected(runNow);
+                        setTimeout(() => renderCollect(), 1500);
                     }
                 });
                 contentInner.appendChild(emergencyBtn);
@@ -39898,43 +39994,17 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
                 collectBtn.addEventListener('click', async () => {
                     collectBtn.disabled = true;
                     collectBtn.textContent = 'Collecting…';
-                    const fd = new FormData();
-                    fd.append('type', 'collect');
-                    try {
-                        const res = await fetch('/pirates/process_foodclub.phtml', {
-                            method: 'POST',
-                            credentials: 'include',
-                            body: fd,
-                        });
-                        const html = await res.text();
-                        const rdoc = new DOMParser().parseFromString(html, 'text/html');
-                        const errorEl = rdoc.querySelector('.errorMessage, #errorMessage, .error_msg, p.error, .neopets-error');
-                        if (errorEl) {
-                            const msg = errorEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 80);
-                            collectBtn.textContent = '⚠ ' + msg;
-                            collectBtn.className = 'nui-btn nui-btn-danger nui-btn-block';
-                        } else {
-                            // Don't re-scrape the confirmation page for the
-                            // collected amount — its body text usually has
-                            // several other "<number> NP" mentions (nav bar
-                            // balance, sidebar stats, etc.) sitting earlier in
-                            // the DOM than the actual payout, so a first-match
-                            // regex grabs whichever of those happens to come
-                            // first rather than the real total. We already
-                            // scraped and summed the true amount (totalWin)
-                            // from the Collect page itself before submitting,
-                            // so that's the trustworthy number to show.
-                            collectBtn.textContent = '✓ Collected ' + totalWin.toLocaleString() + ' NP!';
-                            collectBtn.className = 'nui-btn nui-btn-success nui-btn-block';
-                            // Same all-or-nothing reasoning as the emergency
-                            // path above — clear any stale local log entries.
-                            const runNow = loadTrophyRun();
-                            if (runNow) markAllTrophyEntriesCollected(runNow);
-                            setTimeout(() => renderCollect(), 1500);
-                        }
-                    } catch (e) {
-                        collectBtn.textContent = '⚠ Network error';
+                    const out = await collectAjax({ mode: 'all' }, collectCtx);
+                    if (!out.ok) {
+                        collectBtn.textContent = '⚠ ' + out.error.slice(0, 80);
                         collectBtn.className = 'nui-btn nui-btn-danger nui-btn-block';
+                    } else {
+                        collectBtn.textContent = '✓ Collected ' + (out.collected || totalWin).toLocaleString() + ' NP!';
+                        collectBtn.className = 'nui-btn nui-btn-success nui-btn-block';
+                        // Collect-all drains the whole queue — clear the local log to match.
+                        const runNow = loadTrophyRun();
+                        if (runNow) markAllTrophyEntriesCollected(runNow);
+                        setTimeout(() => renderCollect(), 1500);
                     }
                 });
                 contentInner.appendChild(collectBtn);
@@ -39945,47 +40015,32 @@ pop.style.cssText = 'position:fixed; z-index:2147483647; width:212px; padding:12
         // RENDER: HISTORY TAB
         // ─────────────────────────────────────────────────────────────────────
         async function renderHistory() {
-            const { doc } = await fetchFC('history');
-            const historyData = scrapeHistory(doc);
+            const { doc } = await fetchTab('history');
+            const stats = scrapeHistory(doc);
 
             contentInner.innerHTML = '';
 
-            if (!historyData) {
+            if (!stats || !stats.length) {
                 contentInner.innerHTML = `<div class="nui-empty"><span class="nui-empty-emoji">📜</span>No bet history found.</div>`;
                 return;
             }
 
             const heading = document.createElement('div');
             heading.style.cssText = 'font-family:var(--nui-font-display);font-size:18px;font-weight:800;color:var(--nui-text);margin-bottom:var(--nui-space-3);';
-            heading.textContent = `Bet History`;
+            heading.textContent = 'Bet History';
             contentInner.appendChild(heading);
 
             const card = document.createElement('div');
             card.style.cssText = 'border:1px solid var(--nui-border);border-radius:var(--nui-radius-md);padding:16px 20px;background:var(--nui-surface-2);display:flex;gap:16px;justify-content:space-around;flex-wrap:wrap;text-align:center;';
-
-            const diffText = historyData.differenceHtml.replace(/<[^>]+>/g, '');
-            const diffVal = parseInt(diffText.replace(/,/g, '')) || 0;
-            const diffColor = diffVal >= 0 ? 'var(--nui-success)' : 'var(--nui-danger)';
-
-            card.innerHTML = `
-                <div>
-                    <div style="font-size:11px;font-weight:800;color:var(--nui-text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Bets Placed</div>
-                    <div style="font-family:var(--nui-font-display);font-size:22px;font-weight:800;color:var(--nui-text);">${historyData.betsPlaced}</div>
-                </div>
-                <div>
-                    <div style="font-size:11px;font-weight:800;color:var(--nui-text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Bet Total</div>
-                    <div style="font-family:var(--nui-font-display);font-size:22px;font-weight:800;color:var(--nui-text);">${historyData.betTotal}</div>
-                </div>
-                <div>
-                    <div style="font-size:11px;font-weight:800;color:var(--nui-text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Win Total</div>
-                    <div style="font-family:var(--nui-font-display);font-size:22px;font-weight:800;color:var(--nui-accent);">${historyData.winTotal}</div>
-                </div>
-                <div>
-                    <div style="font-size:11px;font-weight:800;color:var(--nui-text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Difference</div>
-                    <div style="font-family:var(--nui-font-display);font-size:22px;font-weight:800;color:${diffColor};">${diffText}</div>
-                </div>
-            `;
-
+            card.innerHTML = stats.map(st => {
+                const isDiff = /diff/i.test(st.label);
+                const neg = /^\s*[-−–]/.test(st.value);
+                const color = isDiff ? (neg ? 'var(--nui-danger)' : 'var(--nui-success)') : (/win/i.test(st.label) ? 'var(--nui-accent)' : 'var(--nui-text)');
+                return `<div>
+                    <div style="font-size:11px;font-weight:800;color:var(--nui-text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${esc(st.label)}</div>
+                    <div style="font-family:var(--nui-font-display);font-size:22px;font-weight:800;color:${color};">${esc(st.value)}</div>
+                </div>`;
+            }).join('');
             contentInner.appendChild(card);
         }
 
@@ -59726,6 +59781,451 @@ return {
         themeStyle.id = 'nui-ff-theme';
         themeStyle.textContent = FF_CSS;
         document.head.appendChild(themeStyle);
+    }
+
+    try { run(); } catch (err) { showFatalError(err); }
+})();
+
+// ==============================================================================
+// MODULE 75: CUSTOMISE (/customise/) — MOBILE-FIRST RESKIN + PINNED PREVIEW
+// ==============================================================================
+// /customise/ is a React app (npcma58.js / npcma58.css) that mounts into
+// #npcma_neopetsCustomisationContainer. Like the Closet and Faerie Festival
+// modules this is deliberately an in-place reskin, NOT a rebuild: dressing,
+// the closet/applied lists, filters, saving and pet switching are all driven
+// by React state and talk to /amfphp/ endpoints, so replacing the DOM would
+// mean re-implementing (and risking) all of it. Instead this module:
+//
+//   1. Claims the page (own topbar, so Sitewide Chrome's aggressive recoloring
+//      fallback never touches the React tree) and hides the native chrome.
+//   2. Re-themes every class in the published npcma58.css onto NeoUI tokens:
+//      item grid, pet slider, search, filter sheet, item-info card, confirm
+//      dialogs, help card, toast, range sliders, switch, tab pills.
+//   3. Fixes the things that make the native mobile layout feel rough:
+//        - The native layout assumes the page itself never scrolls (popups
+//          are position:absolute inside the container, inner lists have fixed
+//          heights/overflow). Popups, the loader and the full-screen sheet are
+//          now position:fixed so they are always on screen.
+//        - The pet preview scrolled away while you browsed items. It is now
+//          pinned (position:sticky) at the top, with the item list scrolling
+//          underneath. Toggle with the 📌 button; landscape phones get a
+//          side-by-side layout (preview left, items right).
+//        - Item tiles are fluid (no fixed 80px), remove-X targets are bigger,
+//          buttons/switch/icon circles reach ~40px tap size, and inputs are
+//          16px so Firefox Android does not zoom on focus.
+//   4. Because sticky needs every ancestor to be overflow:visible, a small
+//      observer finds the preview's ancestors at runtime and unclips them
+//      (class-based, so it is fully reversible) rather than guessing wrapper
+//      class names.
+//   5. Adds a 🐞 "Copy layout" button that copies an outline of the rendered
+//      React tree (tags, classes, sizes) to the clipboard, so if a selector
+//      here ever misses, the real DOM can be pasted back for a precise fix.
+//
+// Layout rules are scoped to max-width:900px; skin (color/shape) rules apply
+// at every width. All selectors carry :not(#nui-cz) to out-rank native
+// !important rules without escalating !important chains.
+//
+// Toggle id: 'customise'
+// ==============================================================================
+
+(function () {
+    'use strict';
+
+    if (!/^\/customise\/?(?:index\.phtml)?$/.test(location.pathname)) return;
+    if (!window.NeoUI || !window.NeoUI.__ready) return;
+    const NeoUI = window.NeoUI;
+    if (!NeoUI.isModuleEnabled('customise')) return;
+    if (document.getElementById('nui-page-topbar')) return; // already claimed
+
+    const PIN_KEY = 'neoui_customise_pin_v2';   // 'off' | 's' | 'm'
+    function getPin() {
+        try {
+            const v = localStorage.getItem(PIN_KEY);
+            return (v === 'off' || v === 'm' || v === 's') ? v : 's';
+        } catch (e) { return 's'; }
+    }
+    function setPin(mode) {
+        try { localStorage.setItem(PIN_KEY, mode); } catch (e) {}
+    }
+
+    function showFatalError(err) {
+        try {
+            const box = document.createElement('div');
+            box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fee2e2;color:#7f1d1d;font:14px monospace;padding:15px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-bottom:3px solid #dc2626;';
+            box.textContent = 'Customise Module crashed:\n' + (err && err.stack ? err.stack : String(err));
+            document.body.insertBefore(box, document.body.firstChild);
+        } catch (e2) {}
+    }
+
+    // ── CSS builder ─────────────────────────────────────────────────────────
+    // R(): skin rules (all widths). N(): layout rules (narrow only).
+    // LS(): short-landscape-phone rules. Each selector gets :not(#nui-cz)
+    // (id-level specificity) before any pseudo-element.
+    const skin = [], narrow = [], land = [];
+    function build(list, sels, decl, pseudo) {
+        list.push(sels.split(',').map(function (s) {
+            return s.trim() + ':not(#nui-cz)' + (pseudo || '');
+        }).join(',') + '{' + decl + '}');
+    }
+    function R(sels, decl, pseudo) { build(skin, sels, decl, pseudo); }
+    function N(sels, decl, pseudo) { build(narrow, sels, decl, pseudo); }
+    function LS(sels, decl, pseudo) { build(land, sels, decl, pseudo); }
+
+    const ACCENT_BTN = 'background:var(--nui-accent) !important;background-image:none !important;color:var(--nui-accent-ink,#fff) !important;border:none !important;box-shadow:0 2px 8px var(--nui-shadow) !important;';
+    const SOFT_BTN = 'background:var(--nui-surface-2) !important;background-image:none !important;color:var(--nui-text) !important;border:1px solid var(--nui-border) !important;box-shadow:none !important;';
+    const CARD = 'background:var(--nui-surface) !important;background-image:none !important;border:1px solid var(--nui-border) !important;border-radius:var(--nui-radius-lg) !important;color:var(--nui-text) !important;box-shadow:0 12px 40px var(--nui-shadow) !important;';
+
+    // ---- Typography (icon glyphs keep their own !important NeoPets font) ----
+    R('.npcma-neopetsCustomisationMain,.npcma-neopetsCustomisationMain button,.npcma-neopetsCustomisationMain input,.npcma-neopetsCustomisationMain select,.npcma-neopetsCustomisationMain textarea',
+        'font-family:var(--nui-font-body) !important;');
+    R('.npcma-neopetsCustomisationMain',
+        'background:none !important;background-image:none !important;color:var(--nui-text);-webkit-tap-highlight-color:transparent;scrollbar-width:thin;scrollbar-color:var(--nui-accent) transparent;');
+    R('.npcma-neopetsCustomisationContainer', 'overscroll-behavior:auto !important;');
+    R('.npcma-neopetsCustomisationMain button,.npcma-icons,.npcma-filter_icon,.npcma-pet-content,.npcma-sort_btns,.npcma-switch,.slick-slide',
+        'touch-action:manipulation;');
+
+    // ---- Panels --------------------------------------------------------------
+    R('.npcma-customise-edit', 'background:none !important;background-image:none !important;box-shadow:none !important;');
+    R('.npcma-customise-edit .npcma-pet_section,.npcma-customise-edit .npcma-list_section',
+        'background:var(--nui-surface) !important;background-image:none !important;border:1px solid var(--nui-border);border-radius:var(--nui-radius-lg);');
+    R('.npcma-customise-edit .npcma_closet,.npcma-customise-edit .npcma-list_section .npcma_closet',
+        'color:var(--nui-text) !important;font-family:var(--nui-font-display,var(--nui-font-body)) !important;font-size:15px !important;font-weight:800;text-align:center;margin:4px 0 12px !important;');
+    R('.npcma-customise-edit .arial', 'font-family:var(--nui-font-body) !important;');
+
+    // ---- Pet preview ---------------------------------------------------------
+    R('.npcma-customise-edit #npcma_customMainContent',
+        'border:1px solid var(--nui-border) !important;border-radius:var(--nui-radius-lg) !important;box-shadow:0 4px 18px var(--nui-shadow) !important;left:0 !important;');
+    R('.npcma-customise-edit #npcma_customMainContent .npcma-icon-save-snap,.npcma-customise-pet-bottomicons .npcma-icons_section .npcma-save_icon', ACCENT_BTN);
+
+    // ---- Header row: search + icon buttons ----------------------------------
+    R('.npcma-ryt_head .header-search,.npcma-full_screen .header-search',
+        'background:var(--nui-surface-2) !important;background-image:none !important;border:1px solid var(--nui-border) !important;border-radius:var(--nui-radius-pill) !important;height:44px !important;');
+    R('.npcma-ryt_head .header-search', 'margin:0 !important;flex:1 1 140px !important;max-width:none !important;');
+    R('.npcma-ryt_head .header-search .header-input,.npcma-full_screen .header-search .header-input',
+        'color:var(--nui-text) !important;font-family:var(--nui-font-body) !important;font-size:16px !important;width:100% !important;padding-left:38px !important;');
+    R('.npcma-ryt_head .header-search .header-input,.npcma-full_screen .header-search .header-input', 'color:var(--nui-text-muted);opacity:1;', '::placeholder');
+    R('.npcma-ryt_head .header-search,.npcma-full_screen .header-search', 'background:var(--nui-text-muted) !important;', '::before');
+    R('.npcma-ryt_head .header-search .npcmpa-close-btn,.npcma-full_screen .header-search .npcmpa-close-btn', 'color:var(--nui-text-muted) !important;padding:0 14px 0 10px !important;');
+
+    R('.npcma-icons,.npcma-filter_icon,.npcma-icon-drop,.npcma-icon-drop_close,.npcma-done .npcma-icon-right,.npcma-done .npcma-icon-close,.npcma-ok_button span',
+        ACCENT_BTN + 'min-width:40px;min-height:40px;');
+    R('.npcma-ok_cancel_btns span,.npcma-bottom_icons span', SOFT_BTN);
+
+    // ---- Switch --------------------------------------------------------------
+    R('.npcma-switch .npcma-slider',
+        'background:var(--nui-surface-2) !important;background-image:none !important;border:2px solid var(--nui-border) !important;box-shadow:none !important;');
+    R('.npcma-switch input:checked + .npcma-slider,.npcma-switch .npcma-slider.checked',
+        'background:var(--nui-accent) !important;border-color:var(--nui-accent) !important;');
+    R('.npcma-customise-edit .npcma-round', 'background:var(--nui-accent) !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;', ':after');
+
+    // ---- Closet / Applied tab pills -----------------------------------------
+    R('.npcma-customise-edit .npcma-close-applied-btn',
+        'display:flex;gap:4px;background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-pill);padding:4px;margin-bottom:var(--nui-space-3);');
+    R('.npcma-customise-edit .npcma-close-applied-btn .npcma-close,.npcma-customise-edit .npcma-close-applied-btn .npcma-applied',
+        'background:transparent !important;color:var(--nui-text-muted) !important;border-radius:var(--nui-radius-pill) !important;min-height:40px;font-size:14px !important;font-weight:700;');
+    R('.npcma-customise-edit .npcma-close-applied-btn .npcma-active',
+        'background:var(--nui-accent) !important;color:var(--nui-accent-ink,#fff) !important;');
+
+    // ---- Item tiles ----------------------------------------------------------
+    R('.npcma-pet-items .npcma-pet-content,.npcma-AppliedpetItems .npcma-pet-content',
+        'background:var(--nui-surface-2);border:1px solid var(--nui-border);border-radius:var(--nui-radius-md);padding:6px 4px 4px;transition:transform var(--nui-dur-fast,120ms) var(--nui-ease,ease);');
+    R('.npcma-pet-items .npcma-pet-content:active,.npcma-AppliedpetItems .npcma-pet-content:active', 'transform:scale(.96);');
+    R('.npcma-pet-items img,.npcma-pet-items .image_block,.npcma-pet-content img,.npcma-pet-content .image_block',
+        'border-radius:10px !important;width:100% !important;max-width:96px;height:auto !important;aspect-ratio:1/1;object-fit:contain;background:#fff;');
+    R('.npcma-pet-items img:not(.nph-price-highlight),.npcma-pet-items .image_block:not(.nph-price-highlight),.npcma-pet-content img:not(.nph-price-highlight),.npcma-pet-content .image_block:not(.nph-price-highlight)',
+        'border:1px solid var(--nui-border) !important;border-image:none !important;box-shadow:none !important;');
+    R('.npcma-noItem-img img',
+        'width:88px !important;height:88px !important;border:none !important;border-radius:0 !important;background:none !important;aspect-ratio:auto !important;');
+    R('.npcma-noItem-img p', 'color:var(--nui-text-muted) !important;font-size:13px !important;');
+    R('.npcma-pet_name', 'color:var(--nui-text) !important;font-family:var(--nui-font-body) !important;font-size:11px !important;margin-top:4px;');
+    R('.npcma-pet_count', 'background:var(--nui-accent) !important;color:var(--nui-accent-ink,#fff) !important;font-size:10px !important;');
+    R('.npcma-pet-content .npcma-icon-hanger', 'background:var(--nui-surface) !important;border-color:var(--nui-accent) !important;');
+    R('.npcma-pet-content .npcma-icon-hanger', 'color:var(--nui-accent) !important;background:none !important;', ':before');
+    R('.npcma-pet-items .npcma-icon-close-fill,.npcma-pet-content .npcma-icon-close-fill',
+        'font-size:16px !important;padding:3px;top:-4px !important;right:-4px !important;background:var(--nui-danger,#E8392E) !important;color:#fff !important;');
+    R('.npcma-customise-edit .npcma-pet_footer', 'background:var(--nui-surface-2) !important;color:var(--nui-text);');
+    R('.npcma-customise-edit .npcma-pet_footer .npcma-title,.npcma-customise-edit .npcma-pet_footer .npcma_cont', 'color:var(--nui-text) !important;font-family:var(--nui-font-body) !important;');
+    R('.npcma-customise-edit .npcma-pet_footer button', ACCENT_BTN + 'min-height:36px;');
+
+    // ---- Pet slider ----------------------------------------------------------
+    R('.slick-slider .slick-slide img', 'background:var(--nui-surface) !important;border:2px solid var(--nui-border) !important;border-radius:12px !important;');
+    R('.active_pet', 'border:2px solid var(--nui-accent) !important;box-shadow:0 0 0 3px var(--nui-accent-soft) !important;border-radius:12px;');
+    R('.slick-slider button', 'background:var(--nui-accent) !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;', ':before');
+    R('.slick-slider .slick-prev,.slick-slider .slick-next', 'width:32px !important;height:48px !important;');
+    R('.slick-slider .slick-track .slick-slide:first-child .npcma-icon-add',
+        'background:var(--nui-accent-soft) !important;border:2px dashed var(--nui-accent) !important;border-radius:12px !important;');
+    R('.slick-slider .slick-track .slick-slide:first-child .npcma-icon-add', 'background:var(--nui-accent) !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;', ':before');
+    R('.npcma-addpets-list .npcma-image-conent .npcma-pet-item', 'border-color:var(--nui-border) !important;');
+
+    // ---- Overlays, sheets, popups ------------------------------------------
+    R('.npcma_fullscreen_overlay', 'background:rgba(0,0,0,.6) !important;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);');
+    R('.npcma_fullscreen_overlay .npcma-full_screen',
+        'background:var(--nui-surface) !important;background-image:none !important;border:1px solid var(--nui-border);box-shadow:none !important;color:var(--nui-text);');
+    R('.npcma-filter_Content', CARD);
+    R('.npcma-closet .npcma-childContent_btn,.npcma-save .npcma-childContent_btn,.npcma-applied .npcma-childContent_btn,.npcma-SelectedItem_Content,.npcma-ConformClose_Item_Content .npcma-childContent_btn,.npcma-help .npcma-childContent_btn', CARD);
+    R('.npcma-childContent_btn p,.npcma-childContent_btn h3,.npcma-childContent_btn .npcma-head_text,.npcma-selected_text,.npcma-SelectedItem_Content .npcma-left_Section p,.npcma-SelectedItem_Content .npcma-left_Section p span,.npcma-Item_content p,.npcma-ConformClose_Item_section p,.npcma-filter_Content p,.npcma-filter_Content label',
+        'color:var(--nui-text) !important;font-family:var(--nui-font-body) !important;');
+    R('.npcma-childContent_btn h1', 'color:var(--nui-accent) !important;font-family:var(--nui-font-body) !important;font-weight:800;');
+    R('.npcma-childContent_btn button',
+        ACCENT_BTN + 'border-radius:var(--nui-radius-pill) !important;min-height:44px;height:auto !important;width:auto !important;min-width:110px;padding:0 20px !important;font-weight:700;');
+    R('.npcma-childContent_btn .npcma-icon', 'background:var(--nui-accent-soft) !important;');
+    R('.npcma-childContent_btn .npcma-icon span', 'background:var(--nui-accent) !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;');
+    R('.tooltip-inner', CARD + 'padding:10px 14px !important;');
+
+    // ---- Filter sheet --------------------------------------------------------
+    R('.npcma-filter_Content .npcma-select_box',
+        SOFT_BTN + 'font-size:14px !important;height:46px !important;');
+    R('.npcma-filter_Content .npcma-down_arrow,.npcma-filter_Content .custom_check.npcma-select_box', 'color:var(--nui-text-muted) !important;', ':after');
+    R('.npcma-filter_Content .custom_Select .custom_Select_dropdown',
+        'background:var(--nui-surface) !important;border:1px solid var(--nui-border) !important;box-shadow:0 8px 24px var(--nui-shadow) !important;');
+    R('.npcma-filter_Content .custom_Select .custom_Select_dropdown ul li', 'border-bottom:1px solid var(--nui-border) !important;padding:12px 0 !important;');
+    R('.npcma-filter_Content .custom_Select .custom_Select_dropdown ul li:hover,.npcma-filter_Content .custom_Select .custom_Select_dropdown ul li:active', 'background:var(--nui-accent-soft) !important;background-image:none !important;');
+    R('.npcma-filter_Content .custom_Select .custom_Select_dropdown ul li label', 'color:var(--nui-text) !important;font-size:14px !important;');
+    R('.npcma-filter_Content .npncbtns',
+        SOFT_BTN + 'border-radius:var(--nui-radius-pill) !important;min-height:40px;font-weight:700;');
+    R('.npcma-filter_Content .npncbtns.active,.npcma-filter_Content .active',
+        'background:var(--nui-accent) !important;color:var(--nui-accent-ink,#fff) !important;border:1px solid var(--nui-accent) !important;');
+    R('.npcma-sort_parent .npcma-sort_btns',
+        'background:var(--nui-accent-soft) !important;background-image:none !important;color:var(--nui-accent) !important;height:auto !important;max-height:none !important;padding:6px 12px !important;font-family:var(--nui-font-body) !important;font-weight:700;');
+    R('.input-range__slider', 'background:var(--nui-accent) !important;width:1.4rem;height:1.4rem;margin-top:-.85rem;margin-left:-.7rem;');
+    R('.input-range__track', 'background:var(--nui-border) !important;');
+    R('.input-range__track--active', 'background:var(--nui-accent) !important;');
+    R('.input-range__label-container', 'color:var(--nui-accent) !important;');
+
+    // ---- Toast + loader ------------------------------------------------------
+    R('.npcmpa_toastr',
+        'position:fixed !important;left:50% !important;right:auto !important;bottom:calc(16px + env(safe-area-inset-bottom,0px)) !important;transform:translateX(-50%);width:min(92%,420px) !important;background:var(--nui-surface-2) !important;color:var(--nui-text) !important;border:1px solid var(--nui-border);border-radius:var(--nui-radius-md) !important;z-index:9500;font-family:var(--nui-font-body) !important;white-space:normal !important;padding:10px 14px !important;box-shadow:0 8px 24px var(--nui-shadow) !important;');
+    R('#npcma_loader,.npcma_overlay', 'position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;width:auto !important;height:auto !important;z-index:9999;');
+
+    // ====== NARROW LAYOUT (phones + small tablets) =========================
+    N('.npcma-neopetsCustomisationMain', 'max-width:980px;margin:0 auto !important;padding:var(--nui-space-2) var(--nui-space-2) calc(var(--nui-space-4) + env(safe-area-inset-bottom,0px)) !important;');
+    N('.npcma-customise-edit',
+        'display:flex !important;flex-direction:column !important;gap:var(--nui-space-3);padding:0 !important;margin:0 !important;width:auto !important;max-width:none !important;height:auto !important;min-height:0 !important;overflow:visible !important;');
+    N('.npcma-customise-edit .npcma-resizer', 'display:none !important;');
+    N('.npcma-customise-edit .npcma-pet_section',
+        'width:100% !important;max-width:none !important;height:auto !important;padding:var(--nui-space-2) !important;overflow:visible !important;');
+    N('.npcma-customise-edit .npcma-list_section',
+        'width:100% !important;max-width:none !important;padding:var(--nui-space-2) !important;overflow:visible !important;position:relative !important;');
+    N('.npcma-customise-edit .npcma-list_section .npcma-customise-items,.npcma-customise-edit .npcma-customise-items',
+        'position:relative !important;inset:auto !important;height:auto !important;max-height:none !important;overflow:visible !important;padding:0 0 var(--nui-space-4) !important;');
+    N('.npcma-customise-edit #npcma_customMainContent',
+        'width:100% !important;max-width:480px !important;min-width:0 !important;min-height:0 !important;max-height:none !important;margin:4px auto 8px !important;');
+    N('.npcma-pet-items,.npcma-AppliedpetItems',
+        'display:grid !important;grid-template-columns:repeat(auto-fill,minmax(76px,1fr)) !important;gap:8px !important;padding:2px !important;min-height:120px !important;max-height:none !important;overflow:visible !important;height:auto !important;margin:0 !important;');
+    N('.npcma-pet-items.no-items', 'display:flex !important;');
+    N('.npcma-pet-items .npcma-pet-content,.npcma-AppliedpetItems .npcma-pet-content',
+        'width:auto !important;height:auto !important;float:none !important;margin:0 !important;');
+    N('.npcma-pet-items .ddcontainer:last-child,.npcma-AppliedpetItems .npcma-pet-content:last-child', 'padding-bottom:6px !important;');
+    N('.npcma-customise-edit .npcma-customise-items #npcma_AppliedpetItems', 'height:auto !important;');
+    N('.npcma-ryt_head', 'gap:8px;padding-bottom:var(--nui-space-2);');
+
+    // Full-screen closet sheet: fixed under the topbar, sheet itself scrolls.
+    N('.npcma_fullscreen_overlay',
+        'position:fixed !important;top:var(--nui-topbar-h) !important;left:0 !important;right:0 !important;bottom:0 !important;width:auto !important;height:auto !important;z-index:900;padding:8px 0 !important;');
+    N('.npcma_fullscreen_overlay .npcma-full_screen',
+        'width:96% !important;height:100% !important;margin:0 auto !important;overflow-y:auto !important;');
+    N('.npcma-full_screen .npcma-pet-items',
+        'position:static !important;max-height:none !important;overflow:visible !important;padding:8px 10px 24px !important;margin:0 !important;width:auto !important;');
+
+    // Filter sheet: fixed so it is on screen wherever the page is scrolled.
+    N('.npcma-filter_Content',
+        'position:fixed !important;top:calc(var(--nui-topbar-h) + 8px) !important;left:12px !important;right:12px !important;width:auto !important;max-height:calc(100vh - var(--nui-topbar-h) - 24px) !important;max-height:calc(100dvh - var(--nui-topbar-h) - 24px) !important;margin:0 !important;z-index:9100;animation:nui-cz-pop .18s ease-out !important;');
+
+    // Pinned preview (sticky). JS marks the pet column as .nui-cz-pin and
+    // un-clips its ancestors with .nui-cz-unclip.
+    N('.nui-cz-unclip', 'overflow:visible !important;');
+    // NPH's scan badges / price-highlight glow use high z-indexes. Isolating the
+    // grids confines those to the grid's own stacking context, so the sticky
+    // pinned preview (z-index 30) always paints above them.
+    N('.npcma-pet-items,.npcma-AppliedpetItems', 'isolation:isolate;');
+
+    // ====== SHORT LANDSCAPE (phone on its side): preview left, items right ==
+    LS('.npcma-customise-edit', 'flex-direction:row !important;align-items:flex-start !important;');
+    LS('.npcma-customise-edit .nui-cz-pin', 'flex:0 0 42% !important;width:42% !important;position:sticky !important;top:calc(var(--nui-topbar-h) + 4px) !important;');
+    LS('.npcma-customise-edit .nui-cz-pin #npcma_customMainContent',
+        'width:min(100%,calc(100vh - var(--nui-topbar-h) - 24px)) !important;width:min(100%,calc(100dvh - var(--nui-topbar-h) - 24px)) !important;');
+    LS('.npcma-customise-edit .npcma-list_section', 'flex:1 1 0 !important;min-width:0 !important;width:auto !important;');
+
+    const CHROME_SELECTORS = [
+        '#header', '#footer', '.footerlinks', '#ban', '#ad', '.ad-container', '.ad-banner', '.ads-banner',
+        '.premium-toolbar', '.nav-premium-container', '#premium_bar', '.sswdrop',
+        '#nav5', '.nav5', '#h5-navigation', '.h5-navigation',
+        '#navtop__2020', '.nav-top__2020', '#navbottom__2020', '.nav-bottom__2020',
+        '.navsub-left__2020', '.navsub-right__2020', '#navsub-buffer__2020',
+        '#navprofiledropdown__2020', '#navnewsdropdown__2020',
+        '#leaveBetaPopup__2020', '.footer__2020',
+        '#globalHeader', '.global-header', '#topnav', '.top-nav',
+        'td.sidebar', '.sidebarHeader', 'td.user', 'table.table1',
+        '#cookie-bar', '.cookie-consent',
+    ];
+
+    function buildCSS() {
+        return [
+            CHROME_SELECTORS.map(function (s) { return s + '{display:none !important;}'; }).join('\n'),
+            'html,body{background:var(--nui-bg) !important;}',
+            'body{padding-top:var(--nui-topbar-h) !important;margin:0 !important;overflow-x:hidden !important;}',
+            '#container__2020{background:none !important;padding:0 !important;min-height:0 !important;overflow:visible !important;}',
+            '@keyframes nui-cz-pop{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}',
+            '@media (prefers-reduced-motion:reduce){.npcma-filter_Content:not(#nui-cz){animation:none !important;}}',
+            skin.join('\n'),
+            '@media (max-width:900px){\n' + narrow.join('\n') + '\n}',
+            '@media (max-width:900px) and (orientation:landscape) and (max-height:520px){\n' + land.join('\n') + '\n}',
+            // our own toolbar strip
+            '.nui-cz-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 var(--nui-space-2);}',
+            '.nui-cz-title{font-weight:800;font-size:15px;color:var(--nui-text);}',
+            '.nui-cz-bar-actions{display:flex;gap:6px;}',
+        ].join('\n');
+    }
+
+    // ── Runtime helpers ─────────────────────────────────────────────────────
+    function findPinTarget() {
+        const prev = document.getElementById('npcma_customMainContent');
+        if (!prev) return null;
+        const edit = prev.closest('.npcma-customise-edit');
+        let el = prev;
+        if (edit) { while (el.parentElement && el.parentElement !== edit) el = el.parentElement; }
+        return el;
+    }
+
+    function pinCSS(mode) {
+        if (mode === 'off') return '';
+        const size = mode === 'm' ? '40' : '24';
+        return '@media (max-width:900px){' +
+            '.nui-cz-pin:not(#nui-cz){position:sticky !important;top:var(--nui-topbar-h) !important;z-index:30 !important;' +
+                'background:var(--nui-bg) !important;padding:6px 0 4px !important;border-bottom:1px solid var(--nui-border);box-shadow:0 6px 14px -8px var(--nui-shadow);}' +
+            '.nui-cz-pin:not(#nui-cz) #npcma_customMainContent{width:min(100%,max(130px,' + size + 'vh)) !important;width:min(100%,max(130px,' + size + 'dvh)) !important;margin:0 auto !important;}' +
+            '.nui-cz-pin:not(#nui-cz) .npcma_closet{display:none !important;}' +
+            '}';
+    }
+
+    function applyPin() {
+        let ps = document.getElementById('nui-customise-pin-style');
+        if (!ps) { ps = document.createElement('style'); ps.id = 'nui-customise-pin-style'; document.head.appendChild(ps); }
+        const css = pinCSS(getPin());
+        if (ps.textContent !== css) ps.textContent = css;
+        const target = findPinTarget();
+        Array.prototype.forEach.call(document.querySelectorAll('.nui-cz-pin'), function (el) {
+            if (el !== target) el.classList.remove('nui-cz-pin');
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('.nui-cz-unclip'), function (el) {
+            el.classList.remove('nui-cz-unclip');
+        });
+        if (!target) return;
+        target.classList.add('nui-cz-pin');
+        // sticky only works if no ancestor is a scroll/clip container
+        let p = target.parentElement;
+        while (p && p !== document.body && p !== document.documentElement) {
+            const cs = getComputedStyle(p);
+            if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') p.classList.add('nui-cz-unclip');
+            p = p.parentElement;
+        }
+    }
+
+    function outline(root) {
+        const lines = [];
+        lines.push('viewport ' + window.innerWidth + 'x' + window.innerHeight + ' dpr ' + window.devicePixelRatio + ' html.class="' + document.documentElement.className + '"');
+        function walk(el, depth) {
+            if (lines.length > 500 || depth > 10) return;
+            const cs = getComputedStyle(el);
+            const r = el.getBoundingClientRect();
+            const cls = (typeof el.className === 'string' && el.className.trim()) ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+            const extra = [];
+            if (cs.position !== 'static') extra.push(cs.position);
+            if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') extra.push('ovf:' + cs.overflowX + '/' + cs.overflowY);
+            if (cs.display === 'none') extra.push('hidden');
+            lines.push(new Array(depth + 1).join('  ') + el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + cls +
+                ' [' + Math.round(r.width) + 'x' + Math.round(r.height) + ']' + (extra.length ? ' {' + extra.join(',') + '}' : ''));
+            Array.prototype.forEach.call(el.children, function (c) { walk(c, depth + 1); });
+        }
+        walk(root, 0);
+        return lines.join('\n');
+    }
+
+    function copyText(text, done) {
+        function fallback() {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+                document.body.appendChild(ta); ta.focus(); ta.select();
+                const ok = document.execCommand('copy');
+                ta.remove(); done(ok);
+            } catch (e) { done(false); }
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+        } else { fallback(); }
+    }
+
+    function mountBar(main) {
+        if (document.getElementById('nui-cz-bar')) return;
+        const bar = document.createElement('div');
+        bar.id = 'nui-cz-bar';
+        bar.className = 'nui-cz-bar';
+        bar.innerHTML =
+            '<span class="nui-cz-title">🎨 Customise</span>' +
+            '<span class="nui-cz-bar-actions">' +
+                '<button type="button" id="nui-cz-pin-btn" class="nui-btn nui-btn-secondary nui-btn-sm"></button>' +
+                '<button type="button" id="nui-cz-dump-btn" class="nui-btn nui-btn-secondary nui-btn-sm" title="Copy layout outline (for debugging)">🐞</button>' +
+            '</span>';
+        main.insertBefore(bar, main.firstChild);
+
+        const pinBtn = bar.querySelector('#nui-cz-pin-btn');
+        const LABEL = { s: '📌 Small', m: '📌 Large', off: '📌 Off' };
+        function paintPin() { pinBtn.textContent = LABEL[getPin()]; }
+        paintPin();
+        pinBtn.addEventListener('click', function () {
+            const next = { s: 'm', m: 'off', off: 's' }[getPin()];
+            setPin(next); paintPin(); applyPin();
+        });
+
+        const dumpBtn = bar.querySelector('#nui-cz-dump-btn');
+        dumpBtn.addEventListener('click', function () {
+            const root = document.getElementById('npcma_neopetsCustomisationContainer') || main;
+            copyText(outline(root), function (ok) {
+                dumpBtn.textContent = ok ? '✅' : '⚠️';
+                setTimeout(function () { dumpBtn.textContent = '🐞'; }, 2000);
+            });
+        });
+    }
+
+    function run() {
+        NeoUI.init();
+        const profile = NeoUI.scrapeLegacyProfile();
+        NeoUI.resetDrawer();
+        NeoUI.buildTopbar({ stats: { np: profile.np, nc: profile.nc }, hasNotification: profile.hasNotification });
+        NeoUI.setProfileInfo(profile);
+        document.title = 'Customise | NeoUI';
+
+        const style = document.createElement('style');
+        style.id = 'nui-customise-style';
+        style.textContent = buildCSS();
+        document.head.appendChild(style);
+
+        // Toolbar strip lives beside (not inside) React's mount node.
+        let tries = 0;
+        (function waitMain() {
+            const main = document.querySelector('.npcma-neopetsCustomisationMain');
+            if (main) { mountBar(main); return; }
+            if (++tries < 40) setTimeout(waitMain, 250);
+        })();
+
+        // React mounts/re-renders asynchronously; re-apply the pin whenever
+        // the tree changes (cheap, rAF-debounced).
+        let queued = false;
+        function schedule() {
+            if (queued) return;
+            queued = true;
+            requestAnimationFrame(function () { queued = false; applyPin(); });
+        }
+        function observe() {
+            const mount = document.getElementById('npcma_neopetsCustomisationContainer');
+            if (!mount) { setTimeout(observe, 250); return; }
+            new MutationObserver(schedule).observe(mount, { childList: true, subtree: true });
+            schedule();
+        }
+        observe();
+        window.addEventListener('resize', schedule);
+        window.addEventListener('orientationchange', schedule);
     }
 
     try { run(); } catch (err) { showFatalError(err); }
